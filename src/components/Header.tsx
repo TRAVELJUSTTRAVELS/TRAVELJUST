@@ -176,7 +176,7 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 type="button"
                 onClick={onOpenPartnerDrawer}
-                className="hidden lg:inline-flex items-center gap-1.5 px-3 py-2 text-xs font-extrabold text-emerald-950 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300/80 rounded-xl transition-all shadow-2xs hover:scale-[1.02] cursor-pointer"
+                className="hidden"
                 title="Attach Your Cab / Drive With Us in Karnataka"
               >
                 <Car className="w-3.5 h-3.5 text-emerald-700" />
