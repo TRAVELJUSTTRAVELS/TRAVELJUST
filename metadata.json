@@ -1,0 +1,8 @@
+{
+  "name": "TRAVEL JUST",
+  "description": "Travel agency & taxi booking service in Mysore. One way taxi, round trip cabs, airport transfer to Bengaluru KIAL Airport, Coorg, Ooty & Wayanad.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
