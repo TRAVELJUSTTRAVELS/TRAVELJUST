@@ -1,3 +1,0 @@
-# Netlify Redirects for SPA and API Functions
-/api/*    /.netlify/functions/api/:splat    200
-/*        /index.html                       200

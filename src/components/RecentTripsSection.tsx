@@ -80,7 +80,7 @@ export const RecentTripsSection: React.FC<RecentTripsSectionProps> = ({
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
-  const [dataSource, setDataSource] = useState<'supabase' | 'local'>('supabase');
+  const [dataSource, setDataSource] = useState<'supabase' | 'local'>('local');
   const [searchTerm, setSearchTerm] = useState('');
   const [serviceTypeFilter, setServiceTypeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'Pending Confirmation' | 'Confirmed' | 'Driver Assigned' | 'Completed'>('all');
@@ -499,7 +499,7 @@ export const RecentTripsSection: React.FC<RecentTripsSectionProps> = ({
           <div className="bg-slate-900/95 text-white px-4 py-3 rounded-2xl shadow-2xl border border-emerald-500/40 flex items-center gap-3 backdrop-blur-md">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
             <div className="text-xs">
-              <span className="font-bold text-emerald-300 block">Supabase Realtime Sync:</span>
+              <span className="font-bold text-emerald-300 block">Live Dispatch Sync:</span>
               <span className="text-slate-200">{realtimeNotification}</span>
             </div>
           </div>
@@ -534,7 +534,7 @@ export const RecentTripsSection: React.FC<RecentTripsSectionProps> = ({
             onClick={() => fetchTrips(true)}
             disabled={refreshing || loading}
             className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 hover:border-emerald-500 text-slate-700 hover:text-emerald-900 font-bold text-xs flex items-center gap-2 shadow-2xs transition-all active:scale-95 disabled:opacity-50"
-            title="Fetch latest trips from Supabase"
+            title="Fetch latest trips"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${refreshing || loading ? 'animate-spin text-emerald-700' : 'text-slate-500'}`} />
             <span>{refreshing ? 'Fetching...' : 'Refresh Trips'}</span>
@@ -1039,7 +1039,7 @@ export const RecentTripsSection: React.FC<RecentTripsSectionProps> = ({
                 </div>
                 <div>
                   <h3 className="font-extrabold text-base text-slate-900">
-                    Booking Details & Supabase Record
+                    Booking Details & Dispatch Record
                   </h3>
                   <span className="text-xs font-mono text-emerald-800 font-bold">
                     #{selectedTripDetails.reference_id}
@@ -1229,7 +1229,7 @@ export const RecentTripsSection: React.FC<RecentTripsSectionProps> = ({
 
               {/* Created Timestamp */}
               <div className="text-[11px] text-slate-400 text-center pt-1">
-                Recorded in Supabase: {formatDateTime(selectedTripDetails.created_at)}
+                Recorded at: {formatDateTime(selectedTripDetails.created_at)}
               </div>
             </div>
 

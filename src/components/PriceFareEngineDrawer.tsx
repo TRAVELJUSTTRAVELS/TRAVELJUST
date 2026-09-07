@@ -25,16 +25,13 @@ import {
   RefreshCw,
   FileCheck,
   Building,
-  Smartphone,
-  Send,
 } from 'lucide-react';
-import { PricingConfig, VehiclePricingConfig, CustomerLoginNotification, DriverPartnerApplication, SmsDispatchRecord, SmsGatewayConfig } from '../types';
+import { PricingConfig, VehiclePricingConfig, CustomerLoginNotification, DriverPartnerApplication } from '../types';
 import { vehiclesData } from '../data/vehicles';
 import { defaultPricingConfig, siteConfig } from '../config/siteConfig';
 import { ROUND_TRIP_TIERS } from '../utils/fareCalculator';
 import { getOwnerLoginNotifications, openWhatsAppChat } from '../utils/whatsapp';
 import { getPartnerApplications, updatePartnerApplicationStatus, formatPartnerWhatsAppMessage } from '../services/driverPartnerService';
-import { getLocalSmsDispatches, fetchSmsGatewayStatus, sendTestSms } from '../services/smsService';
 
 interface PriceFareEngineDrawerProps {
   isOpen: boolean;
@@ -49,33 +46,16 @@ export const PriceFareEngineDrawer: React.FC<PriceFareEngineDrawerProps> = ({
   pricingConfig,
   onUpdatePricing,
 }) => {
-  const [activeTab, setActiveTab] = useState<'vehicles' | 'matrix' | 'multiday' | 'simulator' | 'logins' | 'partners' | 'sms'>('vehicles');
+  const [activeTab, setActiveTab] = useState<'vehicles' | 'matrix' | 'multiday' | 'simulator' | 'logins' | 'partners'>('vehicles');
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>(vehiclesData[0].id);
   const [copiedNotification, setCopiedNotification] = useState<string | null>(null);
   const [loginAlerts, setLoginAlerts] = useState<CustomerLoginNotification[]>([]);
   const [partnerApps, setPartnerApps] = useState<DriverPartnerApplication[]>([]);
-  const [smsDispatches, setSmsDispatches] = useState<SmsDispatchRecord[]>([]);
-  const [smsGatewayInfo, setSmsGatewayInfo] = useState<SmsGatewayConfig | null>(null);
-  const [testMobileNumber, setTestMobileNumber] = useState<string>('');
-  const [testCustomMessage, setTestCustomMessage] = useState<string>('');
-  const [isSendingTestSms, setIsSendingTestSms] = useState<boolean>(false);
-  const [testSmsFeedback, setTestSmsFeedback] = useState<{ success: boolean; message: string } | null>(null);
-
-  const refreshSmsData = async () => {
-    setSmsDispatches(getLocalSmsDispatches());
-    try {
-      const config = await fetchSmsGatewayStatus();
-      setSmsGatewayInfo(config);
-    } catch {
-      // ignore
-    }
-  };
 
   useEffect(() => {
     if (isOpen) {
       setLoginAlerts(getOwnerLoginNotifications());
       setPartnerApps(getPartnerApplications());
-      refreshSmsData();
     }
   }, [isOpen, activeTab]);
 
@@ -85,38 +65,6 @@ export const PriceFareEngineDrawer: React.FC<PriceFareEngineDrawerProps> = ({
 
   const refreshPartnerApps = () => {
     setPartnerApps(getPartnerApplications());
-  };
-
-  const handleSendTestSms = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!testMobileNumber.trim()) return;
-    setIsSendingTestSms(true);
-    setTestSmsFeedback(null);
-    try {
-      const res = await sendTestSms(
-        testMobileNumber.trim(),
-        testCustomMessage.trim() || undefined
-      );
-      if (res.success) {
-        setTestSmsFeedback({
-          success: true,
-          message: `SMS dispatched successfully! Status: ${res.status.toUpperCase()} (${res.provider}).`,
-        });
-        refreshSmsData();
-      } else {
-        setTestSmsFeedback({
-          success: false,
-          message: res.error || 'Failed to dispatch test SMS.',
-        });
-      }
-    } catch (err: any) {
-      setTestSmsFeedback({
-        success: false,
-        message: err?.message || 'Network error sending test SMS.',
-      });
-    } finally {
-      setIsSendingTestSms(false);
-    }
   };
 
   const handlePartnerStatusChange = (id: string, status: DriverPartnerApplication['status']) => {
@@ -402,25 +350,6 @@ export const PriceFareEngineDrawer: React.FC<PriceFareEngineDrawerProps> = ({
               {partnerApps.length > 0 && (
                 <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-amber-400 text-slate-950">
                   {partnerApps.length}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab('sms');
-                refreshSmsData();
-              }}
-              className={`pb-3 px-2.5 text-xs sm:text-sm font-bold flex items-center gap-1.5 border-b-2 transition-all whitespace-nowrap relative ${
-                activeTab === 'sms'
-                  ? 'border-emerald-400 text-emerald-300'
-                  : 'border-transparent text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Smartphone className="w-4 h-4 text-sky-400" />
-              <span>SMS Gateway</span>
-              {smsDispatches.length > 0 && (
-                <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-sky-400 text-slate-950">
-                  {smsDispatches.length}
                 </span>
               )}
             </button>
@@ -1794,199 +1723,6 @@ export const PriceFareEngineDrawer: React.FC<PriceFareEngineDrawerProps> = ({
                             <MessageSquare className="w-3.5 h-3.5" />
                             <span>WhatsApp Driver</span>
                           </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Tab 7: SMS Gateway & Dispatches */}
-          {activeTab === 'sms' && (
-            <div className="space-y-6 animate-in fade-in">
-              {/* Status Header */}
-              <div className="p-5 bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl shadow-sm border border-slate-700 space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-sky-500/20 border border-sky-400/30 flex items-center justify-center text-sky-400">
-                      <Smartphone className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-extrabold text-base text-white">Automated SMS Gateway</h4>
-                        <span className={`px-2 py-0.5 rounded-full font-extrabold text-[10px] uppercase tracking-wider ${
-                          smsGatewayInfo?.isLive ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-sky-500/20 text-sky-300 border border-sky-500/40'
-                        }`}>
-                          {smsGatewayInfo?.provider || 'SIMULATED'}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-300 mt-0.5">
-                        Automatic trip confirmation delivery to customer mobile phones on booking
-                      </p>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={refreshSmsData}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold border border-slate-700 transition-colors"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5 text-sky-400" />
-                    <span>Refresh</span>
-                  </button>
-                </div>
-
-                {/* Gateway Details Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-xs border-t border-slate-700/80">
-                  <div className="p-2.5 bg-slate-800/60 rounded-xl">
-                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Provider</span>
-                    <span className="font-bold text-white uppercase text-sm mt-0.5 block">
-                      {smsGatewayInfo?.provider || 'SIMULATED'}
-                    </span>
-                  </div>
-                  <div className="p-2.5 bg-slate-800/60 rounded-xl">
-                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Sender ID</span>
-                    <span className="font-mono font-bold text-sky-400 text-sm mt-0.5 block">
-                      {smsGatewayInfo?.senderId || 'TRVJST'}
-                    </span>
-                  </div>
-                  <div className="p-2.5 bg-slate-800/60 rounded-xl">
-                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Mode</span>
-                    <span className="font-bold text-slate-200 text-sm mt-0.5 block">
-                      {smsGatewayInfo?.isLive ? 'Production Live' : 'Dev / Simulated'}
-                    </span>
-                  </div>
-                  <div className="p-2.5 bg-slate-800/60 rounded-xl">
-                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Dispatches</span>
-                    <span className="font-bold text-emerald-400 text-sm mt-0.5 block">
-                      {smsDispatches.length} Total
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Quick Test Console */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Send className="w-4 h-4 text-sky-700" />
-                    <h5 className="font-extrabold text-slate-900 text-sm">Send Test Confirmation SMS</h5>
-                  </div>
-                  <span className="text-[10px] text-slate-500 font-medium">
-                    Test live gateway or simulated dispatch
-                  </span>
-                </div>
-
-                <form onSubmit={handleSendTestSms} className="space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-bold text-slate-700 block mb-1">
-                        Recipient Mobile Number <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="tel"
-                        required
-                        placeholder="+91 97407 54400 or 10 digits"
-                        value={testMobileNumber}
-                        onChange={(e) => setTestMobileNumber(e.target.value)}
-                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:border-sky-600 focus:ring-1 focus:ring-sky-600 font-medium"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold text-slate-700 block mb-1">
-                        Optional Custom Message
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Leave blank for default trip confirmation format"
-                        value={testCustomMessage}
-                        onChange={(e) => setTestCustomMessage(e.target.value)}
-                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:border-sky-600 focus:ring-1 focus:ring-sky-600"
-                      />
-                    </div>
-                  </div>
-
-                  {testSmsFeedback && (
-                    <div className={`p-2.5 rounded-xl text-xs font-medium border flex items-center gap-2 ${
-                      testSmsFeedback.success ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-red-50 text-red-800 border-red-200'
-                    }`}>
-                      <Check className="w-4 h-4 shrink-0" />
-                      <span>{testSmsFeedback.message}</span>
-                    </div>
-                  )}
-
-                  <div className="flex justify-end pt-1">
-                    <button
-                      type="submit"
-                      disabled={isSendingTestSms || !testMobileNumber.trim()}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-sky-700 hover:bg-sky-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs disabled:opacity-50 cursor-pointer"
-                    >
-                      <Smartphone className={`w-3.5 h-3.5 ${isSendingTestSms ? 'animate-pulse' : ''}`} />
-                      <span>{isSendingTestSms ? 'Dispatching...' : 'Dispatch Test SMS'}</span>
-                    </button>
-                  </div>
-                </form>
-              </div>
-
-              {/* Dispatched SMS History */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h5 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-                    <span>Recent Dispatched SMS History</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-sky-100 text-sky-800">
-                      {smsDispatches.length}
-                    </span>
-                  </h5>
-                  <span className="text-xs text-slate-500">Stored locally in browser & server memory</span>
-                </div>
-
-                {smsDispatches.length === 0 ? (
-                  <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-500 text-xs">
-                    <Smartphone className="w-8 h-8 mx-auto text-slate-300 mb-2" />
-                    <p className="font-semibold">No SMS confirmations dispatched yet</p>
-                    <p className="mt-1 text-slate-400">Complete a trip booking or use the test console above to trigger automated SMS dispatch.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {smsDispatches.map((record) => (
-                      <div key={record.id} className="p-4 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-2.5">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono font-extrabold text-xs text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">
-                              {record.bookingRef}
-                            </span>
-                            <span className="text-xs font-bold text-slate-800">
-                              {record.recipientName}
-                            </span>
-                            <span className="text-xs font-medium text-slate-500">
-                              ({record.recipientPhone})
-                            </span>
-                          </div>
-
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] uppercase font-bold text-slate-400">
-                              {record.provider}
-                            </span>
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              record.status === 'sent'
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : 'bg-sky-100 text-sky-800'
-                            }`}>
-                              {record.status === 'sent' ? '✓ Dispatched' : '✓ Simulated'}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Message Preview */}
-                        <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 font-mono whitespace-pre-wrap leading-relaxed">
-                          {record.messageText}
-                        </div>
-
-                        <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
-                          <span>Length: {record.characterCount} chars ({record.partsCount} SMS part)</span>
-                          <span>{new Date(record.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</span>
                         </div>
                       </div>
                     ))}

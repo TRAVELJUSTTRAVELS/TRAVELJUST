@@ -1,20 +1,5 @@
 import express, { Router } from "express";
 import { GoogleGenAI } from "@google/genai";
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { dispatchSms, getSmsGatewayConfig, serverSmsBuffer } from "./smsGateway";
-
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || "";
-
-const isSupabaseConfigured = Boolean(
-  SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_URL.trim() !== "" && SUPABASE_ANON_KEY.trim() !== ""
-);
-
-const supabase: SupabaseClient | null = isSupabaseConfigured
-  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-  : null;
-
-
 
 // In-memory cache & circuit breakers for Google Maps Platform APIs
 const routeCache = new Map<string, { data: any; timestamp: number }>();
@@ -31,6 +16,15 @@ const serverLoginNotificationsBuffer: any[] = [];
 export function createApiRouter(): Router {
   const router = Router();
   router.use(express.json());
+
+  // Health check endpoint
+  router.get("/health", (req, res) => {
+    return res.json({
+      status: "ok",
+      service: "TRAVEL JUST API",
+      timestamp: new Date().toISOString(),
+    });
+  });
 
   // API route to record and process Customer Login WhatsApp Notification for Owner
   router.post("/notifications/customer-login", async (req, res) => {
@@ -86,40 +80,12 @@ export function createApiRouter(): Router {
   });
 
   // API route to get or check Supabase status
-  router.get("/supabase-status", async (req, res) => {
-    if (!supabase) {
-      return res.json({
-        success: false,
-        configured: false,
-        status: "Disconnected (Local Standby Mode)",
-      });
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from("bookings")
-        .select("count", { count: "exact", head: true });
-
-      res.json({
-        success: !error,
-        configured: true,
-        url: SUPABASE_URL,
-        tableReady: !error,
-        status: error
-          ? error.message?.includes("fetch failed")
-            ? "Local Standby Mode"
-            : error.message
-          : "Connected & Table Ready",
-      });
-    } catch (err: any) {
-      res.json({
-        success: false,
-        configured: true,
-        url: SUPABASE_URL,
-        tableReady: false,
-        status: "Local Standby Mode",
-      });
-    }
+  router.get("/supabase-status", (req, res) => {
+    return res.json({
+      success: false,
+      configured: false,
+      status: "Disabled (Local Storage & Server Registry Mode)",
+    });
   });
 
   // Google Maps Platform: Config & API Key status
@@ -400,27 +366,11 @@ export function createApiRouter(): Router {
   });
 
   // API route to get recent bookings
-  router.get("/bookings", async (req, res) => {
-    if (supabase) {
-      try {
-        const { data, error } = await supabase
-          .from("bookings")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(30);
-
-        if (!error && data && data.length > 0) {
-          return res.json({ success: true, source: "supabase", bookings: data });
-        }
-      } catch {
-        // Fallback quietly
-      }
-    }
-
+  router.get("/bookings", (req, res) => {
     return res.json({ success: true, source: "server_memory", bookings: serverBookingsBuffer });
   });
 
-  // API route to insert booking appointment into Supabase
+  // API route to insert booking appointment
   router.post("/bookings", async (req, res) => {
     try {
       const booking = req.body;
@@ -466,33 +416,11 @@ export function createApiRouter(): Router {
         if (serverBookingsBuffer.length > 50) serverBookingsBuffer.pop();
       }
 
-      // Safely attempt remote Supabase insertion if configured
-      let remoteSuccess = false;
-      let remoteData: any = null;
-      let remoteWarning: string | null = null;
-
-      if (supabase) {
-        try {
-          const { data, error } = await supabase.from("bookings").insert([rowData]).select();
-          if (!error && data) {
-            remoteSuccess = true;
-            remoteData = data;
-          } else if (error) {
-            remoteWarning = error.message;
-          }
-        } catch (err: any) {
-          remoteWarning = err?.message || "Remote connection skipped";
-        }
-      }
-
       return res.status(200).json({
         success: true,
-        savedToRemote: remoteSuccess,
-        data: remoteData || [rowData],
-        warning: remoteWarning || undefined,
-        message: remoteSuccess
-          ? "Booking stored into Supabase successfully"
-          : "Booking received & securely queued in dispatch registry",
+        savedToRemote: false,
+        data: [rowData],
+        message: "Booking received & securely queued in dispatch registry",
       });
     } catch (err: any) {
       return res.status(200).json({
@@ -566,7 +494,7 @@ Available Vehicles in Travel Just Mysuru Fleet:
 - INNOVA CRYSTA`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.7-flash",
+        model: "gemini-3.8-flash",
         contents: `Customer Query for Taxi Quote:
 User Message: "${prompt || 'Need instant fare quote for travel'}"
 Pickup City/Area: ${pickup || 'Mysuru'}
@@ -712,7 +640,7 @@ Always keep your tone welcoming, professional, and clear.`;
         : `Customer Question:\n"${userMessage}"`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.7-flash",
+        model: "gemini-3.8-flash",
         contents: promptContent,
         config: {
           systemInstruction,
@@ -752,80 +680,6 @@ Always keep your tone welcoming, professional, and clear.`;
           "Are tolls and driver allowance included?",
           "How do airport transfers work?",
         ]
-      });
-    }
-  });
-
-  // SMS Gateway: Configuration & provider status
-  router.get("/sms/status", (req, res) => {
-    try {
-      const config = getSmsGatewayConfig();
-      res.json(config);
-    } catch (err: any) {
-      res.status(500).json({ error: "Failed to fetch SMS gateway config", message: err?.message });
-    }
-  });
-
-  // SMS Gateway: Recent dispatch logs buffer
-  router.get("/sms/history", (req, res) => {
-    res.json({
-      success: true,
-      history: serverSmsBuffer.slice(0, 50),
-    });
-  });
-
-  // SMS Gateway: Automated Trip Confirmation endpoint
-  router.post("/sms/send-confirmation", async (req, res) => {
-    try {
-      const { bookingRef, recipientPhone, recipientName, messageText } = req.body;
-
-      if (!recipientPhone || !messageText) {
-        return res.status(400).json({
-          success: false,
-          error: "Recipient phone number and message text are required",
-        });
-      }
-
-      const result = await dispatchSms({
-        bookingRef: bookingRef || `TJ-${Math.floor(10000 + Math.random() * 90000)}`,
-        recipientPhone,
-        recipientName: recipientName || "Valued Customer",
-        messageText,
-      });
-
-      return res.json(result);
-    } catch (err: any) {
-      console.error("Error in /sms/send-confirmation endpoint:", err);
-      return res.status(500).json({
-        success: false,
-        error: "SMS dispatch internal error",
-        message: err?.message,
-      });
-    }
-  });
-
-  // SMS Gateway: Test SMS endpoint
-  router.post("/sms/test", async (req, res) => {
-    try {
-      const { recipientPhone, recipientName, messageText } = req.body;
-
-      if (!recipientPhone) {
-        return res.status(400).json({ success: false, error: "Recipient phone number is required" });
-      }
-
-      const result = await dispatchSms({
-        bookingRef: `TEST-${Date.now().toString().slice(-4)}`,
-        recipientPhone,
-        recipientName: recipientName || "Test User",
-        messageText: messageText || "TRAVEL JUST: SMS Gateway connection test successful.",
-      });
-
-      return res.json(result);
-    } catch (err: any) {
-      return res.status(500).json({
-        success: false,
-        error: "SMS test failed",
-        message: err?.message,
       });
     }
   });

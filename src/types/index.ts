@@ -249,5 +249,3 @@ export interface DriverPartnerApplication {
   createdAt: string;
   status: 'New Inquiry' | 'Under Review' | 'Verified' | 'Active Partner';
 }
-
-export * from './sms';

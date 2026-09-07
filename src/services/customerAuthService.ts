@@ -1,5 +1,4 @@
 import { CustomerUser, BookingRequest } from '../types';
-import { supabase } from './supabaseClient';
 import { notifyOwnerOnCustomerLogin } from '../utils/whatsapp';
 
 const CUSTOMER_STORAGE_KEY = 'tj_customer_user';
@@ -129,84 +128,86 @@ export async function getCustomerBookings(customerPhone: string): Promise<Bookin
     console.warn('Error reading local customer bookings:', e);
   }
 
-  // 2. Fetch from Supabase if online
+  // 2. Fetch from server API if online
   try {
-    if (supabase) {
-      const { data, error } = await supabase
-        .from('bookings')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(40);
-
-      if (!error && data && Array.isArray(data)) {
-        data.forEach((row: any) => {
-          const rowPhone = (row.mobile_number || '').replace(/\D/g, '').slice(-10);
+    const res = await fetch('/api/bookings');
+    if (res.ok) {
+      const json = await res.json();
+      const serverData = json.bookings;
+      if (Array.isArray(serverData)) {
+        serverData.forEach((row: any) => {
+          const rowPhone = (row.passengerDetails?.mobileNumber || row.mobile_number || '').replace(/\D/g, '').slice(-10);
           if (rowPhone === cleanPhone || (cleanPhone.length >= 8 && rowPhone.includes(cleanPhone))) {
-            const alreadyExists = results.some((r) => r.referenceId === row.reference_id);
+            const refId = row.referenceId || row.reference_id;
+            const alreadyExists = results.some((r) => r.referenceId === refId);
             if (!alreadyExists) {
-              const bookingItem: BookingRequest = {
-                referenceId: row.reference_id,
-                createdAt: row.created_at,
-                status: row.status || 'Pending Confirmation',
-                selectedVehicle: {
-                  id: row.vehicle_id || 'sedan_etios',
-                  name: row.vehicle_name || 'Toyota Etios / Dzire',
-                  category: row.vehicle_category || 'Sedan',
-                  seatingCapacity: row.passengers_count || 4,
-                  luggageCapacity: 3,
-                  description: 'Spacious AC ride',
-                  features: ['Clean AC', 'Verified Driver'],
-                  suitableServices: ['local', 'oneway', 'roundtrip', 'airport'],
-                  comfortLevel: 'Executive',
-                  basePriceFactor: 1.0,
-                },
-                passengerDetails: {
-                  fullName: row.full_name,
-                  mobileNumber: row.mobile_number,
-                  email: row.email,
-                  passengersCount: row.passengers_count || 2,
-                  specialInstructions: row.special_instructions || '',
-                },
-                searchDetails: row.search_details || {
-                  serviceType: row.service_type || 'oneway',
-                  pickupLocation: row.pickup_location,
-                  dropLocation: row.drop_location || '',
-                  travelDate: row.travel_date,
-                  pickupTime: row.pickup_time || '09:00',
-                  returnDate: row.return_date,
-                  durationHours: row.duration_hours || 8,
-                  airportTransferType: row.airport_transfer_type || 'pickup',
-                  passengers: row.passengers_count || 2,
-                  vehicleType: row.vehicle_id || 'all',
-                },
-                estimatedFare: row.estimated_fare || {
-                  estimatedDistanceKm: 0,
-                  estimatedDurationHours: 0,
-                  baseFareAmount: 0,
-                  distanceFareAmount: 0,
-                  durationFareAmount: 0,
-                  passengerSurchargeAmount: 0,
-                  airportSurchargeAmount: 0,
-                  totalEstimatedFare: Number(row.total_estimated_fare) || 0,
-                  breakdown: [],
-                },
-                driverDetails: row.driver_name
-                  ? {
-                      driverName: row.driver_name,
-                      driverPhone: row.driver_phone,
-                      driverVehiclePlate: row.driver_vehicle_plate,
-                      assignedAt: row.driver_assigned_at,
-                    }
-                  : undefined,
-              };
-              results.push(bookingItem);
+              if (row.referenceId && row.selectedVehicle && row.passengerDetails) {
+                results.push(row as BookingRequest);
+              } else {
+                const bookingItem: BookingRequest = {
+                  referenceId: row.reference_id || `TJ-${Date.now().toString(36).toUpperCase()}`,
+                  createdAt: row.created_at || new Date().toISOString(),
+                  status: row.status || 'Pending Confirmation',
+                  selectedVehicle: {
+                    id: row.vehicle_id || 'sedan_etios',
+                    name: row.vehicle_name || 'Toyota Etios / Dzire',
+                    category: row.vehicle_category || 'Sedan',
+                    seatingCapacity: row.passengers_count || 4,
+                    luggageCapacity: 3,
+                    description: 'Spacious AC ride',
+                    features: ['Clean AC', 'Verified Driver'],
+                    suitableServices: ['local', 'oneway', 'roundtrip', 'airport'],
+                    comfortLevel: 'Executive',
+                    basePriceFactor: 1.0,
+                  },
+                  passengerDetails: {
+                    fullName: row.full_name || 'Valued Passenger',
+                    mobileNumber: row.mobile_number || cleanPhone,
+                    email: row.email,
+                    passengersCount: row.passengers_count || 2,
+                    specialInstructions: row.special_instructions || '',
+                  },
+                  searchDetails: row.search_details || {
+                    serviceType: row.service_type || 'oneway',
+                    pickupLocation: row.pickup_location || 'Mysuru',
+                    dropLocation: row.drop_location || '',
+                    travelDate: row.travel_date || new Date().toISOString().split('T')[0],
+                    pickupTime: row.pickup_time || '09:00',
+                    returnDate: row.return_date,
+                    durationHours: row.duration_hours || 8,
+                    airportTransferType: row.airport_transfer_type || 'pickup',
+                    passengers: row.passengers_count || 2,
+                    vehicleType: row.vehicle_id || 'all',
+                  },
+                  estimatedFare: row.estimated_fare || {
+                    estimatedDistanceKm: 0,
+                    estimatedDurationHours: 0,
+                    baseFareAmount: 0,
+                    distanceFareAmount: 0,
+                    durationFareAmount: 0,
+                    passengerSurchargeAmount: 0,
+                    airportSurchargeAmount: 0,
+                    totalEstimatedFare: Number(row.total_estimated_fare) || 0,
+                    breakdown: [],
+                  },
+                  driverDetails: row.driver_name
+                    ? {
+                        driverName: row.driver_name,
+                        driverPhone: row.driver_phone,
+                        driverVehiclePlate: row.driver_vehicle_plate,
+                        assignedAt: row.driver_assigned_at,
+                      }
+                    : undefined,
+                };
+                results.push(bookingItem);
+              }
             }
           }
         });
       }
     }
-  } catch (supabaseErr) {
-    console.warn('Error fetching remote customer bookings:', supabaseErr);
+  } catch (serverErr) {
+    console.warn('Error fetching server customer bookings:', serverErr);
   }
 
   // Sort by createdAt descending

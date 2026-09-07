@@ -3,8 +3,8 @@ import { supabase, isSupabaseConfigured, SUPABASE_PROJECT_ID } from './supabaseC
 
 export { supabase, isSupabaseConfigured, SUPABASE_PROJECT_ID };
 
-export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+export const SUPABASE_URL = '';
+export const SUPABASE_ANON_KEY = '';
 
 
 export interface SaveBookingResult {
@@ -98,49 +98,15 @@ export async function saveBookingToSupabase(booking: BookingRequest): Promise<Sa
     console.warn('Could not save to localStorage:', storageErr);
   }
 
-  // 2. Prepare structured database row
-  const rowData = {
-    reference_id: booking.referenceId,
-    full_name: booking.passengerDetails.fullName,
-    mobile_number: booking.passengerDetails.mobileNumber,
-    email: booking.passengerDetails.email,
-    service_type: booking.searchDetails.serviceType,
-    pickup_location: booking.searchDetails.pickupLocation,
-    drop_location: booking.searchDetails.dropLocation || '',
-    travel_date: booking.searchDetails.travelDate,
-    pickup_time: booking.searchDetails.pickupTime,
-    return_date: booking.searchDetails.returnDate || null,
-    return_time: booking.searchDetails.returnTime || null,
-    duration_hours: booking.searchDetails.durationHours || 8,
-    airport_transfer_type: booking.searchDetails.airportTransferType || null,
-    passengers_count: booking.passengerDetails.passengersCount,
-    vehicle_id: booking.selectedVehicle.id,
-    vehicle_name: booking.selectedVehicle.name,
-    vehicle_category: booking.selectedVehicle.category,
-    special_instructions: booking.passengerDetails.specialInstructions || '',
-    total_estimated_fare: booking.estimatedFare.totalEstimatedFare,
-    currency: 'INR',
-    status: booking.status,
-    search_details: booking.searchDetails,
-    estimated_fare: booking.estimatedFare,
-    created_at: booking.createdAt || new Date().toISOString(),
-  };
-
-  // 3. If direct Supabase client is configured, try direct insert
-  if (supabase) {
-    try {
-      const { data, error } = await supabase.from('bookings').insert([rowData]).select();
-      if (!error && data) {
-        return {
-          success: true,
-          savedToRemote: true,
-          message: 'Booking appointment successfully saved to your Supabase database!',
-          data,
-        };
-      }
-    } catch {
-      // Graceful fallback
-    }
+  // 2. Prepare structured database row and send to backend API
+  try {
+    fetch('/api/bookings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(booking),
+    }).catch(() => {});
+  } catch {
+    // Network background send fallback
   }
 
   return {
@@ -294,43 +260,9 @@ export async function testSupabaseConnection(): Promise<{
   message: string;
   tableExists: boolean;
 }> {
-  if (!supabase) {
-    return {
-      connected: false,
-      tableExists: false,
-      message: 'Supabase database is disconnected. Operating in local storage mode.',
-    };
-  }
-
-  try {
-    const { data, error } = await supabase.from('bookings').select('count', { count: 'exact', head: true });
-    
-    if (!error) {
-      return {
-        connected: true,
-        tableExists: true,
-        message: 'Connected to Supabase. "bookings" table is ready!',
-      };
-    }
-
-    if (error.code === '42P01' || error.message.includes('relation') || error.message.includes('does not exist')) {
-      return {
-        connected: true,
-        tableExists: false,
-        message: 'Connected to Supabase, but "bookings" table needs to be created.',
-      };
-    }
-
-    return {
-      connected: true,
-      tableExists: false,
-      message: `Connected to Supabase (${error.message})`,
-    };
-  } catch (err: any) {
-    return {
-      connected: false,
-      tableExists: false,
-      message: `Connection failed: ${err?.message || 'Check network / keys'}`,
-    };
-  }
+  return {
+    connected: false,
+    tableExists: false,
+    message: 'Supabase integration disabled. Operating in local storage mode.',
+  };
 }
