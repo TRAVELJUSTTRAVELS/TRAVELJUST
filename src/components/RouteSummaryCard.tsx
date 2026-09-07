@@ -1,6 +1,20 @@
-import React from 'react';
-import { Navigation, Clock, MapPin, CheckCircle2, Loader2, Sparkles, Route as RouteIcon, ShieldCheck } from 'lucide-react';
-import { CalculatedRouteInfo } from '../types';
+import React, { useState } from 'react';
+import {
+  Navigation,
+  Clock,
+  MapPin,
+  CheckCircle2,
+  Loader2,
+  Sparkles,
+  Route as RouteIcon,
+  ShieldCheck,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  Utensils,
+  Compass,
+} from 'lucide-react';
+import { CalculatedRouteInfo, GroundedPlace } from '../types';
 
 interface RouteSummaryCardProps {
   routeInfo: CalculatedRouteInfo | null;
@@ -15,6 +29,41 @@ export const RouteSummaryCard: React.FC<RouteSummaryCardProps> = ({
   className = '',
   isCompact = false,
 }) => {
+  const [showInsights, setShowInsights] = useState(false);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const [insightsData, setInsightsData] = useState<{
+    reply?: string;
+    groundedPlaces?: GroundedPlace[];
+    mapsGrounded?: boolean;
+  } | null>(null);
+
+  const handleToggleInsights = async () => {
+    if (!showInsights && !insightsData && routeInfo) {
+      setInsightsLoading(true);
+      setShowInsights(true);
+      try {
+        const res = await fetch('/api/maps/grounded-insights', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            origin: routeInfo.originAddress,
+            destination: routeInfo.destinationAddress,
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setInsightsData(data);
+        }
+      } catch (e) {
+        console.error('Failed to load grounded insights', e);
+      } finally {
+        setInsightsLoading(false);
+      }
+    } else {
+      setShowInsights(!showInsights);
+    }
+  };
+
   if (isLoading) {
     return (
       <div
@@ -88,6 +137,17 @@ export const RouteSummaryCard: React.FC<RouteSummaryCardProps> = ({
               <span>{routeInfo.stopsCount} via stop{routeInfo.stopsCount > 1 ? 's' : ''} included</span>
             </div>
           )}
+
+          {/* Interactive Google Maps Grounded Insights Trigger */}
+          <button
+            type="button"
+            onClick={handleToggleInsights}
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-colors shadow-2xs"
+          >
+            <Compass className="w-3.5 h-3.5 text-emerald-200" />
+            <span>Live Stops & Tips</span>
+            {showInsights ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
         </div>
       </div>
 
@@ -117,6 +177,73 @@ export const RouteSummaryCard: React.FC<RouteSummaryCardProps> = ({
           {routeInfo.destinationAddress}
         </span>
       </div>
+
+      {/* Expandable Grounded Insights Panel */}
+      {showInsights && (
+        <div className="mt-3 pt-3 border-t border-emerald-200/80 space-y-3 transition-all animate-fadeIn">
+          {insightsLoading ? (
+            <div className="flex items-center gap-2 text-xs text-emerald-800 py-2">
+              <Loader2 className="w-4 h-4 animate-spin text-emerald-700" />
+              <span>Fetching real-time Google Maps highway stops & route advisory...</span>
+            </div>
+          ) : insightsData ? (
+            <div className="space-y-2.5 bg-white/90 p-3 rounded-xl border border-emerald-200 text-xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-bold text-emerald-900 text-xs">
+                  <Utensils className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>Google Maps Grounded Highway Stops & Recommendations:</span>
+                </div>
+                <span className="text-[10px] bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded-full">
+                  Real-Time Verified
+                </span>
+              </div>
+
+              {/* Verified Place Cards */}
+              {insightsData.groundedPlaces && insightsData.groundedPlaces.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 pt-1">
+                  {insightsData.groundedPlaces.map((place, idx) => (
+                    <a
+                      key={idx}
+                      href={place.uri}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2.5 rounded-xl bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 transition-colors flex flex-col justify-between group text-left"
+                    >
+                      <div>
+                        <div className="flex items-start justify-between gap-1">
+                          <span className="font-bold text-[11px] text-slate-900 group-hover:text-emerald-900 line-clamp-1">
+                            {place.title}
+                          </span>
+                          <ExternalLink className="w-3 h-3 text-slate-400 group-hover:text-emerald-700 shrink-0" />
+                        </div>
+                        {place.reviewSnippet && (
+                          <p className="text-[10px] text-slate-500 line-clamp-2 mt-1 leading-snug">
+                            "{place.reviewSnippet}"
+                          </p>
+                        )}
+                      </div>
+                      <div className="mt-1.5 pt-1 border-t border-slate-200/50 flex items-center justify-between text-[9px] text-emerald-700 font-bold">
+                        <span>Open Map</span>
+                        <span className="text-slate-400 font-normal">Google Maps ↗</span>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              )}
+
+              {/* Insights Markdown Excerpt */}
+              {insightsData.reply && (
+                <div className="text-[11px] text-slate-700 leading-relaxed bg-slate-50/70 p-2.5 rounded-lg border border-slate-100 whitespace-pre-wrap">
+                  {insightsData.reply.replace(/###\s*/g, '').slice(0, 450)}
+                  {insightsData.reply.length > 450 ? '...' : ''}
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-500">No route insights available at this moment.</p>
+          )}
+        </div>
+      )}
     </div>
   );
 };

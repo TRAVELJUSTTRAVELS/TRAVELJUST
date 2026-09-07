@@ -677,7 +677,7 @@ export const POPULAR_ROUTE_PAGES: RoutePageData[] = [
       },
       {
         question: 'Can the cab drop me anywhere in Mysore including outskirts?',
-        answer: 'Yes! We provide doorstep drop anywhere in Mysuru, including Vijayanagar, Gokulam, Kuvempunagar, Hebbal, Chamundi Hill, or Sathghalli.',
+        answer: 'Yes! We provide doorstep drop anywhere in Mysuru, including Vijayanagar, Gokulam, Kuvempunagar, Rajivnagar, Hebbal, Chamundi Hill, or Sathghalli.',
       },
     ],
     keywords: [

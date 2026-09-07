@@ -16,7 +16,7 @@ export const Hero: React.FC<HeroProps> = ({ onBookRideClick, onGetQuoteClick }) 
         <div className="text-center max-w-4xl mx-auto">
           {/* Headline */}
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 tracking-tight leading-[1.12] mb-6">
-            <span className="text-[#FFB900]">Travel Made</span> <span className="text-[#0a4d3c]">Simple.</span>
+            <span className="text-[#FE9A00]">Travel Made</span> <span className="text-[#0a4d3c]">Simple.</span>
           </h1>
 
           {/* Supporting Text */}

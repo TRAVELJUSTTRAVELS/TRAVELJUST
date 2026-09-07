@@ -249,3 +249,10 @@ export interface DriverPartnerApplication {
   createdAt: string;
   status: 'New Inquiry' | 'Under Review' | 'Verified' | 'Active Partner';
 }
+
+export interface GroundedPlace {
+  title: string;
+  uri: string;
+  reviewSnippet?: string;
+  address?: string;
+}

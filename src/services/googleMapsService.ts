@@ -53,7 +53,7 @@ export const LOCATION_CATEGORIES: LocationCategory[] = [
     id: 'mysuru_areas',
     label: 'Mysuru Layouts & Industrial Corridors',
     badge: 'Local Cabs',
-    description: 'Vijayanagar Stages 1-4, Gokulam, Kuvempunagar, Hebbal Infosys, Hootagalli, Koorgalli & Kadakola KIADB.',
+    description: 'Vijayanagar Stages 1-4, Gokulam, Kuvempunagar, Rajivnagar, Sathgalli, Hebbal Infosys, Hootagalli, Koorgalli & Kadakola KIADB.',
     locations: MYSURU_LOCAL_LOCATIONS.filter((l) => l.category === 'mysuru_areas'),
   },
   {

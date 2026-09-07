@@ -360,7 +360,7 @@ export const AIQuoteFloatingWidget: React.FC<AIQuoteFloatingWidgetProps> = ({
                         </span>
                         {quoteResult.aiGenerated && (
                           <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded">
-                            Powered by Gemini 3.6
+                            Gemini AI • Maps Grounded
                           </span>
                         )}
                       </div>
