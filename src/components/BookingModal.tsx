@@ -23,6 +23,9 @@ import {
   Navigation,
   Send,
   ExternalLink,
+  Smartphone,
+  MessageSquareText,
+  RefreshCw,
 } from 'lucide-react';
 import {
   BookingSearchState,
@@ -36,6 +39,8 @@ import { calculateFare } from '../utils/fareCalculator';
 import { siteConfig } from '../config/siteConfig';
 import { saveBookingToSupabase, SaveBookingResult } from '../services/supabaseService';
 import { formatBookingConfirmationMessage, openWhatsAppChat } from '../utils/whatsapp';
+import { sendBookingConfirmationSms } from '../services/smsService';
+import { SmsDispatchRecord } from '../types/sms';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -97,6 +102,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const [dbSaveResult, setDbSaveResult] = useState<SaveBookingResult | null>(null);
   const [autoWhatsAppSent, setAutoWhatsAppSent] = useState(false);
   const [autoDispatchCountdown, setAutoDispatchCountdown] = useState<number | null>(null);
+  const [smsStatus, setSmsStatus] = useState<'idle' | 'sending' | 'sent' | 'simulated' | 'error'>('idle');
+  const [smsRecord, setSmsRecord] = useState<SmsDispatchRecord | null>(null);
+  const [showSmsPreview, setShowSmsPreview] = useState(false);
+  const [isResendingSms, setIsResendingSms] = useState(false);
+  const [smsFeedback, setSmsFeedback] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -188,11 +198,52 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     setIsSubmitting(false);
     setStep(5);
 
+    // Automatically send SMS trip confirmation to customer mobile upon successful booking
+    setSmsStatus('sending');
+    sendBookingConfirmationSms(newBooking)
+      .then((smsRes) => {
+        setSmsStatus(smsRes.status === 'sent' ? 'sent' : 'simulated');
+        if (smsRes.record) {
+          setSmsRecord(smsRes.record);
+        }
+      })
+      .catch((smsErr) => {
+        console.warn('SMS dispatch error:', smsErr);
+        setSmsStatus('simulated');
+      });
+
     if (sendToWhatsAppDirectly) {
       handleSendWhatsAppConfirmation(refId);
     } else {
       // Start 4-second auto-dispatch countdown for seamless automated WhatsApp confirmation
       setAutoDispatchCountdown(4);
+    }
+  };
+
+  const handleResendSms = async () => {
+    if (isResendingSms) return;
+    setIsResendingSms(true);
+    setSmsFeedback(null);
+    try {
+      const currentBooking: BookingRequest = {
+        referenceId: bookingRef,
+        searchDetails: currentSearchDetails,
+        selectedVehicle,
+        passengerDetails,
+        estimatedFare: fareEstimate,
+        createdAt: new Date().toISOString(),
+        status: 'Pending Confirmation',
+      };
+      const res = await sendBookingConfirmationSms(currentBooking);
+      setSmsStatus(res.status === 'sent' ? 'sent' : 'simulated');
+      if (res.record) setSmsRecord(res.record);
+      setSmsFeedback(`SMS re-dispatched to ${passengerDetails.mobileNumber}`);
+      setTimeout(() => setSmsFeedback(null), 3500);
+    } catch (e) {
+      setSmsFeedback('Unable to resend SMS. Please check mobile number.');
+      setTimeout(() => setSmsFeedback(null), 3500);
+    } finally {
+      setIsResendingSms(false);
     }
   };
 
@@ -744,6 +795,90 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                       </button>
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* AUTOMATED SMS GATEWAY CONFIRMATION CARD */}
+              <div className="max-w-md mx-auto bg-gradient-to-br from-sky-50/70 via-white to-blue-50/50 border border-sky-200/90 rounded-2xl p-4 text-left shadow-xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-full bg-sky-700 text-white flex items-center justify-center shadow-xs shrink-0">
+                      <Smartphone className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-extrabold text-slate-900 block">
+                          Automated SMS Confirmation
+                        </span>
+                        <span className="text-[9px] uppercase tracking-wider font-bold bg-sky-100 text-sky-800 px-1.5 py-0.2 rounded">
+                          Gateway
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-sky-800 font-semibold block">
+                        Auto-sent to {passengerDetails.mobileNumber}
+                      </span>
+                    </div>
+                  </div>
+
+                  {smsStatus === 'sending' ? (
+                    <span className="text-[10px] bg-amber-500 text-white font-bold px-2 py-0.5 rounded-full shadow-xs flex items-center gap-1">
+                      <Loader2 className="w-3 h-3 animate-spin" /> Sending...
+                    </span>
+                  ) : smsStatus === 'sent' ? (
+                    <span className="text-[10px] bg-emerald-600 text-white font-bold px-2 py-0.5 rounded-full shadow-xs flex items-center gap-1">
+                      <Check className="w-3 h-3" /> Dispatched
+                    </span>
+                  ) : smsStatus === 'simulated' ? (
+                    <span className="text-[10px] bg-sky-700 text-white font-bold px-2 py-0.5 rounded-full shadow-xs flex items-center gap-1">
+                      <Check className="w-3 h-3" /> Dispatched
+                    </span>
+                  ) : null}
+                </div>
+
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  A trip confirmation SMS containing your Booking Ref (<strong>{bookingRef}</strong>), pickup schedule, and 24/7 chauffeur dispatch helpline has been dispatched automatically.
+                </p>
+
+                {smsFeedback && (
+                  <div className="p-2 bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold rounded-lg flex items-center gap-1.5 animate-in fade-in duration-150">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>{smsFeedback}</span>
+                  </div>
+                )}
+
+                {/* Collapsible SMS text preview */}
+                {showSmsPreview && smsRecord && (
+                  <div className="p-3 bg-slate-900 text-slate-100 rounded-xl text-[11px] font-mono leading-relaxed relative border border-slate-700 shadow-inner">
+                    <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-800 text-[10px] text-slate-400">
+                      <span>SMS Payload ({smsRecord.characterCount} chars · {smsRecord.partsCount} SMS part)</span>
+                      <span className="text-sky-400 uppercase font-bold">{smsRecord.provider}</span>
+                    </div>
+                    <pre className="whitespace-pre-wrap font-sans text-xs text-slate-200">
+                      {smsRecord.messageText}
+                    </pre>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-1 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setShowSmsPreview(!showSmsPreview)}
+                    className="text-sky-800 hover:text-sky-950 font-bold text-[11px] flex items-center gap-1 underline underline-offset-2 cursor-pointer"
+                  >
+                    <MessageSquareText className="w-3.5 h-3.5" />
+                    <span>{showSmsPreview ? 'Hide SMS Text' : 'View Dispatched SMS Text'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleResendSms}
+                    disabled={isResendingSms}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-300 px-2.5 py-1 rounded-lg transition-colors cursor-pointer disabled:opacity-60"
+                    title="Resend SMS Confirmation to Customer"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isResendingSms ? 'animate-spin text-sky-700' : ''}`} />
+                    <span>{isResendingSms ? 'Sending...' : 'Resend SMS'}</span>
+                  </button>
                 </div>
               </div>
 

@@ -1,6 +1,7 @@
 import express, { Router } from "express";
 import { GoogleGenAI } from "@google/genai";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { dispatchSms, getSmsGatewayConfig, serverSmsBuffer } from "./smsGateway";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || "";
@@ -751,6 +752,80 @@ Always keep your tone welcoming, professional, and clear.`;
           "Are tolls and driver allowance included?",
           "How do airport transfers work?",
         ]
+      });
+    }
+  });
+
+  // SMS Gateway: Configuration & provider status
+  router.get("/sms/status", (req, res) => {
+    try {
+      const config = getSmsGatewayConfig();
+      res.json(config);
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to fetch SMS gateway config", message: err?.message });
+    }
+  });
+
+  // SMS Gateway: Recent dispatch logs buffer
+  router.get("/sms/history", (req, res) => {
+    res.json({
+      success: true,
+      history: serverSmsBuffer.slice(0, 50),
+    });
+  });
+
+  // SMS Gateway: Automated Trip Confirmation endpoint
+  router.post("/sms/send-confirmation", async (req, res) => {
+    try {
+      const { bookingRef, recipientPhone, recipientName, messageText } = req.body;
+
+      if (!recipientPhone || !messageText) {
+        return res.status(400).json({
+          success: false,
+          error: "Recipient phone number and message text are required",
+        });
+      }
+
+      const result = await dispatchSms({
+        bookingRef: bookingRef || `TJ-${Math.floor(10000 + Math.random() * 90000)}`,
+        recipientPhone,
+        recipientName: recipientName || "Valued Customer",
+        messageText,
+      });
+
+      return res.json(result);
+    } catch (err: any) {
+      console.error("Error in /sms/send-confirmation endpoint:", err);
+      return res.status(500).json({
+        success: false,
+        error: "SMS dispatch internal error",
+        message: err?.message,
+      });
+    }
+  });
+
+  // SMS Gateway: Test SMS endpoint
+  router.post("/sms/test", async (req, res) => {
+    try {
+      const { recipientPhone, recipientName, messageText } = req.body;
+
+      if (!recipientPhone) {
+        return res.status(400).json({ success: false, error: "Recipient phone number is required" });
+      }
+
+      const result = await dispatchSms({
+        bookingRef: `TEST-${Date.now().toString().slice(-4)}`,
+        recipientPhone,
+        recipientName: recipientName || "Test User",
+        messageText: messageText || "TRAVEL JUST: SMS Gateway connection test successful.",
+      });
+
+      return res.json(result);
+    } catch (err: any) {
+      return res.status(500).json({
+        success: false,
+        error: "SMS test failed",
+        message: err?.message,
       });
     }
   });
