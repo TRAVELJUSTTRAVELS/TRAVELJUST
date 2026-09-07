@@ -21,10 +21,10 @@ export function getSmsGatewayConfig(): SmsGatewayConfig {
 
   if (providerEnv === 'fast2sms' || (!providerEnv && fast2SmsKey && !twilioSid && !msg91Key)) {
     activeProvider = 'fast2sms';
-    isConfigured = !!fast2SmsKey && fast2SmsKey !== 'MY_FAST2SMS_KEY';
+    isConfigured = !!fast2SmsKey && fast2SmsKey !== 'MY_FAST2SMS_KEY' && fast2SmsKey !== 'your_fast2sms_api_key_here' && fast2SmsKey.trim().length > 5;
     statusMessage = isConfigured
       ? 'Fast2SMS Indian Gateway Connected & Ready'
-      : 'Fast2SMS provider selected, awaiting API key';
+      : 'Fast2SMS provider selected, awaiting valid API key';
   } else if (providerEnv === 'msg91' || msg91Key) {
     activeProvider = 'msg91';
     isConfigured = !!msg91Key && msg91Key !== 'MY_MSG91_KEY';
@@ -48,6 +48,7 @@ export function getSmsGatewayConfig(): SmsGatewayConfig {
   return {
     provider: activeProvider,
     isConfigured,
+    isLive: isConfigured && activeProvider !== 'simulated',
     senderId,
     dltTemplateId,
     hasApiKey: isConfigured,
@@ -66,7 +67,7 @@ async function dispatchViaFast2Sms(phone: string, message: string, apiKey: strin
   const response = await fetch('https://www.fast2sms.com/dev/bulkV2', {
     method: 'POST',
     headers: {
-      'authorization': apiKey,
+      'authorization': apiKey.trim(),
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -78,9 +79,12 @@ async function dispatchViaFast2Sms(phone: string, message: string, apiKey: strin
     }),
   });
 
-  const data = await response.json();
+  const data = await response.json().catch(() => ({}));
   if (!response.ok || data.return === false) {
-    throw new Error(data.message || `Fast2SMS error: HTTP ${response.status}`);
+    const errorMsg = Array.isArray(data.message)
+      ? data.message.join(', ')
+      : data.message || `Fast2SMS error: HTTP ${response.status}`;
+    throw new Error(errorMsg);
   }
   return data;
 }
