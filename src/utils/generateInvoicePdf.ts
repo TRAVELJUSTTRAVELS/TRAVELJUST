@@ -237,7 +237,7 @@ export function generateTripInvoicePdf(trip: DbBookingRecord) {
 
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(15, 23, 42);
-  doc.text(`INR ${baseFareCalculated.toLocaleString('en-IN')}`, pageWidth - margin - 6, y + 6.5, { align: 'right' });
+  doc.text(`INR ${Number(baseFareCalculated ?? 0).toLocaleString('en-IN')}`, pageWidth - margin - 6, y + 6.5, { align: 'right' });
 
   y += 10;
 
@@ -254,7 +254,7 @@ export function generateTripInvoicePdf(trip: DbBookingRecord) {
 
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(15, 23, 42);
-  doc.text(`INR ${taxesAndTolls.toLocaleString('en-IN')}`, pageWidth - margin - 6, y + 6.5, { align: 'right' });
+  doc.text(`INR ${Number(taxesAndTolls ?? 0).toLocaleString('en-IN')}`, pageWidth - margin - 6, y + 6.5, { align: 'right' });
 
   y += 12;
 
@@ -269,7 +269,7 @@ export function generateTripInvoicePdf(trip: DbBookingRecord) {
   doc.text('TOTAL AMOUNT PAYABLE / BILLED:', margin + 85, y + 10.5);
 
   doc.setFontSize(12);
-  doc.text(`INR ${totalFare.toLocaleString('en-IN')}`, pageWidth - margin - 6, y + 10.5, { align: 'right' });
+  doc.text(`INR ${Number(totalFare ?? 0).toLocaleString('en-IN')}`, pageWidth - margin - 6, y + 10.5, { align: 'right' });
 
   y += 24;
 

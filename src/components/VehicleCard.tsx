@@ -50,7 +50,7 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({
 🏁 *Drop Location:* ${drop}
 📅 *Pickup Date:* ${date}
 ⏰ *Pickup Time:* ${time}
-💰 *Estimated Fare:* ₹${fare.toLocaleString('en-IN')}
+💰 *Estimated Fare:* ₹${Number(fare ?? 0).toLocaleString('en-IN')}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 _Please confirm availability and dispatch driver details._`
     );
@@ -91,7 +91,7 @@ _Please confirm availability and dispatch driver details._`
               {fareEstimate.roundTripDays && fareEstimate.roundTripDays >= 1 && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-900 text-emerald-200 text-xs font-bold border border-emerald-700/60">
                   <Sparkles className="w-3 h-3 text-emerald-400" />
-                  {fareEstimate.roundTripDays} Day{fareEstimate.roundTripDays > 1 ? 's' : ''} Round Trip ({fareEstimate.includedMinKm?.toLocaleString('en-IN') || (fareEstimate.roundTripDays * 300)} km min)
+                  {fareEstimate.roundTripDays} Day{fareEstimate.roundTripDays > 1 ? 's' : ''} Round Trip ({Number(fareEstimate.includedMinKm || (fareEstimate.roundTripDays * 300)).toLocaleString('en-IN')} km min)
                 </span>
               )}
             </div>

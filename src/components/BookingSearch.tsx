@@ -836,7 +836,7 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                   Estimated Total Fare
                 </span>
                 <span className="text-xl sm:text-2xl font-black text-emerald-800">
-                  Rs. {selectedOneWayFare.totalEstimatedFare.toLocaleString('en-IN')}
+                  Rs. {Number(selectedOneWayFare?.totalEstimatedFare ?? 0).toLocaleString('en-IN')}
                 </span>
               </div>
             </div>
@@ -907,7 +907,7 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                   Estimated Total Fare
                 </span>
                 <span className="text-xl sm:text-2xl font-black text-emerald-800">
-                  Rs. {selectedLocalFare.totalEstimatedFare.toLocaleString('en-IN')}
+                  Rs. {Number(selectedLocalFare?.totalEstimatedFare ?? 0).toLocaleString('en-IN')}
                 </span>
               </div>
             </div>
@@ -990,7 +990,7 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                   Estimated Total Fare
                 </span>
                 <span className="text-xl sm:text-2xl font-black text-emerald-800">
-                  Rs. {selectedRoundTripFare.totalEstimatedFare.toLocaleString('en-IN')}
+                  Rs. {Number(selectedRoundTripFare?.totalEstimatedFare ?? 0).toLocaleString('en-IN')}
                 </span>
               </div>
             </div>
@@ -1011,7 +1011,7 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                 <div>
                   <div className="text-[10px] font-bold uppercase text-slate-500">Included Distance</div>
                   <div className="text-xs font-bold text-slate-800">
-                    Min. {activeIncludedMinKm.toLocaleString('en-IN')} KM
+                    Min. {Number(activeIncludedMinKm ?? 0).toLocaleString('en-IN')} KM
                   </div>
                 </div>
               </div>
@@ -1035,7 +1035,7 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
               {selectedRoundTripFare.breakdown.map((item, idx) => (
                 <div key={idx} className="flex justify-between text-slate-600">
                   <span>{item.label}</span>
-                  <span className="font-semibold text-slate-900">Rs. {item.amount.toLocaleString('en-IN')}</span>
+                  <span className="font-semibold text-slate-900">Rs. {Number(item?.amount ?? 0).toLocaleString('en-IN')}</span>
                 </div>
               ))}
             </div>
@@ -1075,7 +1075,7 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                   Estimated Total Fare
                 </span>
                 <span className="text-xl sm:text-2xl font-black text-emerald-800">
-                  Rs. {selectedAirportFare.totalEstimatedFare.toLocaleString('en-IN')}
+                  Rs. {Number(selectedAirportFare?.totalEstimatedFare ?? 0).toLocaleString('en-IN')}
                 </span>
               </div>
             </div>

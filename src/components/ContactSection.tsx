@@ -8,18 +8,15 @@ import {
   CheckCircle2,
   AlertCircle,
   Sparkles,
-  Bot,
-  FileText,
 } from 'lucide-react';
 import { siteConfig } from '../config/siteConfig';
-import { ContactAIChat } from './ContactAIChat';
 
 interface ContactSectionProps {
   onOpenBookingSearch?: () => void;
+  onApplyBookingPlan?: (plan: any) => void;
 }
 
-export const ContactSection: React.FC<ContactSectionProps> = ({ onOpenBookingSearch }) => {
-  const [activeTab, setActiveTab] = useState<'ai-chat' | 'enquiry-form'>('ai-chat');
+export const ContactSection: React.FC<ContactSectionProps> = () => {
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -64,10 +61,10 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ onOpenBookingSea
             Get In Touch
           </span>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mt-3">
-            Contact Support & AI Policy Concierge
+            Contact Support & Dispatch Desk
           </h2>
           <p className="text-base sm:text-lg text-slate-600 mt-2">
-            Ask our instant AI Concierge about vehicle availability and travel policies, or connect directly with our dispatch desk.
+            Connect directly with our 24/7 Mysuru dispatch desk, or send us your customized travel requirements.
           </p>
         </div>
 
@@ -172,45 +169,9 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ onOpenBookingSea
             </div>
           </div>
 
-          {/* Right Column: AI Assistant Chat & Enquiry Form Tabs */}
+          {/* Right Column: Custom Enquiry Form */}
           <div className="lg:col-span-7 space-y-4">
-            {/* View Mode Toggle Header */}
-            <div className="flex items-center justify-between bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-              <button
-                type="button"
-                onClick={() => setActiveTab('ai-chat')}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-extrabold transition-all ${
-                  activeTab === 'ai-chat'
-                    ? 'bg-white text-emerald-900 shadow-sm border border-slate-200/60'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-                }`}
-              >
-                <Sparkles className="w-4 h-4 text-emerald-700" />
-                <span>AI Policy & Fleet Assistant</span>
-                <span className="hidden sm:inline-block text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold uppercase">
-                  Instant
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('enquiry-form')}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-extrabold transition-all ${
-                  activeTab === 'enquiry-form'
-                    ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-                }`}
-              >
-                <FileText className="w-4 h-4 text-slate-600" />
-                <span>Send Custom Enquiry</span>
-              </button>
-            </div>
-
-            {/* Render Tab Content */}
-            {activeTab === 'ai-chat' ? (
-              <ContactAIChat onBookRideClick={onOpenBookingSearch} />
-            ) : (
-              <div className="bg-slate-50/80 rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-2xs">
+            <div className="bg-slate-50/80 rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-2xs">
                 {submitted ? (
                   <div className="text-center py-12 space-y-4">
                     <div className="w-16 h-16 bg-emerald-100 text-emerald-800 rounded-full flex items-center justify-center mx-auto">
@@ -337,7 +298,6 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ onOpenBookingSea
                   </form>
                 )}
               </div>
-            )}
           </div>
         </div>
       </div>

@@ -195,7 +195,7 @@ export function calculateFare(
     
     const dayLabel = days === 1 ? '1 Day Booking' : `${days} Days Booking`;
     breakdown.push({
-      label: `Round Trip (${dayLabel}: ${distanceKm.toLocaleString('en-IN')} km billed @ ₹${vPricing.perKmFare}/km - Min. ${includedMinKm.toLocaleString('en-IN')} km included)`,
+      label: `Round Trip (${dayLabel}: ${Number(distanceKm ?? 0).toLocaleString('en-IN')} km billed @ ₹${vPricing.perKmFare}/km - Min. ${Number(includedMinKm ?? 0).toLocaleString('en-IN')} km included)`,
       amount: Math.round(distanceFare),
     });
     

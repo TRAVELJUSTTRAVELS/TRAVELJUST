@@ -1,5 +1,5 @@
 import express, { Router } from "express";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { MYSURU_LOCAL_LOCATIONS } from "../data/locations/mysuruLocal";
 
 // Helper to find matching Mysuru locations from catalog for rich Google Maps place cards
@@ -632,6 +632,94 @@ Preferred Cab: ${vehicleType || 'Any'}`,
     });
   }
 
+  // Helper to extract Google Search grounding metadata per Gemini API guidelines
+  function extractSearchSources(response: any): Array<{ title: string; uri: string }> {
+    const sources: Array<{ title: string; uri: string }> = [];
+    const chunks = response?.candidates?.[0]?.groundingMetadata?.groundingChunks;
+    if (Array.isArray(chunks)) {
+      for (const chunk of chunks) {
+        if (chunk.web && chunk.web.uri) {
+          sources.push({
+            title: chunk.web.title || "Live Web Source",
+            uri: chunk.web.uri,
+          });
+        }
+      }
+    }
+    const seen = new Set<string>();
+    return sources.filter((s) => {
+      if (!s.uri || seen.has(s.uri)) return false;
+      seen.add(s.uri);
+      return true;
+    });
+  }
+
+  // Helper to extract Google Search queries executed by Gemini
+  function extractSearchQueries(response: any): string[] {
+    const queries = response?.candidates?.[0]?.groundingMetadata?.webSearchQueries;
+    return Array.isArray(queries) ? queries : [];
+  }
+
+  // Helper for AI Work Agent to formulate an actionable booking draft from conversational context
+  function generateBookingDraft(query: string, reply: string): any | null {
+    const q = (query + " " + reply).toLowerCase();
+
+    // Detect service type
+    let serviceType = 'oneway';
+    if (q.includes('airport') || q.includes('blr') || q.includes('kempegowda') || q.includes('flight') || q.includes('kial')) {
+      serviceType = 'airport';
+    } else if (q.includes('local') || q.includes('sightseeing') || q.includes('8 hour') || q.includes('8h') || q.includes('4 hour') || q.includes('4h')) {
+      serviceType = 'local';
+    } else if (q.includes('round trip') || q.includes('roundtrip') || q.includes('2-day') || q.includes('3-day') || q.includes('weekend tour') || q.includes('return')) {
+      serviceType = 'roundtrip';
+    }
+
+    // Detect locations
+    let pickupLocation = 'Mysuru, Karnataka';
+    let dropLocation = 'Kempegowda International Airport (BLR)';
+
+    if (q.includes('rajiv nagar') || q.includes('rajivnagar')) pickupLocation = 'Rajiv Nagar, Mysuru';
+    else if (q.includes('vijayanagar')) pickupLocation = 'Vijayanagar, Mysuru';
+    else if (q.includes('gokulam')) pickupLocation = 'Gokulam, Mysuru';
+    else if (q.includes('kuvempunagar')) pickupLocation = 'Kuvempunagar, Mysuru';
+    else if (q.includes('hebbal')) pickupLocation = 'Hebbal Industrial Area / Infosys, Mysuru';
+    else if (q.includes('hootagalli')) pickupLocation = 'Hootagalli Industrial Area, Mysuru';
+    else if (q.includes('outer ring road')) pickupLocation = 'Outer Ring Road, Mysuru';
+    else if (q.includes('palace')) pickupLocation = 'Mysore Palace, Mysuru';
+    else if (q.includes('jayalakshmipuram')) pickupLocation = 'Jayalakshmipuram, Mysuru';
+    else if (q.includes('saraswathipuram')) pickupLocation = 'Saraswathipuram, Mysuru';
+
+    if (q.includes('coorg') || q.includes('madikeri')) dropLocation = 'Coorg (Madikeri), Karnataka';
+    else if (q.includes('ooty')) dropLocation = 'Ooty, Tamil Nadu';
+    else if (q.includes('wayanad')) dropLocation = 'Wayanad, Kerala';
+    else if (q.includes('bangalore') && !q.includes('airport')) dropLocation = 'Bengaluru City, Karnataka';
+    else if (q.includes('kabini')) dropLocation = 'Kabini Safari Reserve, Karnataka';
+    else if (q.includes('chikmagalur')) dropLocation = 'Chikmagalur, Karnataka';
+    else if (serviceType === 'local') dropLocation = 'Mysuru Local Sightseeing Tour';
+    else if (serviceType === 'airport') dropLocation = 'Kempegowda International Airport (BLR)';
+
+    // Detect vehicle
+    let vehicleType = 'all';
+    if (q.includes('innova crysta') || q.includes('crysta')) vehicleType = 'crysta';
+    else if (q.includes('innova')) vehicleType = 'innova';
+    else if (q.includes('ertiga')) vehicleType = 'ertiga';
+    else if (q.includes('sedan') || q.includes('etios') || q.includes('dzire')) vehicleType = 'sedan';
+
+    // Only return draft if there is travel intent
+    const hasTravelIntent = q.includes('pickup') || q.includes('cab') || q.includes('trip') || q.includes('airport') || q.includes('tour') || q.includes('itinerary') || q.includes('drop') || q.includes('transfer');
+    if (!hasTravelIntent) return null;
+
+    return {
+      serviceType,
+      pickupLocation,
+      dropLocation,
+      vehicleType,
+      durationHours: serviceType === 'local' ? 8 : 4,
+      passengers: vehicleType === 'crysta' || vehicleType === 'innova' ? 6 : (vehicleType === 'ertiga' ? 5 : 2),
+      tripSummary: `${serviceType.toUpperCase()} Cab · ${pickupLocation} ➔ ${dropLocation}`,
+    };
+  }
+
   // Real-time Route Insights with Google Maps Grounding
   router.post("/maps/grounded-insights", async (req, res) => {
     try {
@@ -1088,13 +1176,22 @@ Where in Mysuru can we pick you up today?`,
     };
 
     try {
-      const { message, history, userLocation, enableMapsGrounding = true } = req.body;
+      const {
+        message,
+        history,
+        userLocation,
+        enableMapsGrounding = true,
+        groundingMode = "auto", // 'auto' | 'search' | 'maps'
+        modelTier = "auto", // 'auto' | 'pro' | 'flash'
+        enableThinking = true,
+        attachedFile, // optional { name: string; type: string; base64Data?: string; textContent?: string }
+      } = req.body;
       const userMessage = (message || "").trim();
 
-      if (!userMessage) {
+      if (!userMessage && !attachedFile) {
         return res.status(400).json({
           success: false,
-          error: "Message is required",
+          error: "Message or attached file is required",
         });
       }
 
@@ -1102,12 +1199,21 @@ Where in Mysuru can we pick you up today?`,
 
       if (!apiKey || apiKey === "MY_GEMINI_API_KEY" || apiKey.trim() === "") {
         const fallback = getPolicyFallback(userMessage);
+        const bookingDraft = generateBookingDraft(userMessage, fallback.reply);
         return res.json({
           success: true,
           aiGenerated: false,
+          modelUsed: "gemini-3.8-flash",
+          modelTierRequested: modelTier,
+          thinkingLevel: "DEFAULT",
+          isComplexWork: false,
+          searchGrounded: false,
           mapsGrounded: Boolean(fallback.groundedPlaces && fallback.groundedPlaces.length > 0),
           reply: fallback.reply,
           groundedPlaces: fallback.groundedPlaces || [],
+          searchSources: [],
+          searchQueries: [],
+          bookingDraft,
           suggestedFollowups: [
             "Doorstep pickup in Rajiv Nagar 2nd Stage",
             "Cab pickup in Vijayanagar 4th Stage",
@@ -1130,27 +1236,50 @@ Where in Mysuru can we pick you up today?`,
       const userLat = typeof userLocation?.lat === "number" ? userLocation.lat : 12.2958;
       const userLng = typeof userLocation?.lng === "number" ? userLocation.lng : 76.6394;
 
-      const systemInstruction = `You are the AI Travel Concierge and Doorstep Transit Specialist for "TRAVEL JUST", the premier cab and chauffeur service based in Mysuru, Karnataka (covering Mysuru, Bangalore, Kempegowda Airport (BLR), Coorg, Ooty, Wayanad, Kabini, Chikmagalur, and South India).
+      const queryLower = userMessage.toLowerCase();
 
-You have access to REAL-TIME Google Maps data via Maps Grounding.
+      // Complexity evaluation: "The best Gemini model is chosen automatically, advance intelligence for complex work"
+      const isComplexWork =
+        modelTier === "pro" ||
+        Boolean(attachedFile) ||
+        /\b(\d+[- ]?days?|itinerary|schedule|multi[- ]day|tour plan|circuit|day 1|day 2|day 3|custom tour)\b/i.test(userMessage) ||
+        /\b(compare|comparison|breakdown|budget|pricing analysis|fleet size|fleet calculation|logistics|optimization|per head|corporate|estimate total)\b/i.test(userMessage) ||
+        /\b(complex|pro intelligence|extended reasoning|high thinking|detailed plan|deep dive)\b/i.test(userMessage) ||
+        userMessage.length > 220;
 
-MANDATORY GEOGRAPHICAL CATEGORIES & DOORSTEP SUPPORT FOR MYSURU/MYSORE:
-1. Mysuru/Mysore Layouts:
-   - Vijayanagar (1st, 2nd, 3rd, 4th Stage), Gokulam (1st, 2nd, 3rd Stage), Kuvempunagar, Rajiv Nagar / Rajivnagar (1st & 2nd Stage), Jayalakshmipuram, Saraswathipuram, Ramakrishna Nagar, J.P. Nagar (1st to 4th Phase), Srirampura (1st & 2nd Stage), Bogadi (1st & 2nd Stage, Roopa Nagar, Deepa Nagar), Dattagalli, Kanakadasa Nagar, Vani Vilas Mohalla (V.V. Mohalla), Bannimantap, Yadavagiri, Vidyaranyapuram, Chamundipuram, Agrahara, Alanahalli, Siddhartha Layout, Sharadadevi Nagar, TK Layout, Sathgalli / Sathagalli Extension, Kalyangiri, Udayagiri, Kyathamaranahalli, Yaraganahalli.
-2. Mysuru/Mysore Areas & Industrial Corridors:
-   - Hebbal Industrial Area & Electronic City (Infosys Gate 1 & Gate 2), Hootagalli Industrial Area (BEML, Wipro, Automotive Axles), Koorgalli Industrial Estate & Belavadi (TVS Motor Plant), Kadakola & Adakanahalli KIADB Industrial Area (NH 766), Belagola Industrial Area, Metagalli, Ilavala / Yelwal Satellite Town, Mandakalli (Mysuru Airport zone).
-3. Mysuru/Mysore Local Locations & Landmarks:
-   - Mysore Palace (Amba Vilas), Chamundeshwari Temple (Chamundi Hill Peak), Sri Chamarajendra Zoological Gardens (Mysuru Zoo), Karanji Lake & Butterfly Park, St. Philomena's Cathedral, Jaganmohan Palace Art Gallery, Lalitha Mahal Palace, Mysuru Junction Railway Station (MYS), Ashokapuram Railway Station, Mysuru KSRTC Suburban Bus Stand, Mysuru City Bus Stand (K.R. Circle), Sathgalli KSRTC Bus Depot & Satellite Terminal, Mysuru Airport (MYQ / Mandakalli), Devaraja Market, Mall of Mysore, Nexus Centre City Mall, Apollo BGS Hospitals, Manipal Hospital.
-4. Mysuru/Mysore Roads & Arteries:
-   - Outer Ring Road - Mysuru (ORR 42 km 6-lane bypass encircling all 45+ layouts), D. Devaraja Urs Road, Sayyaji Rao Road, Kalidasa Road (V.V. Mohalla), Contour Road (Gokulam 3rd Stage), Kantharaj Urs Road, Jhansi Lakshmi Bai Road (JLB Road), Hunsur Road (NH 275), Nanjangud Road (NH 766), KRS Road, Bannur Road, Mahadevapura Road, Bogadi Road.
+      // Grounding evaluation: determine if query requires live web search or local maps
+      const isSearchOriented =
+        groundingMode === "search" ||
+        (groundingMode === "auto" &&
+          (/\b(search|google search|live|real-time|latest|current|news|expressway update|toll rates|toll fee|weather|flight|terminal|kempegowda flight|status|condition|recent|rules|guidelines|event|traffic update)\b/i.test(userMessage) ||
+           queryLower.includes("search grounding") ||
+           queryLower.includes("google search data")));
 
-DOORSTEP PICKUP & DROP OPERATIONAL MANDATES:
-- Confirm 100% doorstep cab pickup and drop at ANY residence, apartment gate, villa, hospital, tech park, or local shop in Mysuru.
-- Average dispatch arrival ETA is 10–15 minutes across Mysuru layouts and corridors via the Outer Ring Road.
-- Assist customers with luggage from their doorstep; 24/7 round-the-clock availability with zero surge pricing.
-- Fleet: Sedans (Etios/Dzire - 4 pax, 2 bags), MUVs (Ertiga - 6 pax, 3 bags), Premium SUVs (Innova / Innova Crysta - 6-7 pax, 4-5 bags).
-- Use Google Maps grounding to ground every location, road, layout, and pitstop. Always provide verified, real-time Google Maps place links!
-- Format responses cleanly in Markdown with bold headers, bullet points, and practical tips.`;
+      // Automatic model routing: select Gemini 3.1 Pro Preview for complex work / user requested pro
+      let candidateModel = "gemini-3.8-flash";
+      if (modelTier === "pro" || (modelTier === "auto" && isComplexWork)) {
+        candidateModel = "gemini-3.1-pro-preview";
+      } else if (modelTier === "flash") {
+        candidateModel = "gemini-3.8-flash";
+      }
+
+      const systemInstruction = `You are "TRAVEL JUST AI Travel Concierge & Work Agent" with Gemini Intelligence Pro, High Thinking (extended reasoning), real-time Google Search Grounding, and Google Maps Grounding.
+You represent "TRAVEL JUST", the premier 24/7 cab & chauffeur service based in Mysuru, Karnataka (covering Mysuru, Bengaluru, Kempegowda Airport (BLR), Coorg, Ooty, Wayanad, Kabini, Chikmagalur, and South India).
+
+ADVANCED WORK AGENT CAPABILITIES:
+1. Act across apps and files:
+   - Provide clear, structured travel schedules, vehicle advice, and fare estimates.
+   - When suggesting a ride or tour, specify: Trip Type (Airport Transfer, One Way, Round Trip, or Local City), Pickup Point, Drop Point, Recommended Vehicle (Sedan / Ertiga / Innova Crysta), and Departure Time so the customer can apply it directly to the booking form.
+   - For complex multi-day itineraries, provide clear day-by-day itineraries with route timings, expressway pitstops, and doorstep pickup details.
+2. Real-Time Google Search Grounding:
+   - Retrieve up-to-the-minute real-time web info for flight schedules, highway traffic updates, Bangalore-Mysore expressway toll rates (2026), monsoon/weather alerts, and tourist landmark open hours.
+3. 100% Mysuru Doorstep Pickup & Drop Coverage:
+   - Mysuru Layouts: Rajiv Nagar / Rajivnagar (1st & 2nd Stage), Vijayanagar (1st-4th Stage), Gokulam (1st-3rd Stage), Kuvempunagar, Jayalakshmipuram, Saraswathipuram, Ramakrishna Nagar, J.P. Nagar, Bogadi, Dattagalli, V.V. Mohalla, Bannimantap, Alanahalli, Siddhartha Layout, Sathgalli, Udayagiri.
+   - Mysuru Hubs & Industrial: Hebbal Infosys Campus (Gates 1 & 2), Hootagalli (BEML, Wipro), Koorgalli (TVS Motor), Kadakola KIADB, Mysuru Airport (MYQ).
+   - Mysuru Arteries & Roads: Outer Ring Road (ORR 42 km ring, 10-15 min dispatch), D. Devaraja Urs Road, Sayyaji Rao Road, Kalidasa Road, Contour Road.
+4. Professional Fleet: Sedans (Etios/Dzire - 4 pax), MUVs (Ertiga - 6 pax), Premium SUVs (Innova / Innova Crysta - 6-7 pax). Zero surge pricing, FASTag automated billing, 4-hour free cancellation.
+
+Format output cleanly in Markdown with bold headers, bullet points, and practical advice.`;
 
       const formattedHistory = Array.isArray(history)
         ? history
@@ -1159,48 +1288,130 @@ DOORSTEP PICKUP & DROP OPERATIONAL MANDATES:
             .join("\n")
         : "";
 
-      const promptContent = formattedHistory
+      let promptContent = formattedHistory
         ? `Conversation History:\n${formattedHistory}\n\nCustomer Current Question:\n"${userMessage}"`
         : `Customer Question:\n"${userMessage}"`;
 
-      let response: any;
-      let usedMaps = false;
+      if (attachedFile?.name && attachedFile?.textContent) {
+        promptContent += `\n\n[Agent Attached File: "${attachedFile.name}"]\n${attachedFile.textContent}`;
+      }
 
-      // Call Gemini model with Google Maps grounding
-      try {
-        response = await ai.models.generateContent({
-          model: "gemini-3.8-flash",
-          contents: promptContent,
-          config: {
-            systemInstruction,
-            tools: [{ googleMaps: {} }],
-            toolConfig: {
-              retrievalConfig: {
-                latLng: {
-                  latitude: userLat,
-                  longitude: userLng,
-                },
-              },
+      // Configure contents payload (text or multimodal with attached file image)
+      let contentsPayload: any = promptContent;
+      if (attachedFile?.base64Data && attachedFile?.type && attachedFile.type.startsWith("image/")) {
+        contentsPayload = [
+          { text: promptContent },
+          {
+            inlineData: {
+              mimeType: attachedFile.type,
+              data: attachedFile.base64Data.replace(/^data:[^;]+;base64,/, ""),
             },
           },
-        });
-        usedMaps = true;
-      } catch (groundingErr: any) {
-        console.warn("Maps grounding call failed, falling back to standard generateContent:", groundingErr?.message);
-        response = await ai.models.generateContent({
-          model: "gemini-3.8-flash",
-          contents: promptContent,
-          config: {
-            systemInstruction,
+        ];
+      }
+
+      // Prepare tools
+      let tools: any[] | undefined = undefined;
+      let toolConfig: any = undefined;
+
+      if (isSearchOriented) {
+        tools = [{ googleSearch: {} }];
+      } else if (enableMapsGrounding !== false) {
+        tools = [{ googleMaps: {} }];
+        toolConfig = {
+          retrievalConfig: {
+            latLng: {
+              latitude: userLat,
+              longitude: userLng,
+            },
           },
+        };
+      }
+
+      // Prepare High Thinking config
+      const thinkingConfig = enableThinking !== false
+        ? { thinkingLevel: ThinkingLevel.HIGH }
+        : undefined;
+
+      let response: any;
+      let actualModelUsed = candidateModel;
+      let usedSearch = false;
+      let usedMaps = false;
+
+      // Primary invocation
+      try {
+        const config: any = {
+          systemInstruction,
+          ...(tools ? { tools } : {}),
+          ...(toolConfig ? { toolConfig } : {}),
+          ...(thinkingConfig ? { thinkingConfig } : {}),
+        };
+
+        response = await ai.models.generateContent({
+          model: candidateModel,
+          contents: contentsPayload,
+          config,
         });
+
+        if (isSearchOriented) usedSearch = true;
+        else if (enableMapsGrounding !== false) usedMaps = true;
+      } catch (primaryErr: any) {
+        console.warn(`Primary Gemini call with ${candidateModel} failed:`, primaryErr?.message);
+
+        // If candidateModel was gemini-3.1-pro-preview, seamlessly fallback to gemini-3.8-flash with High Thinking
+        if (candidateModel === "gemini-3.1-pro-preview") {
+          try {
+            actualModelUsed = "gemini-3.8-flash";
+            const fallbackConfig: any = {
+              systemInstruction,
+              ...(tools ? { tools } : {}),
+              ...(toolConfig ? { toolConfig } : {}),
+              ...(thinkingConfig ? { thinkingConfig } : {}),
+            };
+            response = await ai.models.generateContent({
+              model: "gemini-3.8-flash",
+              contents: contentsPayload,
+              config: fallbackConfig,
+            });
+            if (isSearchOriented) usedSearch = true;
+            else if (enableMapsGrounding !== false) usedMaps = true;
+          } catch (secErr: any) {
+            console.warn("Fallback with tools failed, trying without tools on gemini-3.8-flash:", secErr?.message);
+            response = await ai.models.generateContent({
+              model: "gemini-3.8-flash",
+              contents: contentsPayload,
+              config: {
+                systemInstruction,
+                ...(thinkingConfig ? { thinkingConfig } : {}),
+              },
+            });
+          }
+        } else {
+          // Standard tool failure fallback
+          try {
+            response = await ai.models.generateContent({
+              model: "gemini-3.8-flash",
+              contents: contentsPayload,
+              config: {
+                systemInstruction,
+                ...(thinkingConfig ? { thinkingConfig } : {}),
+              },
+            });
+          } catch (thirdErr: any) {
+            console.error("All Gemini invocations failed:", thirdErr?.message);
+            throw thirdErr;
+          }
+        }
       }
 
       const reply = response?.text || getPolicyFallback(userMessage).reply;
       const geminiPlaces = extractGroundedPlaces(response);
+      const searchSources = extractSearchSources(response);
+      const searchQueries = extractSearchQueries(response);
       const localMatches = findMysuruLocationsForQuery(userMessage);
+      const bookingDraft = generateBookingDraft(userMessage, reply);
 
-      // Merge Gemini Grounded places and catalog-verified Mysuru places with unique URIs
+      // Merge Gemini Grounded places and catalog-verified Mysuru places
       const finalGroundedPlaces = [...geminiPlaces];
       const seenUris = new Set(geminiPlaces.map((p) => p.uri));
 
@@ -1214,28 +1425,52 @@ DOORSTEP PICKUP & DROP OPERATIONAL MANDATES:
       return res.json({
         success: true,
         aiGenerated: true,
+        modelUsed: actualModelUsed,
+        modelTierRequested: modelTier,
+        thinkingLevel: enableThinking !== false ? "HIGH" : "DEFAULT",
+        isComplexWork,
+        searchGrounded: usedSearch || searchSources.length > 0 || searchQueries.length > 0,
         mapsGrounded: usedMaps || finalGroundedPlaces.length > 0,
         reply,
         groundedPlaces: finalGroundedPlaces,
-        suggestedFollowups: [
-          "Doorstep pickup in Rajiv Nagar 2nd Stage",
-          "Cab pickup in Vijayanagar 4th Stage",
-          "Gokulam Contour Road cab to Bangalore Airport",
-          "Pickup on D. Devaraja Urs Road near Mysore Palace",
-          "Outer Ring Road cab in Hebbal / Infosys",
-        ],
+        searchSources,
+        searchQueries,
+        bookingDraft,
+        suggestedFollowups: isComplexWork
+          ? [
+              "Break down total toll and driver charges",
+              "Which vehicle is best for luggage & family comfort?",
+              "Apply this itinerary directly to my booking form",
+              "Check real-time expressway traffic & weather",
+            ]
+          : [
+              "Doorstep pickup in Rajiv Nagar 2nd Stage",
+              "Cab pickup in Vijayanagar 4th Stage",
+              "Gokulam Contour Road cab to Bangalore Airport",
+              "Latest Bangalore-Mysuru Expressway toll rates",
+              "Outer Ring Road cab in Hebbal / Infosys",
+            ],
       });
     } catch (err: any) {
       console.error("Chat Assistant Server Error:", err);
       const userMessage = (req.body?.message || "").trim();
       const fallback = getPolicyFallback(userMessage);
+      const bookingDraft = generateBookingDraft(userMessage, fallback.reply);
 
       return res.json({
         success: true,
         aiGenerated: false,
+        modelUsed: "gemini-3.8-flash",
+        modelTierRequested: req.body?.modelTier || "auto",
+        thinkingLevel: "DEFAULT",
+        isComplexWork: false,
+        searchGrounded: false,
         mapsGrounded: Boolean(fallback.groundedPlaces && fallback.groundedPlaces.length > 0),
         reply: fallback.reply,
         groundedPlaces: fallback.groundedPlaces || [],
+        searchSources: [],
+        searchQueries: [],
+        bookingDraft,
         suggestedFollowups: [
           "Doorstep pickup in Rajiv Nagar 2nd Stage",
           "Cab pickup in Vijayanagar 4th Stage",

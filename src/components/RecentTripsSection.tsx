@@ -747,7 +747,7 @@ export const RecentTripsSection: React.FC<RecentTripsSectionProps> = ({
             </span>
             {filteredTrips.length > 0 && (
               <span className="hidden sm:inline-block text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md font-bold">
-                Total: ₹{totalFilteredFare.toLocaleString('en-IN')}
+                Total: ₹{Number(totalFilteredFare ?? 0).toLocaleString('en-IN')}
               </span>
             )}
           </div>

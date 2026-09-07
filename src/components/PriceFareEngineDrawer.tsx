@@ -1179,7 +1179,7 @@ export const PriceFareEngineDrawer: React.FC<PriceFareEngineDrawerProps> = ({
                         {tier.days} Day{tier.days > 1 ? 's' : ''} Booking
                       </span>
                       <span className="block text-[11px] font-extrabold text-white mt-0.5">
-                        {tier.includedMinKm.toLocaleString('en-IN')} km Included
+                        {Number(tier.includedMinKm ?? 0).toLocaleString('en-IN')} km Included
                       </span>
                       <span className="block text-[10px] text-emerald-200/80">
                         + {tier.driverAllowanceDays} Day{tier.driverAllowanceDays > 1 ? 's' : ''} Driver Bata
@@ -1237,7 +1237,7 @@ export const PriceFareEngineDrawer: React.FC<PriceFareEngineDrawerProps> = ({
                               return (
                                 <td key={tier.days} className="py-3 px-2 text-center whitespace-nowrap">
                                   <span className="font-extrabold text-emerald-900 block">
-                                    ₹{totalFare.toLocaleString('en-IN')}
+                                    ₹{Number(totalFare ?? 0).toLocaleString('en-IN')}
                                   </span>
                                   <span className="text-[9px] text-slate-400 block">
                                     ₹{Math.round(totalFare / tier.days)}/day
@@ -1411,7 +1411,7 @@ export const PriceFareEngineDrawer: React.FC<PriceFareEngineDrawerProps> = ({
                             Simulated Fare
                           </span>
                           <span className="text-lg font-extrabold text-emerald-900">
-                            ₹{fare.toLocaleString('en-IN')}
+                            ₹{Number(fare ?? 0).toLocaleString('en-IN')}
                           </span>
                         </div>
                       </div>

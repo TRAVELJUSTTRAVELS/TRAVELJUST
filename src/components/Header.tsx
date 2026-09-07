@@ -59,6 +59,7 @@ export const Header: React.FC<HeaderProps> = ({
         { name: 'Routes & Outstation', href: '#popular-routes-section' },
         { name: 'Services', href: '#services' },
         { name: 'Fleet', href: '#fleet' },
+        { name: 'AI Concierge', href: '#contact' },
         { name: 'Live Dispatch', href: '#recent-trips' },
         { name: 'About', href: '#about' },
         { name: 'FAQ', href: '#faq' },
@@ -68,6 +69,7 @@ export const Header: React.FC<HeaderProps> = ({
         { name: 'Routes & Outstation', href: '#popular-routes-section' },
         { name: 'Services', href: '#services' },
         { name: 'Fleet', href: '#fleet' },
+        { name: 'AI Concierge', href: '#contact' },
         { name: 'About', href: '#about' },
         { name: 'FAQ', href: '#faq' },
       ];

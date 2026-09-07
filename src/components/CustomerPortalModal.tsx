@@ -284,7 +284,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
 
                         <div className="text-right">
                           <span className="font-extrabold text-sm text-slate-900">
-                            ₹{trip.estimatedFare.totalEstimatedFare.toLocaleString('en-IN')}
+                            ₹{Number(trip.estimatedFare?.totalEstimatedFare ?? 0).toLocaleString('en-IN')}
                           </span>
                           <span className="text-[10px] text-slate-500 block uppercase">
                             {trip.searchDetails.serviceType}

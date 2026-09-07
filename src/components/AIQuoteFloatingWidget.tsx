@@ -376,7 +376,7 @@ export const AIQuoteFloatingWidget: React.FC<AIQuoteFloatingWidgetProps> = ({
                       <div className="bg-white p-2 rounded-lg border border-emerald-200">
                         <span className="text-[10px] text-slate-500 font-bold block uppercase">Est. Price</span>
                         <span className="font-extrabold text-sm text-emerald-900">
-                          ₹{quoteResult.estimatedFareMin.toLocaleString('en-IN')} - ₹{quoteResult.estimatedFareMax?.toLocaleString('en-IN')}
+                          ₹{Number(quoteResult.estimatedFareMin ?? 0).toLocaleString('en-IN')} - ₹{Number(quoteResult.estimatedFareMax ?? 0).toLocaleString('en-IN')}
                         </span>
                       </div>
                     )}

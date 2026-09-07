@@ -32,7 +32,16 @@ export const Footer: React.FC<FooterProps> = ({
     e.preventDefault();
     const element = document.querySelector(href);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
+      const headerOffset = 85;
+      const elementPosition = element.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.scrollY - headerOffset;
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth',
+      });
+      if (window.history.pushState) {
+        window.history.pushState(null, '', href);
+      }
     }
   };
 
@@ -73,7 +82,7 @@ export const Footer: React.FC<FooterProps> = ({
 
           {/* Quick Links */}
           <div className="lg:col-span-3 space-y-3">
-            <h4 className="font-bold text-white text-xs uppercase tracking-wider">Navigation</h4>
+            <h4 className="font-bold text-[#FFFFFF] text-xs uppercase tracking-wider">Navigation</h4>
             <ul className="space-y-2 font-medium">
               <li>
                 <a href="#home" onClick={(e) => handleNavClick(e, '#home')} className="hover:text-emerald-400 transition-colors">
@@ -81,7 +90,7 @@ export const Footer: React.FC<FooterProps> = ({
                 </a>
               </li>
               <li>
-                <a href="#popular-routes-section" onClick={(e) => handleNavClick(e, '#popular-routes-section')} className="hover:text-emerald-400 transition-colors text-emerald-300 font-semibold">
+                <a href="#popular-routes-section" onClick={(e) => handleNavClick(e, '#popular-routes-section')} className="hover:text-emerald-400 transition-colors text-slate-300 font-medium">
                   Popular Outstation Routes
                 </a>
               </li>
@@ -96,11 +105,26 @@ export const Footer: React.FC<FooterProps> = ({
                 </a>
               </li>
               <li>
+                <a href="#contact" onClick={(e) => handleNavClick(e, '#contact')} className="hover:text-emerald-400 transition-colors">
+                  Contact & Support
+                </a>
+              </li>
+              <li>
+                <a href="#about" onClick={(e) => handleNavClick(e, '#about')} className="hover:text-emerald-400 transition-colors">
+                  About Us
+                </a>
+              </li>
+              <li>
+                <a href="#faq" onClick={(e) => handleNavClick(e, '#faq')} className="hover:text-emerald-400 transition-colors">
+                  FAQ
+                </a>
+              </li>
+              <li>
                 {customer ? (
                   <button
                     type="button"
                     onClick={onOpenCustomerPortal}
-                    className="text-emerald-400 hover:text-emerald-300 font-bold transition-colors flex items-center gap-1.5"
+                    className="text-emerald-400 hover:text-emerald-300 font-semibold transition-colors flex items-center gap-1.5 text-left cursor-pointer w-full"
                   >
                     <User className="w-3.5 h-3.5" />
                     <span>My Account & Trips</span>
@@ -109,7 +133,7 @@ export const Footer: React.FC<FooterProps> = ({
                   <button
                     type="button"
                     onClick={onOpenCustomerLogin}
-                    className="hover:text-emerald-400 transition-colors flex items-center gap-1.5"
+                    className="hover:text-emerald-400 transition-colors flex items-center gap-1.5 text-left cursor-pointer w-full text-slate-400"
                   >
                     <User className="w-3.5 h-3.5 text-emerald-500" />
                     <span>Customer Login / Register</span>
@@ -118,34 +142,24 @@ export const Footer: React.FC<FooterProps> = ({
               </li>
               {isOwner && (
                 <li>
-                  <a href="#recent-trips" onClick={(e) => handleNavClick(e, '#recent-trips')} className="text-amber-400 hover:text-amber-300 font-bold transition-colors flex items-center gap-1">
+                  <a href="#recent-trips" onClick={(e) => handleNavClick(e, '#recent-trips')} className="text-amber-400 hover:text-amber-300 font-semibold transition-colors flex items-center gap-1">
                     <Database className="w-3 h-3" />
                     <span>Live Dispatch Registry</span>
                   </a>
                 </li>
               )}
-              <li>
-                <a href="#about" onClick={(e) => handleNavClick(e, '#about')} className="hover:text-emerald-400 transition-colors">
-                  About Us
-                </a>
-              </li>
               {onOpenPartnerDrawer && (
                 <li>
                   <button
                     type="button"
                     onClick={onOpenPartnerDrawer}
-                    className="text-[#0ef10e] hover:text-[#0ef10e]/80 font-bold transition-colors flex items-center gap-1.5"
+                    className="text-emerald-400 hover:text-emerald-300 font-semibold transition-colors flex items-center gap-1.5 text-left cursor-pointer w-full"
                   >
-                    <Car className="w-3.5 h-3.5 text-[#0ef10e]" />
+                    <Car className="w-3.5 h-3.5 text-emerald-400" />
                     <span>Attach Cab / Partner With Us</span>
                   </button>
                 </li>
               )}
-              <li>
-                <a href="#faq" onClick={(e) => handleNavClick(e, '#faq')} className="hover:text-emerald-400 transition-colors">
-                  FAQ
-                </a>
-              </li>
             </ul>
           </div>
 
@@ -177,7 +191,7 @@ export const Footer: React.FC<FooterProps> = ({
             {onOpenPartnerDrawer && (
               <div className="bg-emerald-950/70 border border-emerald-800/80 rounded-2xl p-3.5 space-y-2.5">
                 <div className="flex items-start gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-emerald-800 text-[#0ef10e] flex items-center justify-center shrink-0 mt-0.5">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-800 text-emerald-300 flex items-center justify-center shrink-0 mt-0.5">
                     <Car className="w-4 h-4" />
                   </div>
                   <div>
@@ -193,7 +207,7 @@ export const Footer: React.FC<FooterProps> = ({
                 <button
                   type="button"
                   onClick={onOpenPartnerDrawer}
-                  className="w-full bg-[#0a4d3c] hover:bg-[#07382c] text-[#0ef10e] border border-emerald-600/50 font-extrabold text-xs py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+                  className="w-full bg-[#0a4d3c] hover:bg-[#07382c] text-emerald-300 border border-emerald-600/50 font-extrabold text-xs py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
                 >
                   <Car className="w-3.5 h-3.5" />
                   <span>Attach Your Cab / Partner</span>

@@ -81,7 +81,7 @@ export const PopularRoutesLandingSection: React.FC<PopularRoutesLandingSectionPr
         </div>
 
         <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-          Mysore Outstation Taxi & Intercity Cab Hub
+          Travel Just Outstation Taxi & Intercity Cab Hub
         </h2>
 
         <p className="text-base text-slate-600 font-normal leading-relaxed">
@@ -169,7 +169,7 @@ export const PopularRoutesLandingSection: React.FC<PopularRoutesLandingSectionPr
                   Starts at
                 </span>
                 <span className={`font-extrabold ${isSelected ? 'text-white' : 'text-slate-900'}`}>
-                  ₹{route.startingFare.sedan.toLocaleString('en-IN')}
+                  ₹{Number(route.startingFare?.sedan ?? 0).toLocaleString('en-IN')}
                 </span>
               </div>
             </button>
@@ -212,7 +212,7 @@ export const PopularRoutesLandingSection: React.FC<PopularRoutesLandingSectionPr
               <div className="bg-white/10 backdrop-blur-xs rounded-xl p-3 border border-white/10">
                 <span className="text-[11px] text-slate-400 block font-medium">Starting From</span>
                 <span className="text-base font-bold text-emerald-400 mt-0.5 block">
-                  Rs. {activeRoute.startingFare.sedan.toLocaleString('en-IN')}*
+                  Rs. {Number(activeRoute.startingFare?.sedan ?? 0).toLocaleString('en-IN')}*
                 </span>
               </div>
               <div className="bg-white/10 backdrop-blur-xs rounded-xl p-3 border border-white/10">
@@ -291,7 +291,7 @@ export const PopularRoutesLandingSection: React.FC<PopularRoutesLandingSectionPr
                   Sedan (Etios / Dzire)
                 </span>
                 <span className="text-xl font-extrabold text-slate-900 mt-1 block">
-                  Rs. {activeRoute.startingFare.sedan.toLocaleString('en-IN')}
+                  Rs. {Number(activeRoute.startingFare?.sedan ?? 0).toLocaleString('en-IN')}
                 </span>
                 <span className="text-[11px] text-emerald-700 font-semibold block mt-1">
                   4 Passengers • 2 Bags
@@ -303,7 +303,7 @@ export const PopularRoutesLandingSection: React.FC<PopularRoutesLandingSectionPr
                   Comfort SUV (Ertiga)
                 </span>
                 <span className="text-xl font-extrabold text-slate-900 mt-1 block">
-                  Rs. {activeRoute.startingFare.suv.toLocaleString('en-IN')}
+                  Rs. {Number(activeRoute.startingFare?.suv ?? 0).toLocaleString('en-IN')}
                 </span>
                 <span className="text-[11px] text-emerald-700 font-semibold block mt-1">
                   6 Passengers • 3 Bags
@@ -315,7 +315,7 @@ export const PopularRoutesLandingSection: React.FC<PopularRoutesLandingSectionPr
                   Premium (Innova Crysta)
                 </span>
                 <span className="text-xl font-extrabold text-emerald-950 mt-1 block">
-                  Rs. {activeRoute.startingFare.innovaCrysta.toLocaleString('en-IN')}
+                  Rs. {Number(activeRoute.startingFare?.innovaCrysta ?? 0).toLocaleString('en-IN')}
                 </span>
                 <span className="text-[11px] text-emerald-700 font-semibold block mt-1">
                   7 Passengers • 4 Bags
@@ -327,7 +327,7 @@ export const PopularRoutesLandingSection: React.FC<PopularRoutesLandingSectionPr
                   Group (Tempo Traveller)
                 </span>
                 <span className="text-xl font-extrabold text-slate-900 mt-1 block">
-                  Rs. {activeRoute.startingFare.tempoTraveller.toLocaleString('en-IN')}
+                  Rs. {Number(activeRoute.startingFare?.tempoTraveller ?? 0).toLocaleString('en-IN')}
                 </span>
                 <span className="text-[11px] text-emerald-700 font-semibold block mt-1">
                   12 Passengers • Large Boot

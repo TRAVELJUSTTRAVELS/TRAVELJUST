@@ -16,6 +16,7 @@ import { ServicesSection } from './components/ServicesSection';
 import { FleetSection } from './components/FleetSection';
 import { WhyChooseUs } from './components/WhyChooseUs';
 import { AboutSection } from './components/AboutSection';
+import { ContactSection } from './components/ContactSection';
 import { FAQSection } from './components/FAQSection';
 import { RecentTripsSection } from './components/RecentTripsSection';
 import { Footer } from './components/Footer';
@@ -38,6 +39,7 @@ import {
   BookingRequest,
   PlaceSuggestion,
   CustomerUser,
+  BookingDraftPlan,
 } from './types';
 import { defaultPricingConfig } from './config/siteConfig';
 import { vehiclesData } from './data/vehicles';
@@ -217,6 +219,43 @@ export default function App() {
     if (searchElem) {
       searchElem.scrollIntoView({ behavior: 'smooth' });
     }
+  };
+
+  const handleApplyBookingPlan = (plan: BookingDraftPlan) => {
+    const today = new Date().toISOString().split('T')[0];
+    const sType = (plan.serviceType || 'oneway') as ServiceType;
+
+    let matchedVehicleId = 'sedan';
+    if (plan.vehicleType) {
+      const vLower = plan.vehicleType.toLowerCase();
+      if (vLower.includes('innova') || vLower.includes('crysta')) {
+        matchedVehicleId = 'innova';
+      } else if (vLower.includes('ertiga') || vLower.includes('muv')) {
+        matchedVehicleId = 'ertiga';
+      } else {
+        matchedVehicleId = 'sedan';
+      }
+    }
+
+    const vObj = vehiclesData.find((v) => v.id === matchedVehicleId) || vehiclesData[0];
+    setSelectedVehicle(vObj);
+
+    setSearchState({
+      serviceType: sType,
+      pickupLocation: plan.pickupLocation || 'Rajiv Nagar, Mysuru',
+      dropLocation: plan.dropLocation || (sType === 'local' ? '' : 'Kempegowda International Airport (BLR)'),
+      travelDate: today,
+      pickupDate: today,
+      dropDate: today,
+      returnDate: today,
+      pickupTime: '09:00',
+      durationHours: plan.durationHours || 8,
+      airportTransferType: 'pickup',
+      passengers: plan.passengers || 2,
+      vehicleType: matchedVehicleId,
+    });
+
+    handleScrollToBookingSearch();
   };
 
   const handleCompleteBooking = (booking: BookingRequest) => {
@@ -416,6 +455,12 @@ export default function App() {
 
         {/* About Section */}
         <AboutSection />
+
+        {/* AI Travel Concierge & Contact Section */}
+        <ContactSection
+          onOpenBookingSearch={handleScrollToBookingSearch}
+          onApplyBookingPlan={handleApplyBookingPlan}
+        />
 
         {/* FAQ Section */}
         <FAQSection />

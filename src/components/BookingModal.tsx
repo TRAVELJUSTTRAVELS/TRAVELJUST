@@ -676,7 +676,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   <span>{selectedVehicle.name}</span>
                 </span>
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-800 text-white font-bold text-[10px]">
-                  ₹{fareEstimate.totalEstimatedFare.toLocaleString('en-IN')} Total
+                  ₹{Number(fareEstimate?.totalEstimatedFare ?? 0).toLocaleString('en-IN')} Total
                 </span>
               </div>
 

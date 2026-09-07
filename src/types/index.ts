@@ -256,3 +256,24 @@ export interface GroundedPlace {
   reviewSnippet?: string;
   address?: string;
 }
+
+export interface GroundedSearchSource {
+  title: string;
+  uri: string;
+}
+
+export interface BookingDraftPlan {
+  serviceType?: ServiceType;
+  pickupLocation?: string;
+  dropLocation?: string;
+  travelDate?: string;
+  pickupTime?: string;
+  vehicleType?: string;
+  durationHours?: number;
+  passengers?: number;
+  estimatedFare?: number;
+  tripSummary?: string;
+}
+
+export type AIModelTier = 'auto' | 'gemini-3.1-pro-preview' | 'gemini-3.8-flash';
+export type AIGroundingMode = 'auto' | 'search' | 'maps';

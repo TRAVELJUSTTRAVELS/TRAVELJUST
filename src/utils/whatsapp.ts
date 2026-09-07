@@ -32,7 +32,7 @@ export function formatBookingConfirmationMessage(payload: BookingWhatsAppPayload
     searchDetails.serviceType === 'airport' 
       ? `Airport ${searchDetails.airportTransferType === 'pickup' ? 'Pickup' : 'Drop'}`
       : searchDetails.serviceType === 'roundtrip'
-      ? `Round Trip Outstation (${days} Day${days > 1 ? 's' : ''} Package • ${includedMinKm.toLocaleString('en-IN')} km Included Min + ${days} Day${days > 1 ? 's' : ''} Driver Bata)`
+      ? `Round Trip Outstation (${days} Day${days > 1 ? 's' : ''} Package • ${Number(includedMinKm ?? (days * 300)).toLocaleString('en-IN')} km Included Min + ${days} Day${days > 1 ? 's' : ''} Driver Bata)`
       : searchDetails.serviceType === 'local'
       ? `Local Package (${searchDetails.durationHours} Hours)`
       : 'One-Way Drop';
@@ -65,7 +65,7 @@ export function formatBookingConfirmationMessage(payload: BookingWhatsAppPayload
 📅 *Pickup Date:* ${searchDetails.pickupDate || searchDetails.travelDate}
 ⏰ *Pickup Time:* ${searchDetails.pickupTime || '09:00 AM'}${dropDateInfo}
 
-💰 *Estimated Fare:* ₹${estimatedFare.totalEstimatedFare.toLocaleString('en-IN')}${notesInfo}
+💰 *Estimated Fare:* ₹${Number(estimatedFare?.totalEstimatedFare ?? 0).toLocaleString('en-IN')}${notesInfo}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 _Please confirm vehicle dispatch, driver contact details, and trip schedule._`
   );

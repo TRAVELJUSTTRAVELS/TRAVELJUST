@@ -7,15 +7,13 @@ import {
   Clock,
   Car,
   Headphones,
-  ArrowRight,
-  TrendingUp,
 } from 'lucide-react';
 
 interface WhyChooseUsProps {
   onOpenPartnerDrawer?: () => void;
 }
 
-export const WhyChooseUs: React.FC<WhyChooseUsProps> = ({ onOpenPartnerDrawer }) => {
+export const WhyChooseUs: React.FC<WhyChooseUsProps> = () => {
   const highlights = [
     {
       title: 'Easy Booking',
@@ -88,36 +86,6 @@ export const WhyChooseUs: React.FC<WhyChooseUsProps> = ({ onOpenPartnerDrawer })
             </div>
           ))}
         </div>
-
-        {/* Fleet Expansion & Driver Partner Callout */}
-        {onOpenPartnerDrawer && (
-          <div className="mt-12 bg-gradient-to-r from-emerald-900/90 via-slate-900 to-emerald-900/90 border border-emerald-500/40 rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl relative overflow-hidden">
-            <div className="space-y-2 text-center md:text-left z-10">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#0ef10e]/15 border border-[#0ef10e]/40 text-[#0ef10e] text-xs font-black uppercase tracking-wider">
-                <Car className="w-3.5 h-3.5" />
-                <span>Fleet Expansion Across Karnataka</span>
-              </div>
-              <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                Own a Commercial Cab? Partner with TRAVEL JUST
-              </h3>
-              <p className="text-sm text-emerald-100/80 max-w-2xl leading-relaxed">
-                Attach your Sedan, Ertiga, Innova Crysta, or Tempo Traveller for regular Mysore ⇄ Bangalore Expressway trips, airport transfers, and outstation tours. Zero signup fees and transparent payouts.
-              </p>
-            </div>
-
-            <div className="shrink-0 z-10">
-              <button
-                type="button"
-                onClick={onOpenPartnerDrawer}
-                className="bg-[#0ef10e] hover:bg-[#0cd30c] text-slate-950 font-black text-sm px-6 py-3.5 rounded-2xl shadow-lg shadow-[#0ef10e]/20 flex items-center gap-2.5 transition-all transform hover:scale-[1.03] active:scale-[0.98] cursor-pointer"
-              >
-                <Car className="w-4 h-4 text-slate-950 stroke-[2.5]" />
-                <span>Attach Your Cab / Partner With Us</span>
-                <ArrowRight className="w-4 h-4 stroke-[2.5]" />
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </section>
   );
