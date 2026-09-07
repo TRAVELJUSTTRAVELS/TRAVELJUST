@@ -433,11 +433,11 @@ export default function App() {
           )}
         </div>
 
-        {/* Services Section */}
-        <ServicesSection onSelectService={handleSelectServiceFromSection} />
-
         {/* Dedicated Popular Routes & Destination Guides for SEO */}
         <PopularRoutesLandingSection onSelectRouteForBooking={handleSelectRouteForBooking} />
+
+        {/* Services Section */}
+        <ServicesSection onSelectService={handleSelectServiceFromSection} />
 
         {/* Fleet Section */}
         <FleetSection onSelectVehicleForBooking={handleSelectVehicleFromFleet} />

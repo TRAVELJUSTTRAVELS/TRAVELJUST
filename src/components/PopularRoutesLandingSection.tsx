@@ -10,11 +10,8 @@ import {
   Sparkles,
   Car,
   Plane,
-  ChevronDown,
-  ChevronUp,
   Phone,
   MessageSquare,
-  HelpCircle,
   TrendingUp,
 } from 'lucide-react';
 import { POPULAR_ROUTE_PAGES, RoutePageData } from '../data/popularRoutesData';
@@ -36,7 +33,6 @@ export const PopularRoutesLandingSection: React.FC<PopularRoutesLandingSectionPr
 }) => {
   const [selectedRouteId, setSelectedRouteId] = useState<string>('mysore-to-bengaluru');
   const [routeFilter, setRouteFilter] = useState<'all' | 'from-mysore' | 'to-mysore'>('all');
-  const [expandedFaqId, setExpandedFaqId] = useState<string | null>(null);
 
   const filteredRoutes = POPULAR_ROUTE_PAGES.filter((route) => {
     if (routeFilter === 'from-mysore') {
@@ -135,7 +131,6 @@ export const PopularRoutesLandingSection: React.FC<PopularRoutesLandingSectionPr
               key={route.id}
               onClick={() => {
                 setSelectedRouteId(route.id);
-                setExpandedFaqId(null);
               }}
               className={`p-3.5 rounded-2xl text-left transition-all flex flex-col justify-between cursor-pointer border relative text-xs sm:text-sm ${
                 isSelected
@@ -365,44 +360,6 @@ export const PopularRoutesLandingSection: React.FC<PopularRoutesLandingSectionPr
                 <span>Book This Cab</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
-            </div>
-          </div>
-
-          {/* Route-Specific FAQs Accordion */}
-          <div className="space-y-4 pt-4 border-t border-slate-100">
-            <h4 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <HelpCircle className="w-4 h-4 text-emerald-700" />
-              <span>Frequently Asked Questions about {activeRoute.title}</span>
-            </h4>
-
-            <div className="space-y-2">
-              {activeRoute.faqs.map((faq, idx) => {
-                const isOpen = expandedFaqId === `faq-${idx}`;
-                return (
-                  <div
-                    key={idx}
-                    className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50/50"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setExpandedFaqId(isOpen ? null : `faq-${idx}`)}
-                      className="w-full text-left p-4 flex items-center justify-between gap-4 font-semibold text-xs sm:text-sm text-slate-900 hover:bg-slate-100/80 transition-colors cursor-pointer"
-                    >
-                      <span>{faq.question}</span>
-                      {isOpen ? (
-                        <ChevronUp className="w-4 h-4 text-slate-500 shrink-0" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />
-                      )}
-                    </button>
-                    {isOpen && (
-                      <div className="p-4 pt-0 text-xs sm:text-sm text-slate-600 font-normal leading-relaxed border-t border-slate-100 bg-white">
-                        {faq.answer}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
             </div>
           </div>
         </div>
