@@ -45,7 +45,6 @@ interface BookingModalProps {
   pricingConfig: PricingConfig;
   onCompleteBooking: (booking: BookingRequest) => void;
   customer?: CustomerUser | null;
-  onOpenCustomerLogin?: () => void;
 }
 
 export const BookingModal: React.FC<BookingModalProps> = ({
@@ -56,7 +55,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   pricingConfig,
   onCompleteBooking,
   customer = null,
-  onOpenCustomerLogin,
 }) => {
   const [step, setStep] = useState<3 | 4 | 5>(3); // Step 3: Passenger Details, Step 4: Review, Step 5: Confirmation
 
@@ -174,6 +172,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       estimatedFare: fareEstimate,
       createdAt: new Date().toISOString(),
       status: 'Pending Confirmation',
+      fare_snapshot: fareEstimate.fareSnapshot,
+      pricing_version: fareEstimate.pricingVersion,
     };
 
     // Save directly to Supabase Database
@@ -341,8 +341,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 </div>
               </div>
 
-              {/* Customer Account Auto-Fill Banner */}
-              {customer ? (
+              {/* Customer Account Auto-Fill Banner if logged in */}
+              {customer && (
                 <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-full bg-emerald-800 text-white flex items-center justify-center font-bold text-xs">
@@ -361,22 +361,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     1-Click Ready
                   </span>
                 </div>
-              ) : (
-                onOpenCustomerLogin && (
-                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2 text-slate-700">
-                      <User className="w-4 h-4 text-emerald-800" />
-                      <span>Have a TRAVEL JUST account?</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={onOpenCustomerLogin}
-                      className="font-bold text-emerald-800 hover:text-emerald-950 underline text-xs"
-                    >
-                      Sign In to Auto-Fill
-                    </button>
-                  </div>
-                )
               )}
 
               {/* Passenger Info Section */}

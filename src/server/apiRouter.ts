@@ -1,6 +1,168 @@
 import express, { Router } from "express";
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { AIRPORT_LOCATIONS } from "../data/locations/airports";
 import { MYSURU_LOCAL_LOCATIONS } from "../data/locations/mysuruLocal";
+import { COORG_WAYANAD_OOTY_LOCATIONS } from "../data/locations/coorgWayanadOoty";
+import { BENGALURU_EXPRESSWAY_LOCATIONS } from "../data/locations/bengaluruExpressway";
+import { REGIONAL_HUBS_HOTELS_STATIONS } from "../data/locations/regionalHubsHotelsStations";
+import { INTERCITY_HERITAGE_COASTAL_LOCATIONS } from "../data/locations/intercityHeritageCoastal";
+import { ROUTE_MATRIX } from "../data/locations/routeDistances";
+import { getInitialSeedTrips } from "../data/seedTrips";
+import { serverPricingStore } from "./fareEngine/pricingStore";
+
+const POPULAR_LOCATIONS = [
+  ...AIRPORT_LOCATIONS,
+  ...REGIONAL_HUBS_HOTELS_STATIONS,
+  ...MYSURU_LOCAL_LOCATIONS,
+  ...COORG_WAYANAD_OOTY_LOCATIONS,
+  ...BENGALURU_EXPRESSWAY_LOCATIONS,
+  ...INTERCITY_HERITAGE_COASTAL_LOCATIONS,
+];
+
+function detectInterstateTrip(originText: string, destText: string): {
+  isInterstate: boolean;
+  interstateTaxEstimate: number;
+  fromState: string;
+  toState: string;
+} {
+  const detectState = (text: string) => {
+    const t = text.toLowerCase();
+    if (
+      t.includes("tamil nadu") ||
+      t.includes("ooty") ||
+      t.includes("udhagamandalam") ||
+      t.includes("coimbatore") ||
+      t.includes("nilgiris") ||
+      t.includes("chennai") ||
+      t.includes("salem") ||
+      t.includes("madurai") ||
+      t.includes("erode") ||
+      t.includes("tiruppur") ||
+      t.includes("hosur") ||
+      t.includes("vellore")
+    ) {
+      return "Tamil Nadu";
+    }
+    if (
+      t.includes("kerala") ||
+      t.includes("wayanad") ||
+      t.includes("kalpetta") ||
+      t.includes("sulthan bathery") ||
+      t.includes("vythiri") ||
+      t.includes("kozhikode") ||
+      t.includes("calicut") ||
+      t.includes("kannur") ||
+      t.includes("kochi") ||
+      t.includes("cochin") ||
+      t.includes("munnar") ||
+      t.includes("thrissur")
+    ) {
+      return "Kerala";
+    }
+    return "Karnataka";
+  };
+
+  const fromState = detectState(originText);
+  const toState = detectState(destText);
+
+  if (fromState !== toState) {
+    const tax = toState === "Tamil Nadu" || fromState === "Tamil Nadu" ? 600 : 550;
+    return { isInterstate: true, interstateTaxEstimate: tax, fromState, toState };
+  }
+
+  return { isInterstate: false, interstateTaxEstimate: 0, fromState, toState };
+}
+
+function detectHighwayCorridor(
+  originText: string,
+  destText: string,
+  defaultDesc: string
+): { corridor: string; toll: number } {
+  const o = originText.toLowerCase();
+  const d = destText.toLowerCase();
+  if (
+    ((o.includes("mysur") || o.includes("myso")) &&
+      (d.includes("bengaluru") || d.includes("bangalore") || d.includes("airport") || d.includes("kial"))) ||
+    ((d.includes("mysur") || d.includes("myso")) &&
+      (o.includes("bengaluru") || o.includes("bangalore") || o.includes("airport") || o.includes("kial")))
+  ) {
+    const isAirport =
+      o.includes("airport") || d.includes("airport") || o.includes("kial") || d.includes("kial");
+    return {
+      corridor: isAirport
+        ? "NH 275 Bengaluru-Mysuru Expressway + NH 44 Airport Corridor"
+        : "NH 275 10-Lane Bengaluru-Mysuru Expressway",
+      toll: 320,
+    };
+  }
+  if (o.includes("ooty") || d.includes("ooty") || o.includes("nilgiris") || d.includes("nilgiris")) {
+    return { corridor: "NH 766 & NH 181 via Bandipur & Nilgiris Ghats", toll: 120 };
+  }
+  if (o.includes("wayanad") || d.includes("wayanad") || o.includes("kalpetta") || d.includes("kalpetta")) {
+    return { corridor: "NH 766 Gundlupet-Sultan Bathery Forest Corridor", toll: 60 };
+  }
+  if (o.includes("coorg") || d.includes("coorg") || o.includes("madikeri") || d.includes("madikeri")) {
+    return { corridor: "SH 88 / NH 275 Hunsur-Periyapatna-Kushalnagar Highway", toll: 0 };
+  }
+  if (o.includes("kabini") || d.includes("kabini") || o.includes("nagarhole") || d.includes("nagarhole")) {
+    return { corridor: "SH 33 / HD Kote Mananthavady Wildlife Corridor", toll: 0 };
+  }
+  if (o.includes("hassan") || d.includes("hassan") || o.includes("belur") || d.includes("belur")) {
+    return { corridor: "SH 57 / NH 373 KR Nagara-Holenarasipura Highway", toll: 0 };
+  }
+  return { corridor: defaultDesc || "South Indian National/State Highway Corridor", toll: 0 };
+}
+
+function calculateHaversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Earth radius in km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function reverseGeocodeToPlace(lat: number, lng: number) {
+  let closest = POPULAR_LOCATIONS[0];
+  let minDistance = Infinity;
+
+  for (const loc of POPULAR_LOCATIONS) {
+    if (loc.lat && loc.lng) {
+      const dist = calculateHaversineKm(lat, lng, loc.lat, loc.lng);
+      if (dist < minDistance) {
+        minDistance = dist;
+        closest = loc;
+      }
+    }
+  }
+
+  if (minDistance <= 3.0) {
+    return {
+      placeId: closest.placeId,
+      placeName: closest.placeName,
+      formattedAddress: `Current Location near ${closest.placeName}, ${closest.city}`,
+      areaLocality: closest.areaLocality || "Current Location",
+      city: closest.city || "Karnataka",
+      lat,
+      lng,
+      types: closest.types || ["street_address"],
+    };
+  }
+
+  return {
+    placeId: `current_loc_${Date.now()}`,
+    placeName: `Current Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`,
+    areaLocality: closest.areaLocality || "Current GPS Location",
+    city: closest.city || "Karnataka, South India",
+    formattedAddress: `Current GPS Coordinates near ${closest.placeName}`,
+    lat,
+    lng,
+    types: ["street_address"],
+  };
+}
 
 // Helper to find matching Mysuru locations from catalog for rich Google Maps place cards
 function findMysuruLocationsForQuery(query: string): Array<{ title: string; uri: string; reviewSnippet?: string; address?: string }> {
@@ -58,12 +220,13 @@ function findMysuruLocationsForQuery(query: string): Array<{ title: string; uri:
 // In-memory cache & circuit breakers for Google Maps Platform APIs
 const routeCache = new Map<string, { data: any; timestamp: number }>();
 const autocompleteCache = new Map<string, { data: any; timestamp: number }>();
+const placeDetailsCache = new Map<string, { data: any; timestamp: number }>();
 let googleRoutesRateLimitedUntil = 0;
 let googlePlacesRateLimitedUntil = 0;
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes cache
 
-// In-memory buffer for bookings fallback
-const serverBookingsBuffer: any[] = [];
+// In-memory buffer for bookings fallback initialized with verified dispatch records
+const serverBookingsBuffer: any[] = [...getInitialSeedTrips()];
 // In-memory buffer for customer login WhatsApp notifications
 const serverLoginNotificationsBuffer: any[] = [];
 
@@ -78,6 +241,205 @@ export function createApiRouter(): Router {
       service: "TRAVEL JUST API",
       timestamp: new Date().toISOString(),
     });
+  });
+
+  // -------------------------------------------------------------
+  // LIVE DYNAMIC PRICE & FARE ENGINE API ENDPOINTS
+  // -------------------------------------------------------------
+
+  // 1. Get all vehicle dynamic pricing configurations
+  router.get("/fare/configs", (req, res) => {
+    const configs = serverPricingStore.getAllConfigs();
+    return res.json({ success: true, configs });
+  });
+
+  // 2. Get pricing configuration for specific vehicle
+  router.get("/fare/configs/:vehicleId", (req, res) => {
+    const { vehicleId } = req.params;
+    const config = serverPricingStore.getConfig(vehicleId);
+    if (!config) {
+      return res.status(404).json({ success: false, error: `Vehicle config not found: ${vehicleId}` });
+    }
+    return res.json({ success: true, config });
+  });
+
+  // 3. Update vehicle pricing configuration (with versioning, validation, and audit tracking)
+  router.post("/fare/configs/:vehicleId", (req, res) => {
+    try {
+      const { vehicleId } = req.params;
+      const updates = req.body;
+      const updatedBy = (req.headers["x-admin-user"] as string) || "Administrator";
+
+      // Input validation: disallow negative rates
+      if (updates.pricingByBookingType) {
+        for (const [bType, p] of Object.entries(updates.pricingByBookingType as Record<string, any>)) {
+          if (
+            p.baseFare < 0 ||
+            p.perKmRate < 0 ||
+            p.extraPerKmRate < 0 ||
+            p.hourlyRate < 0 ||
+            p.extraPerHourRate < 0 ||
+            p.driverAllowance < 0 ||
+            p.minimumFare < 0
+          ) {
+            return res.status(400).json({
+              success: false,
+              error: `Invalid pricing rates for ${bType}: Negative values are strictly forbidden.`,
+            });
+          }
+        }
+      }
+
+      const updated = serverPricingStore.updateConfig(vehicleId, updates, updatedBy);
+      return res.json({
+        success: true,
+        message: `Pricing updated to Version ${updated.pricingVersion} for ${updated.vehicleName}`,
+        config: updated,
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // 4. Reset vehicle pricing configurations to defaults
+  router.post("/fare/reset", (req, res) => {
+    const { vehicleId } = req.body || {};
+    serverPricingStore.resetToDefaults(vehicleId);
+    return res.json({
+      success: true,
+      message: vehicleId ? `Reset ${vehicleId} to default pricing` : "All vehicle pricing configs reset to defaults",
+      configs: serverPricingStore.getAllConfigs(),
+    });
+  });
+
+  // 5. Authoritative centralized calculation endpoint for a single vehicle
+  router.post("/fare/calculate", (req, res) => {
+    try {
+      const {
+        origin,
+        destination,
+        distanceKm,
+        durationMinutes,
+        bookingType = "ONE_WAY",
+        vehicleId,
+        pickupDateTime,
+        pickupTime,
+        roundTripDays,
+        airportTransferType,
+        viaStopsCount,
+      } = req.body;
+
+      if (!vehicleId) {
+        return res.status(400).json({ success: false, error: "vehicleId is required" });
+      }
+
+      const result = serverPricingStore.calculateAuthoritativeFare({
+        origin: origin || "Origin",
+        destination: destination || "Destination",
+        distanceKm: Number(distanceKm) || 0,
+        durationMinutes: Number(durationMinutes) || 0,
+        bookingType,
+        vehicleId,
+        pickupDateTime,
+        pickupTime,
+        roundTripDays: Number(roundTripDays) || 1,
+        airportTransferType,
+        viaStopsCount: Number(viaStopsCount) || 0,
+      });
+
+      return res.json({ success: true, fare: result });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // 6. Authoritative centralized calculation endpoint for ALL active vehicles
+  router.post("/fare/calculate-all", (req, res) => {
+    try {
+      const {
+        origin,
+        destination,
+        distanceKm,
+        durationMinutes,
+        bookingType = "ONE_WAY",
+        pickupDateTime,
+        pickupTime,
+        roundTripDays,
+        airportTransferType,
+        viaStopsCount,
+      } = req.body;
+
+      const results = serverPricingStore.calculateAllVehicles({
+        origin: origin || "Origin",
+        destination: destination || "Destination",
+        distanceKm: Number(distanceKm) || 0,
+        durationMinutes: Number(durationMinutes) || 0,
+        bookingType,
+        pickupDateTime,
+        pickupTime,
+        roundTripDays: Number(roundTripDays) || 1,
+        airportTransferType,
+        viaStopsCount: Number(viaStopsCount) || 0,
+      });
+
+      return res.json({ success: true, fares: results });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // 7. Live Fare Preview tester endpoint
+  router.post("/fare/preview", async (req, res) => {
+    try {
+      const {
+        origin,
+        destination,
+        distanceKm: customKm,
+        durationMinutes: customMins,
+        bookingType = "ONE_WAY",
+        vehicleId = "toyota-etios",
+        pickupTime = "09:00",
+        roundTripDays = 1,
+      } = req.body;
+
+      let distanceKm = Number(customKm) || 0;
+      let durationMinutes = Number(customMins) || 0;
+      let routeSource = "custom";
+
+      if ((!distanceKm || distanceKm <= 0) && origin && destination) {
+        const mKey = `${origin.trim().toLowerCase()}__${destination.trim().toLowerCase()}`;
+        const revKey = `${destination.trim().toLowerCase()}__${origin.trim().toLowerCase()}`;
+        const matrixEntry = (ROUTE_MATRIX as any)[mKey] || (ROUTE_MATRIX as any)[revKey];
+        if (matrixEntry) {
+          distanceKm = matrixEntry.distanceKm;
+          durationMinutes = matrixEntry.durationMinutes;
+          routeSource = "matrix";
+        } else {
+          distanceKm = 145;
+          durationMinutes = 195;
+          routeSource = "estimate";
+        }
+      }
+
+      const result = serverPricingStore.calculateAuthoritativeFare({
+        origin: origin || "Mysuru",
+        destination: destination || "Bengaluru",
+        distanceKm,
+        durationMinutes,
+        bookingType,
+        vehicleId,
+        pickupTime,
+        roundTripDays: Number(roundTripDays) || 1,
+      });
+
+      return res.json({
+        success: true,
+        routeSource,
+        preview: result,
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
   });
 
   // API route to record and process Customer Login WhatsApp Notification for Owner
@@ -241,9 +603,219 @@ export function createApiRouter(): Router {
     }
   });
 
+  // Google Maps Platform: Places API (New) Place Details Endpoint (Resolves Place ID to Coordinates & Details)
+  router.post("/maps/place-details", async (req, res) => {
+    try {
+      const { placeId, sessionToken } = req.body;
+      if (!placeId || typeof placeId !== "string" || placeId.trim().length === 0) {
+        return res.status(400).json({ success: false, error: "placeId is required" });
+      }
+
+      const cacheKey = placeId.trim();
+      const cached = placeDetailsCache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+        return res.json({ success: true, place: cached.data });
+      }
+
+      const apiKey = process.env.GOOGLE_MAPS_API_KEY || process.env.VITE_GOOGLE_MAPS_API_KEY;
+      if (apiKey && apiKey !== "MY_GOOGLE_MAPS_API_KEY" && apiKey.trim() !== "" && placeId.startsWith("ChIJ")) {
+        const url = new URL(`https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`);
+        if (sessionToken) {
+          url.searchParams.set("sessionToken", sessionToken);
+        }
+
+        const response = await fetch(url.toString(), {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": apiKey,
+            "X-Goog-FieldMask": "id,displayName,formattedAddress,location,types,addressComponents",
+            "X-Goog-Maps-Solution-ID": "gmp_mcp_codeassist_v1_aistudio",
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const place = {
+            placeId: data.id || placeId,
+            placeName: data.displayName?.text || "",
+            formattedAddress: data.formattedAddress || "",
+            lat: data.location?.latitude,
+            lng: data.location?.longitude,
+            types: data.types || [],
+          };
+          placeDetailsCache.set(cacheKey, { data: place, timestamp: Date.now() });
+          return res.json({ success: true, place });
+        }
+      }
+
+      // Fallback to local catalog
+      const localMatch = POPULAR_LOCATIONS.find((p) => p.placeId === placeId || p.placeName.toLowerCase() === placeId.toLowerCase());
+      if (localMatch) {
+        const place = {
+          placeId: localMatch.placeId,
+          placeName: localMatch.placeName,
+          formattedAddress: localMatch.formattedAddress,
+          lat: localMatch.lat,
+          lng: localMatch.lng,
+          types: localMatch.types || [],
+          isAirport: localMatch.isAirport,
+        };
+        return res.json({ success: true, place, source: "catalog" });
+      }
+
+      return res.json({ success: false, reason: "NOT_FOUND" });
+    } catch (err: any) {
+      console.error("Error in /maps/place-details:", err);
+      return res.json({ success: false, error: err.message });
+    }
+  });
+
+  // Google Maps Platform: Reverse Geocoding Endpoint for Current Location (GPS)
+  router.post("/maps/reverse-geocode", async (req, res) => {
+    try {
+      const { lat, lng } = req.body;
+      if (typeof lat !== "number" || typeof lng !== "number") {
+        return res.status(400).json({ success: false, error: "lat and lng numbers are required" });
+      }
+
+      const apiKey = process.env.GOOGLE_MAPS_API_KEY || process.env.VITE_GOOGLE_MAPS_API_KEY;
+      if (apiKey && apiKey !== "MY_GOOGLE_MAPS_API_KEY" && apiKey.trim() !== "") {
+        const geoUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`;
+        const response = await fetch(geoUrl);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.status === "OK" && Array.isArray(data.results) && data.results.length > 0) {
+            const first = data.results[0];
+            const getComp = (type: string) => first.address_components?.find((c: any) => c.types.includes(type))?.long_name || "";
+            const locality = getComp("locality") || getComp("sublocality") || getComp("administrative_area_level_2");
+            const state = getComp("administrative_area_level_1");
+            const place = {
+              placeId: first.place_id || `loc_gps_${Date.now()}`,
+              placeName: locality ? `Current Location (${locality})` : "Current Location",
+              formattedAddress: first.formatted_address || `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+              areaLocality: locality || "Current GPS Location",
+              city: state ? `${locality}, ${state}` : "Karnataka, South India",
+              lat,
+              lng,
+              types: first.types || ["street_address"],
+            };
+            return res.json({ success: true, place });
+          }
+        }
+      }
+
+      // Fallback to local reverse geocode
+      const localPlace = reverseGeocodeToPlace(lat, lng);
+      return res.json({ success: true, place: localPlace, source: "fallback_geocoding" });
+    } catch (err: any) {
+      console.error("Error in /maps/reverse-geocode:", err);
+      const fallback = reverseGeocodeToPlace(req.body?.lat || 12.2958, req.body?.lng || 76.6394);
+      return res.json({ success: true, place: fallback, fallback: true });
+    }
+  });
+
+  // Google Maps Platform: Full Technical Architecture & Database Schema Specification
+  router.get("/maps/architecture-spec", (req, res) => {
+    return res.json({
+      success: true,
+      title: "TRAVEL JUST Google Maps Platform & Dynamic Fare Engine Technical Architecture",
+      version: "2.5.0",
+      architecture: {
+        clientTier: {
+          library: "@vis.gl/react-google-maps v1.7.5 & Native Web Geolocation API",
+          components: [
+            "LocationAutocompleteInput.tsx (Places Autocomplete with category filtering: Hotels, Stations, Airports, Sightseeing)",
+            "CurrentLocationPicker (Browser GPS geolocation with high-accuracy coords & reverse-geocoding)",
+            "BookingSearch.tsx (State manager capturing Place ID + Latitude + Longitude for FROM & TO)",
+            "LiveRouteSummaryBanner (Visual display of calculated road distance, travel time, highway, tolls)",
+            "DynamicFareCalculator (Distance-calibrated fare calculation across 4 tiers: Sedan, SUV, Crysta, Tempo Traveller)",
+          ],
+          optimizations: [
+            "Autocomplete Session Tokens: Groups keystroke suggestions with final Place Details fetch for 70%+ API cost savings",
+            "Field Masking: Requests only essential fields (id, displayName, formattedAddress, location, types)",
+            "Client Debounce: 120ms debounce prevents excessive keystroke queries",
+            "Regional Bias: Centered on South Indian network (Karnataka, Tamil Nadu, Kerala) with 600km radius",
+          ],
+        },
+        serverProxyTier: {
+          endpoints: [
+            "POST /api/maps/autocomplete (Proxies Places API New autocomplete with in-memory caching)",
+            "POST /api/maps/place-details (Fetches exact Place ID, lat/lng coordinates & formatted address)",
+            "POST /api/maps/reverse-geocode (Translates GPS lat/lng into verified human-readable address)",
+            "POST /api/maps/compute-route (Routes API Directions v2 computeRoutes with waypoints, tolls & polylines)",
+          ],
+          resilience: [
+            "Circuit Breakers: Detects HTTP 429 rate-limiting and applies automatic 60s cooldown",
+            "In-Memory LRU Caching: 30-minute TTL for high-frequency routes and autocomplete queries",
+            "Intelligent Fallback Engine: Seamlessly switches to 290+ calibrated South Indian highway routes if API offline",
+          ],
+        },
+        databaseSchema: {
+          dialect: "PostgreSQL / Supabase / Cloud SQL",
+          tables: [
+            {
+              tableName: "google_places_cache",
+              columns: [
+                "place_id VARCHAR(120) PRIMARY KEY",
+                "place_name VARCHAR(255) NOT NULL",
+                "formatted_address TEXT NOT NULL",
+                "latitude NUMERIC(10, 7) NOT NULL",
+                "longitude NUMERIC(10, 7) NOT NULL",
+                "category VARCHAR(50)",
+                "types TEXT[]",
+                "created_at TIMESTAMPTZ DEFAULT NOW()",
+              ],
+            },
+            {
+              tableName: "routes_distance_cache",
+              columns: [
+                "route_key VARCHAR(255) PRIMARY KEY",
+                "origin_place_id VARCHAR(120)",
+                "destination_place_id VARCHAR(120)",
+                "distance_meters INTEGER NOT NULL",
+                "distance_km NUMERIC(8, 2) NOT NULL",
+                "duration_seconds INTEGER NOT NULL",
+                "duration_text VARCHAR(60) NOT NULL",
+                "highway_corridor VARCHAR(120)",
+                "toll_estimate_inr INTEGER DEFAULT 0",
+                "encoded_polyline TEXT",
+                "updated_at TIMESTAMPTZ DEFAULT NOW()",
+              ],
+            },
+            {
+              tableName: "cab_bookings",
+              columns: [
+                "booking_id UUID PRIMARY KEY DEFAULT gen_random_uuid()",
+                "customer_name VARCHAR(150) NOT NULL",
+                "customer_phone VARCHAR(20) NOT NULL",
+                "service_type VARCHAR(30) NOT NULL",
+                "pickup_address TEXT NOT NULL",
+                "pickup_place_id VARCHAR(120)",
+                "pickup_lat NUMERIC(10, 7)",
+                "pickup_lng NUMERIC(10, 7)",
+                "drop_address TEXT NOT NULL",
+                "drop_place_id VARCHAR(120)",
+                "drop_lat NUMERIC(10, 7)",
+                "drop_lng NUMERIC(10, 7)",
+                "calculated_distance_km NUMERIC(8, 2) NOT NULL",
+                "calculated_duration_mins INTEGER NOT NULL",
+                "vehicle_id VARCHAR(50) NOT NULL",
+                "total_estimated_fare NUMERIC(10, 2) NOT NULL",
+                "fare_breakdown JSONB",
+                "created_at TIMESTAMPTZ DEFAULT NOW()",
+              ],
+            },
+          ],
+        },
+      },
+    });
+  });
+
   // Google Maps Platform: Routes API Route & Driving Distance Calculation Endpoint
   router.post("/maps/compute-route", async (req, res) => {
     try {
+      const apiKey = process.env.GOOGLE_MAPS_API_KEY || process.env.VITE_GOOGLE_MAPS_API_KEY || "";
       const {
         origin,
         destination,
@@ -269,118 +841,9 @@ export function createApiRouter(): Router {
         return res.json({ success: true, routeInfo: cached.data });
       }
 
-      const apiKey = process.env.GOOGLE_MAPS_API_KEY || process.env.VITE_GOOGLE_MAPS_API_KEY;
-      if (!apiKey || apiKey === "MY_GOOGLE_MAPS_API_KEY" || apiKey.trim() === "") {
-        return res.json({ success: false, reason: "NO_API_KEY" });
-      }
+      const interstate = detectInterstateTrip(origin, destination);
+      const highwayInfo = detectHighwayCorridor(origin, destination, "");
 
-      // Check circuit breaker cooldown for rate limit (429)
-      if (Date.now() < googleRoutesRateLimitedUntil) {
-        return res.json({ success: false, reason: "RATE_LIMITED_COOLDOWN" });
-      }
-
-      // Build waypoint specification for Origin
-      let originWaypoint: any = { address: origin };
-      if (originCoords && typeof originCoords.lat === 'number' && typeof originCoords.lng === 'number') {
-        originWaypoint = {
-          location: {
-            latLng: {
-              latitude: originCoords.lat,
-              longitude: originCoords.lng,
-            },
-          },
-        };
-      } else if (originPlaceId && typeof originPlaceId === 'string' && originPlaceId.startsWith('ChIJ')) {
-        originWaypoint = { placeId: originPlaceId };
-      }
-
-      // Build waypoint specification for Destination
-      let destWaypoint: any = { address: destination };
-      if (destinationCoords && typeof destinationCoords.lat === 'number' && typeof destinationCoords.lng === 'number') {
-        destWaypoint = {
-          location: {
-            latLng: {
-              latitude: destinationCoords.lat,
-              longitude: destinationCoords.lng,
-            },
-          },
-        };
-      } else if (destinationPlaceId && typeof destinationPlaceId === 'string' && destinationPlaceId.startsWith('ChIJ')) {
-        destWaypoint = { placeId: destinationPlaceId };
-      }
-
-      const payload: any = {
-        origin: originWaypoint,
-        destination: destWaypoint,
-        travelMode: "DRIVE",
-        routingPreference: "TRAFFIC_UNAWARE",
-        computeAlternativeRoutes: false,
-        units: "METRIC",
-      };
-
-      if (validViaStops.length > 0) {
-        payload.intermediates = validViaStops.map((stop, idx) => {
-          const coord = viaCoords && Array.isArray(viaCoords) ? viaCoords[idx] : null;
-          if (coord && typeof coord.lat === 'number' && typeof coord.lng === 'number') {
-            return {
-              location: {
-                latLng: {
-                  latitude: coord.lat,
-                  longitude: coord.lng,
-                },
-              },
-            };
-          }
-          return { address: stop };
-        });
-      }
-
-      const response = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Goog-Api-Key": apiKey,
-          "X-Goog-FieldMask":
-            "routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline,routes.description,routes.legs,routes.travelAdvisory.tollInfo",
-          "X-Goog-Maps-Solution-ID": "gmp_mcp_codeassist_v1_aistudio",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        if (response.status === 429) {
-          googleRoutesRateLimitedUntil = Date.now() + 60000; // 1 min cooldown
-        }
-        return res.json({ success: false, status: response.status, reason: "API_UNAVAILABLE" });
-      }
-
-      const data = await response.json();
-      const primaryRoute = data.routes?.[0];
-
-      if (!primaryRoute) {
-        return res.json({ success: false, error: "No driving route found between specified points" });
-      }
-
-      const distanceMeters = primaryRoute.distanceMeters || 0;
-      const distanceKm = Number((distanceMeters / 1000).toFixed(1));
-
-      let durationMinutes = 30;
-      if (primaryRoute.duration) {
-        const seconds = parseInt(primaryRoute.duration.replace("s", ""), 10);
-        if (!isNaN(seconds)) {
-          durationMinutes = Math.round(seconds / 60);
-        }
-      }
-
-      const formatDurationText = (mins: number) => {
-        if (mins < 60) return `Approx. ${mins} min`;
-        const h = Math.floor(mins / 60);
-        const m = mins % 60;
-        return m === 0 ? `${h} hr${h > 1 ? "s" : ""}` : `${h} hr${h > 1 ? "s" : ""} ${m} min`;
-      };
-
-      const durationFormatted = formatDurationText(durationMinutes);
-      const summaryText = `${distanceKm} km · ${durationFormatted}`;
       const isAirport =
         origin.toLowerCase().includes("airport") ||
         destination.toLowerCase().includes("airport") ||
@@ -389,33 +852,367 @@ export function createApiRouter(): Router {
         origin.toLowerCase().includes("blr") ||
         destination.toLowerCase().includes("blr");
 
-      const routeDesc = primaryRoute.description || "";
-
-      const routeInfo = {
-        distanceKm,
-        distanceMeters,
-        durationMinutes,
-        durationFormatted,
-        summaryText,
-        originAddress: origin,
-        destinationAddress: destination,
-        stopsCount: validViaStops.length,
-        viaStops: validViaStops,
-        encodedPolyline: primaryRoute.polyline?.encodedPolyline,
-        routeDescription: routeDesc,
-        isAirportRoute: isAirport,
-        originCoords: originCoords || undefined,
-        destinationCoords: destinationCoords || undefined,
-        dataSource: "google_maps",
+      // Format duration helper
+      const formatDurationText = (mins: number) => {
+        if (mins < 60) return `Approx. ${mins} min`;
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        return m === 0 ? `${h} hr${h > 1 ? "s" : ""}` : `${h} hr${h > 1 ? "s" : ""} ${m} min`;
       };
 
-      routeCache.set(cacheKey, { data: routeInfo, timestamp: Date.now() });
-      return res.json({
-        success: true,
-        routeInfo,
+      // If Google Maps API key is provided and not demo placeholder, call Google Routes API Directions v2
+      if (apiKey && apiKey !== "MY_GOOGLE_MAPS_API_KEY" && apiKey.trim() !== "" && Date.now() >= googleRoutesRateLimitedUntil) {
+        // Build waypoint specification for Origin
+        let originWaypoint: any = { address: origin };
+        if (originCoords && typeof originCoords.lat === "number" && typeof originCoords.lng === "number") {
+          originWaypoint = {
+            location: {
+              latLng: {
+                latitude: originCoords.lat,
+                longitude: originCoords.lng,
+              },
+            },
+          };
+        } else if (originPlaceId && typeof originPlaceId === "string" && originPlaceId.startsWith("ChIJ")) {
+          originWaypoint = { placeId: originPlaceId };
+        }
+
+        // Build waypoint specification for Destination
+        let destWaypoint: any = { address: destination };
+        if (destinationCoords && typeof destinationCoords.lat === "number" && typeof destinationCoords.lng === "number") {
+          destWaypoint = {
+            location: {
+              latLng: {
+                latitude: destinationCoords.lat,
+                longitude: destinationCoords.lng,
+              },
+            },
+          };
+        } else if (destinationPlaceId && typeof destinationPlaceId === "string" && destinationPlaceId.startsWith("ChIJ")) {
+          destWaypoint = { placeId: destinationPlaceId };
+        }
+
+        const payload: any = {
+          origin: originWaypoint,
+          destination: destWaypoint,
+          travelMode: "DRIVE",
+          routingPreference: "TRAFFIC_AWARE",
+          computeAlternativeRoutes: true,
+          units: "METRIC",
+          languageCode: "en-US",
+        };
+
+        if (validViaStops.length > 0) {
+          payload.intermediates = validViaStops.map((stop, idx) => {
+            const coord = viaCoords && Array.isArray(viaCoords) ? viaCoords[idx] : null;
+            if (coord && typeof coord.lat === "number" && typeof coord.lng === "number") {
+              return {
+                location: {
+                  latLng: {
+                    latitude: coord.lat,
+                    longitude: coord.lng,
+                  },
+                },
+              };
+            }
+            return { address: stop };
+          });
+        }
+
+        try {
+          const response = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Goog-Api-Key": apiKey,
+              "X-Goog-FieldMask":
+                "routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline,routes.description,routes.legs,routes.travelAdvisory.tollInfo,routes.routeLabels",
+              "X-Goog-Maps-Solution-ID": "gmp_mcp_codeassist_v1_aistudio",
+            },
+            body: JSON.stringify(payload),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            const primaryRoute = data.routes?.[0];
+
+            if (primaryRoute && primaryRoute.distanceMeters > 0) {
+              const distanceMeters = primaryRoute.distanceMeters;
+              const distanceKm = Number((distanceMeters / 1000).toFixed(1));
+
+              let durationMinutes = 30;
+              if (primaryRoute.duration) {
+                const seconds = parseInt(primaryRoute.duration.replace("s", ""), 10);
+                if (!isNaN(seconds)) {
+                  durationMinutes = Math.round(seconds / 60);
+                }
+              }
+
+              const durationFormatted = formatDurationText(durationMinutes);
+              const summaryText = `${distanceKm} km · ${durationFormatted}`;
+              const routeDesc = primaryRoute.description || highwayInfo.corridor;
+
+              // Distance Sanity Check
+              let validationStatus: "VALID" | "SANITY_CHECK_FAILED" = "VALID";
+              if (originCoords?.lat && destinationCoords?.lat) {
+                const straightKm = calculateHaversineKm(
+                  originCoords.lat,
+                  originCoords.lng,
+                  destinationCoords.lat,
+                  destinationCoords.lng
+                );
+                if (straightKm > 5 && (distanceKm < straightKm * 0.7 || distanceKm > straightKm * 4.5)) {
+                  validationStatus = "SANITY_CHECK_FAILED";
+                }
+              }
+              if (distanceKm <= 0 || distanceKm > 3200) {
+                validationStatus = "SANITY_CHECK_FAILED";
+              }
+
+              // Parse alternate routes
+              const alternateRoutes = (data.routes || []).map((r: any, idx: number) => {
+                const dM = r.distanceMeters || 0;
+                const dK = Number((dM / 1000).toFixed(1));
+                let durM = 30;
+                if (r.duration) {
+                  const s = parseInt(r.duration.replace("s", ""), 10);
+                  if (!isNaN(s)) durM = Math.round(s / 60);
+                }
+                return {
+                  routeIndex: idx,
+                  description: r.description || (idx === 0 ? "Recommended Primary Route" : `Alternative Route ${idx}`),
+                  distanceKm: dK,
+                  distanceMeters: dM,
+                  durationMinutes: durM,
+                  durationFormatted: formatDurationText(durM),
+                  encodedPolyline: r.polyline?.encodedPolyline,
+                  highwayCorridor: highwayInfo.corridor,
+                  tollEstimate: highwayInfo.toll,
+                };
+              });
+
+              // Structured Server-Side Logging
+              console.log(`[TRAVEL JUST Routes API v2] Computed route:`, {
+                origin: originPlaceId || origin,
+                destination: destinationPlaceId || destination,
+                distanceMeters,
+                distanceKm,
+                duration: primaryRoute.duration,
+                durationFormatted,
+                routesCount: data.routes?.length || 1,
+                isInterstate: interstate.isInterstate,
+                interstateTaxEstimate: interstate.interstateTaxEstimate,
+                timestamp: new Date().toISOString(),
+                routingStatus: "SUCCESS",
+              });
+
+              const routeInfo = {
+                distanceKm,
+                distanceMeters,
+                durationMinutes,
+                durationFormatted,
+                summaryText,
+                originAddress: origin,
+                destinationAddress: destination,
+                originPlaceId,
+                destinationPlaceId,
+                stopsCount: validViaStops.length,
+                viaStops: validViaStops,
+                encodedPolyline: primaryRoute.polyline?.encodedPolyline,
+                routeDescription: routeDesc,
+                highwayCorridor: highwayInfo.corridor,
+                tollEstimate: highwayInfo.toll,
+                isAirportRoute: isAirport,
+                originCoords: originCoords || undefined,
+                destinationCoords: destinationCoords || undefined,
+                isInterstate: interstate.isInterstate,
+                interstateTaxEstimate: interstate.interstateTaxEstimate,
+                interstateStates: { fromState: interstate.fromState, toState: interstate.toState },
+                routesCount: data.routes?.length || 1,
+                recommendedRoute: primaryRoute.description || "Fastest Highway Route",
+                alternateRoutes,
+                validationStatus,
+                dataSource: "google_maps",
+              };
+
+              routeCache.set(cacheKey, { data: routeInfo, timestamp: Date.now() });
+              return res.json({ success: true, routeInfo });
+            }
+          } else if (response.status === 429) {
+            googleRoutesRateLimitedUntil = Date.now() + 60000;
+          }
+        } catch (apiErr) {
+          console.error("Error connecting to Google Routes API v2:", apiErr);
+        }
+      }
+
+      // Verified Road Network Fallback using calibrated ROUTE_MATRIX and POPULAR_LOCATIONS
+      const o = origin.toLowerCase();
+      const d = destination.toLowerCase();
+
+      let matchedEntry: { distanceKm: number; durationMinutes: number; highway: string; toll: number } | null = null;
+      for (const [k, v] of Object.entries(ROUTE_MATRIX)) {
+        const [p1, p2] = k.split("-");
+        const normP1 = p1.replace(/_/g, " ");
+        const normP2 = p2.replace(/_/g, " ");
+        if (
+          (o.includes(normP1) || normP1.includes(o)) &&
+          (d.includes(normP2) || normP2.includes(d))
+        ) {
+          matchedEntry = v;
+          break;
+        }
+        if (
+          (o.includes(normP2) || normP2.includes(o)) &&
+          (d.includes(normP1) || normP1.includes(d))
+        ) {
+          matchedEntry = v;
+          break;
+        }
+      }
+
+      // Catalog destination check from Mysuru
+      if (!matchedEntry && (o.includes("mysur") || o.includes("myso"))) {
+        const found = POPULAR_LOCATIONS.find((loc) => {
+          const name = loc.placeName.toLowerCase();
+          return d.includes(name) || name.includes(d);
+        });
+        if (found && found.estimatedFromMysuruKm) {
+          matchedEntry = {
+            distanceKm: found.estimatedFromMysuruKm,
+            durationMinutes: Math.round((found.estimatedFromMysuruKm / 48) * 60),
+            highway: found.highlights?.[2] || highwayInfo.corridor,
+            toll: found.estimatedFromMysuruKm > 100 ? 165 : 0,
+          };
+        }
+      } else if (!matchedEntry && (d.includes("mysur") || d.includes("myso"))) {
+        const found = POPULAR_LOCATIONS.find((loc) => {
+          const name = loc.placeName.toLowerCase();
+          return o.includes(name) || name.includes(o);
+        });
+        if (found && found.estimatedFromMysuruKm) {
+          matchedEntry = {
+            distanceKm: found.estimatedFromMysuruKm,
+            durationMinutes: Math.round((found.estimatedFromMysuruKm / 48) * 60),
+            highway: found.highlights?.[2] || highwayInfo.corridor,
+            toll: found.estimatedFromMysuruKm > 100 ? 165 : 0,
+          };
+        }
+      }
+
+      if (matchedEntry) {
+        let distanceKm = matchedEntry.distanceKm;
+        let durationMinutes = matchedEntry.durationMinutes;
+        if (validViaStops.length > 0) {
+          distanceKm += validViaStops.length * 18.0;
+          durationMinutes += validViaStops.length * 25;
+        }
+        const distanceMeters = Math.round(distanceKm * 1000);
+        const durationFormatted = formatDurationText(durationMinutes);
+        const summaryText = `${distanceKm.toFixed(1)} km · ${durationFormatted}`;
+
+        const routeInfo = {
+          distanceKm,
+          distanceMeters,
+          durationMinutes,
+          durationFormatted,
+          summaryText,
+          originAddress: origin,
+          destinationAddress: destination,
+          originPlaceId,
+          destinationPlaceId,
+          stopsCount: validViaStops.length,
+          viaStops: validViaStops,
+          routeDescription: matchedEntry.highway,
+          highwayCorridor: matchedEntry.highway,
+          tollEstimate: matchedEntry.toll || highwayInfo.toll,
+          isAirportRoute: isAirport,
+          originCoords: originCoords || undefined,
+          destinationCoords: destinationCoords || undefined,
+          isInterstate: interstate.isInterstate,
+          interstateTaxEstimate: interstate.interstateTaxEstimate,
+          interstateStates: { fromState: interstate.fromState, toState: interstate.toState },
+          routesCount: 1,
+          recommendedRoute: matchedEntry.highway,
+          validationStatus: "VALID",
+          dataSource: "intelligent_matrix",
+        };
+
+        routeCache.set(cacheKey, { data: routeInfo, timestamp: Date.now() });
+        return res.json({ success: true, routeInfo });
+      }
+
+      // Point-to-point coordinate math if coordinates are available
+      if (originCoords?.lat && originCoords?.lng && destinationCoords?.lat && destinationCoords?.lng) {
+        const straightLineKm = calculateHaversineKm(
+          originCoords.lat,
+          originCoords.lng,
+          destinationCoords.lat,
+          destinationCoords.lng
+        );
+
+        const isHills =
+          o.includes("coorg") || d.includes("coorg") ||
+          o.includes("ooty") || d.includes("ooty") ||
+          o.includes("wayanad") || d.includes("wayanad") ||
+          o.includes("madikeri") || d.includes("madikeri");
+
+        const isExpressway =
+          (o.includes("mysur") || o.includes("myso")) &&
+          (d.includes("bengaluru") || d.includes("bangalore") || d.includes("kial") || d.includes("airport"));
+
+        const roadFactor = isHills ? 1.45 : isExpressway ? 1.18 : straightLineKm > 40 ? 1.28 : 1.35;
+        let distanceKm = Math.max(3.5, Number((straightLineKm * roadFactor).toFixed(1)));
+        const avgSpeed = isHills ? 38 : isExpressway ? 72 : straightLineKm > 40 ? 50 : 28;
+        let durationMinutes = Math.max(12, Math.round((distanceKm / avgSpeed) * 60));
+
+        if (validViaStops.length > 0) {
+          distanceKm += validViaStops.length * 18.0;
+          durationMinutes += validViaStops.length * 25;
+        }
+
+        const distanceMeters = Math.round(distanceKm * 1000);
+        const durationFormatted = formatDurationText(durationMinutes);
+        const summaryText = `${distanceKm} km · ${durationFormatted}`;
+
+        const routeInfo = {
+          distanceKm,
+          distanceMeters,
+          durationMinutes,
+          durationFormatted,
+          summaryText,
+          originAddress: origin,
+          destinationAddress: destination,
+          originPlaceId,
+          destinationPlaceId,
+          stopsCount: validViaStops.length,
+          viaStops: validViaStops,
+          routeDescription: highwayInfo.corridor,
+          highwayCorridor: highwayInfo.corridor,
+          tollEstimate: highwayInfo.toll,
+          isAirportRoute: isAirport,
+          originCoords,
+          destinationCoords,
+          isInterstate: interstate.isInterstate,
+          interstateTaxEstimate: interstate.interstateTaxEstimate,
+          interstateStates: { fromState: interstate.fromState, toState: interstate.toState },
+          routesCount: 1,
+          validationStatus: "VALID",
+          dataSource: "intelligent_matrix",
+        };
+
+        routeCache.set(cacheKey, { data: routeInfo, timestamp: Date.now() });
+        return res.json({ success: true, routeInfo });
+      }
+
+      // If location is unrecognized and cannot be resolved to roads or coordinates:
+      return res.status(400).json({
+        success: false,
+        error: "We couldn't calculate the driving route between these locations. Please select a more specific location from the suggestions.",
       });
     } catch (err: any) {
-      return res.json({ success: false, reason: "SERVER_ERROR" });
+      console.error("Error in compute-route:", err);
+      return res.status(500).json({ success: false, error: "Routing service temporarily unavailable" });
     }
   });
 
@@ -431,6 +1228,29 @@ export function createApiRouter(): Router {
       if (!booking || !booking.referenceId) {
         return res.status(400).json({ success: false, error: "Invalid booking payload" });
       }
+
+      // Build authoritative snapshot if available
+      const fareSnapshot = booking.estimatedFare?.fareSnapshot || booking.fareSnapshot || {
+        vehicleId: booking.selectedVehicle?.id || "unknown",
+        vehicleType: booking.selectedVehicle?.name || "Standard",
+        baseFare: booking.estimatedFare?.baseFare || 500,
+        perKmRate: booking.estimatedFare?.ratePerKm || 14,
+        includedKm: booking.estimatedFare?.includedKm || 0,
+        extraPerKmRate: booking.estimatedFare?.extraPerKmRate || 12,
+        includedHours: booking.estimatedFare?.includedHours || 0,
+        hourlyRate: booking.estimatedFare?.hourlyRate || 250,
+        extraPerHourRate: booking.estimatedFare?.extraPerHourRate || 150,
+        driverAllowance: booking.estimatedFare?.driverAllowance || 300,
+        distanceKm: booking.searchDetails?.distanceKm || 0,
+        durationMinutes: booking.searchDetails?.durationMinutes || 0,
+        durationHours: booking.searchDetails?.durationHours || 0,
+        additionalCharges: booking.estimatedFare?.additionalCharges || 0,
+        totalFare: booking.estimatedFare?.totalEstimatedFare || 0,
+        pricingVersion: booking.estimatedFare?.pricingVersion || 1,
+        currency: "INR",
+        timestamp: new Date().toISOString(),
+        pricingModel: booking.estimatedFare?.pricingModel || "BASE_PLUS_DISTANCE",
+      };
 
       const rowData = {
         reference_id: booking.referenceId,
@@ -456,6 +1276,8 @@ export function createApiRouter(): Router {
         status: booking.status || "Pending Confirmation",
         search_details: booking.searchDetails || {},
         estimated_fare: booking.estimatedFare || {},
+        fare_snapshot: fareSnapshot,
+        pricing_version: fareSnapshot.pricingVersion || 1,
         created_at: booking.createdAt || new Date().toISOString(),
       };
 
@@ -482,6 +1304,59 @@ export function createApiRouter(): Router {
         savedToRemote: false,
         message: "Booking received and preserved",
       });
+    }
+  });
+
+  // API route to update an existing booking (status, driver assignment, etc.)
+  router.patch("/bookings/:referenceId", (req, res) => {
+    try {
+      const { referenceId } = req.params;
+      const updates = req.body;
+
+      const index = serverBookingsBuffer.findIndex(
+        (b) => b.reference_id === referenceId
+      );
+
+      if (index === -1) {
+        return res.status(404).json({ success: false, error: "Booking not found in registry" });
+      }
+
+      serverBookingsBuffer[index] = {
+        ...serverBookingsBuffer[index],
+        ...updates,
+        updated_at: new Date().toISOString(),
+      };
+
+      return res.json({
+        success: true,
+        booking: serverBookingsBuffer[index],
+        message: `Booking #${referenceId} updated successfully`,
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message || "Failed to update booking" });
+    }
+  });
+
+  // API route to delete/archive a booking
+  router.delete("/bookings/:referenceId", (req, res) => {
+    try {
+      const { referenceId } = req.params;
+      const index = serverBookingsBuffer.findIndex(
+        (b) => b.reference_id === referenceId
+      );
+
+      if (index === -1) {
+        return res.status(404).json({ success: false, error: "Booking not found" });
+      }
+
+      const deleted = serverBookingsBuffer.splice(index, 1);
+      return res.json({
+        success: true,
+        deleted: deleted[0],
+        message: `Booking #${referenceId} archived from registry`,
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message || "Failed to delete booking" });
     }
   });
 

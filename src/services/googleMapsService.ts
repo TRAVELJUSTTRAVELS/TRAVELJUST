@@ -6,6 +6,7 @@ import { MANDYA_CHAMARAJANAGAR_LOCATIONS } from '../data/locations/mandyaChamara
 import { COORG_WAYANAD_OOTY_LOCATIONS } from '../data/locations/coorgWayanadOoty';
 import { BENGALURU_EXPRESSWAY_LOCATIONS } from '../data/locations/bengaluruExpressway';
 import { INTERCITY_HERITAGE_COASTAL_LOCATIONS } from '../data/locations/intercityHeritageCoastal';
+import { REGIONAL_HUBS_HOTELS_STATIONS } from '../data/locations/regionalHubsHotelsStations';
 import { ROUTE_MATRIX } from '../data/locations/routeDistances';
 
 export interface LocationCategory {
@@ -20,6 +21,7 @@ export interface LocationCategory {
 // Master categorized catalog of South Indian, Karnataka, Kerala, Tamil Nadu, and Airport Hubs
 export const POPULAR_LOCATIONS: PlaceSuggestion[] = [
   ...AIRPORT_LOCATIONS,
+  ...REGIONAL_HUBS_HOTELS_STATIONS,
   ...MYSURU_LOCAL_LOCATIONS,
   ...MYSURU_TALUKS_VILLAGES,
   ...MANDYA_CHAMARAJANAGAR_LOCATIONS,
@@ -41,6 +43,20 @@ export const LOCATION_CATEGORIES: LocationCategory[] = [
     badge: '24x7 Airport Transfer',
     description: 'Kempegowda International T1 & T2, Mysuru Mandakalli, Mangalore, Coimbatore, Calicut & Kannur.',
     locations: AIRPORT_LOCATIONS,
+  },
+  {
+    id: 'hotels_resorts',
+    label: 'Hotels & Luxury Resorts',
+    badge: 'Hotel Pickups',
+    description: 'Radisson Blu Mysore, Taj West End, The Leela Palace, Taj Madikeri Coorg, Tamara, Jungle Lodges Kabini, Savoy Ooty & Vythiri Resort.',
+    locations: REGIONAL_HUBS_HOTELS_STATIONS.filter((l) => l.category === 'hotels_resorts'),
+  },
+  {
+    id: 'railway_stations',
+    label: 'Railway & Central Transit Stations',
+    badge: 'Station Transfer',
+    description: 'Mysuru Junction MYS, KSR Bengaluru SBC Majestic, Yesvantpur YPR, Hassan HAS, Ooty Toy Train & Coimbatore Junction CBE.',
+    locations: REGIONAL_HUBS_HOTELS_STATIONS.filter((l) => l.category === 'railway_stations'),
   },
   {
     id: 'mysuru_local',
@@ -190,7 +206,9 @@ export function calculateHaversineKm(lat1: number, lon1: number, lat2: number, l
 export function estimateDrivingDistanceMatrix(
   originStr: string,
   destStr: string,
-  viaStops: string[] = []
+  viaStops: string[] = [],
+  customOriginCoord?: { lat: number; lng: number },
+  customDestCoord?: { lat: number; lng: number }
 ): CalculatedRouteInfo {
   const norm = (s: string) => s.toLowerCase().trim();
   const o = norm(originStr);
@@ -198,6 +216,22 @@ export function estimateDrivingDistanceMatrix(
 
   // Check matching key in high-accuracy route matrix
   let matchedEntry: { distanceKm: number; durationMinutes: number; highway: string; toll: number } | null = null;
+
+  // Direct check for Mysuru Palace to Kempegowda International Airport (KIAL Bengaluru)
+  const isMysuruOrigin = o.includes('palace') || o.includes('mysur') || o.includes('myso');
+  const isKialDest = d.includes('kempegowda') || d.includes('kial') || (d.includes('bengaluru') && d.includes('airport')) || (d.includes('bangalore') && d.includes('airport'));
+  const isKialOrigin = o.includes('kempegowda') || o.includes('kial') || (o.includes('bengaluru') && o.includes('airport')) || (o.includes('bangalore') && o.includes('airport'));
+  const isMysuruDest = d.includes('palace') || d.includes('mysur') || d.includes('myso');
+
+  if ((isMysuruOrigin && isKialDest) || (isKialOrigin && isMysuruDest)) {
+    matchedEntry = {
+      distanceKm: 170.0,
+      durationMinutes: 210, // ~3 hr 30 min
+      highway: 'NH 275 Bengaluru-Mysuru Expressway + NH 44 Airport Corridor',
+      toll: 320,
+    };
+  }
+
   const keys = Object.keys(ROUTE_MATRIX);
 
   for (const k of keys) {
@@ -275,8 +309,8 @@ export function estimateDrivingDistanceMatrix(
   }
 
   // Check point-to-point coordinate math if available
-  const originCoord = findLocationCoordinates(originStr);
-  const destCoord = findLocationCoordinates(destStr);
+  const originCoord = customOriginCoord || findLocationCoordinates(originStr);
+  const destCoord = customDestCoord || findLocationCoordinates(destStr);
 
   let distanceKm = 12.8;
   let durationMinutes = 30;
@@ -346,23 +380,22 @@ export function estimateDrivingDistanceMatrix(
     toll = isExpressway ? 320 : computedKm > 120 ? 165 : 0;
     dataSource = 'geocoded_route';
   } else {
-    // Dynamic geographic estimation based on South Indian road network density
-    const charWeight = (o.length + d.length) * 3.5;
-    const isOutstation =
-      o !== d &&
-      !o.includes('mysuru') &&
-      !d.includes('mysuru') &&
-      !o.includes('mysore') &&
-      !d.includes('mysore');
-
-    distanceKm = Math.max(
-      15,
-      Math.min(420, isOutstation ? 130 + charWeight : 25 + charWeight * 0.7)
-    );
-    distanceKm = Math.round(distanceKm * 10) / 10;
-
-    const travelHours = distanceKm / 46;
-    durationMinutes = Math.round(travelHours * 60);
+    // If route cannot be matched with road matrix or valid coordinates, return NO_ROUTE_FOUND instead of heuristic fallback
+    return {
+      distanceKm: 0,
+      distanceMeters: 0,
+      durationMinutes: 0,
+      durationFormatted: '0 min',
+      summaryText: 'Unable to calculate road route',
+      originAddress: originStr,
+      destinationAddress: destStr,
+      stopsCount: 0,
+      viaStops: [],
+      isAirportRoute: isAirport,
+      validationStatus: 'NO_ROUTE_FOUND',
+      validationMessage: 'Unable to calculate exact road distance between these locations. Please select a verified pickup and drop location from the suggestions.',
+      dataSource: 'intelligent_matrix',
+    };
   }
 
   // Account for intermediate via stops
@@ -376,9 +409,53 @@ export function estimateDrivingDistanceMatrix(
 
   const durationFormatted = formatDuration(durationMinutes);
   const summaryText = `${distanceKm} km · ${durationFormatted}`;
+  const distanceMeters = Math.round(distanceKm * 1000);
+
+  // Interstate permit check for KA <-> TN and KA <-> KL
+  const detectState = (text: string) => {
+    const t = text.toLowerCase();
+    if (
+      t.includes('tamil nadu') ||
+      t.includes('ooty') ||
+      t.includes('udhagamandalam') ||
+      t.includes('coimbatore') ||
+      t.includes('nilgiris') ||
+      t.includes('chennai') ||
+      t.includes('salem') ||
+      t.includes('madurai') ||
+      t.includes('erode') ||
+      t.includes('tiruppur') ||
+      t.includes('hosur')
+    ) {
+      return 'Tamil Nadu';
+    }
+    if (
+      t.includes('kerala') ||
+      t.includes('wayanad') ||
+      t.includes('kalpetta') ||
+      t.includes('sulthan bathery') ||
+      t.includes('vythiri') ||
+      t.includes('kozhikode') ||
+      t.includes('calicut') ||
+      t.includes('kannur') ||
+      t.includes('kochi') ||
+      t.includes('cochin') ||
+      t.includes('munnar') ||
+      t.includes('thrissur')
+    ) {
+      return 'Kerala';
+    }
+    return 'Karnataka';
+  };
+
+  const fromState = detectState(originStr);
+  const toState = detectState(destStr);
+  const isInterstate = fromState !== toState;
+  const interstateTaxEstimate = isInterstate ? (toState === 'Tamil Nadu' || fromState === 'Tamil Nadu' ? 600 : 550) : 0;
 
   return {
     distanceKm,
+    distanceMeters,
     durationMinutes,
     durationFormatted,
     summaryText,
@@ -391,6 +468,10 @@ export function estimateDrivingDistanceMatrix(
     tollEstimate: toll,
     originCoords: originCoord.lat && originCoord.lng ? { lat: originCoord.lat, lng: originCoord.lng } : undefined,
     destinationCoords: destCoord.lat && destCoord.lng ? { lat: destCoord.lat, lng: destCoord.lng } : undefined,
+    isInterstate,
+    interstateTaxEstimate,
+    interstateStates: { fromState, toState },
+    validationStatus: 'VALID',
     dataSource,
   };
 }
@@ -629,11 +710,106 @@ export async function fetchPlaceSuggestions(
   return customList;
 }
 
+// Client-side API caller for Place Details (resolves Place ID to Coordinates & Details)
+export async function fetchPlaceDetails(
+  placeId: string,
+  sessionToken?: string
+): Promise<PlaceSuggestion | null> {
+  if (!placeId || !placeId.trim()) return null;
+
+  // Check in-memory local catalog first
+  const localMatch = POPULAR_LOCATIONS.find(
+    (p) => p.placeId === placeId || p.placeName.toLowerCase() === placeId.toLowerCase()
+  );
+  if (localMatch && localMatch.lat && localMatch.lng) {
+    return localMatch;
+  }
+
+  try {
+    const res = await fetch('/api/maps/place-details', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ placeId, sessionToken }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.place) {
+        return {
+          placeId: data.place.placeId || placeId,
+          placeName: data.place.placeName || '',
+          formattedAddress: sanitizeDisplayAddress(data.place.formattedAddress || ''),
+          areaLocality: data.place.areaLocality || '',
+          city: data.place.city || '',
+          lat: data.place.lat,
+          lng: data.place.lng,
+          types: data.place.types || [],
+        };
+      }
+    }
+  } catch (err) {
+    console.debug('Error in fetchPlaceDetails:', err);
+  }
+
+  return localMatch || null;
+}
+
+// Client-side API caller for Reverse Geocoding (Current Location GPS -> Address)
+export async function reverseGeocodeCoordinates(
+  lat: number,
+  lng: number
+): Promise<PlaceSuggestion> {
+  try {
+    const res = await fetch('/api/maps/reverse-geocode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lat, lng }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.place) {
+        return {
+          placeId: data.place.placeId || `gps_${Date.now()}`,
+          placeName: data.place.placeName || `Current Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`,
+          formattedAddress: sanitizeDisplayAddress(data.place.formattedAddress || ''),
+          areaLocality: data.place.areaLocality || 'Current GPS Location',
+          city: data.place.city || 'Karnataka, South India',
+          lat,
+          lng,
+          types: data.place.types || ['street_address'],
+        };
+      }
+    }
+  } catch (err) {
+    console.debug('Error in reverseGeocodeCoordinates:', err);
+  }
+
+  return reverseGeocodeToPlace(lat, lng);
+}
+
+// Client-side API caller for Architecture Spec
+export async function fetchArchitectureSpec(): Promise<any> {
+  try {
+    const res = await fetch('/api/maps/architecture-spec');
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.debug('Error in fetchArchitectureSpec:', err);
+  }
+  return null;
+}
+
 // Client-side API caller for Route & Distance Calculation
 export async function calculateRouteDistance(
   origin: string,
   destination: string,
-  viaStops: string[] = []
+  viaStops: string[] = [],
+  originCoords?: { lat: number; lng: number },
+  destinationCoords?: { lat: number; lng: number },
+  originPlaceId?: string,
+  destinationPlaceId?: string
 ): Promise<CalculatedRouteInfo> {
   if (!origin || !destination) {
     return estimateDrivingDistanceMatrix(
@@ -650,9 +826,9 @@ export async function calculateRouteDistance(
     return clientRouteCache.get(cacheKey)!;
   }
 
-  // Pre-resolve coordinates & place IDs from local database for maximum point-to-point accuracy
-  const originMatch = findLocationCoordinates(origin);
-  const destMatch = findLocationCoordinates(destination);
+  // Pre-resolve coordinates & place IDs from local database for maximum point-to-point accuracy if not explicitly passed
+  const originMatch = originCoords ? { lat: originCoords.lat, lng: originCoords.lng, placeId: originPlaceId } : findLocationCoordinates(origin);
+  const destMatch = destinationCoords ? { lat: destinationCoords.lat, lng: destinationCoords.lng, placeId: destinationPlaceId } : findLocationCoordinates(destination);
   const viaCoords = validStops.map((stop) => {
     const m = findLocationCoordinates(stop);
     return m.lat && m.lng ? { lat: m.lat, lng: m.lng } : null;
@@ -668,8 +844,8 @@ export async function calculateRouteDistance(
         viaStops: validStops,
         originCoords: originMatch.lat && originMatch.lng ? { lat: originMatch.lat, lng: originMatch.lng } : undefined,
         destinationCoords: destMatch.lat && destMatch.lng ? { lat: destMatch.lat, lng: destMatch.lng } : undefined,
-        originPlaceId: originMatch.placeId,
-        destinationPlaceId: destMatch.placeId,
+        originPlaceId: originPlaceId || originMatch.placeId,
+        destinationPlaceId: destinationPlaceId || destMatch.placeId,
         viaCoords,
       }),
     });
@@ -685,7 +861,13 @@ export async function calculateRouteDistance(
     // Fallback to internal road matrix
   }
 
-  const calculated = estimateDrivingDistanceMatrix(origin, destination, validStops);
+  const calculated = estimateDrivingDistanceMatrix(
+    origin,
+    destination,
+    validStops,
+    originMatch.lat && originMatch.lng ? { lat: originMatch.lat, lng: originMatch.lng } : undefined,
+    destMatch.lat && destMatch.lng ? { lat: destMatch.lat, lng: destMatch.lng } : undefined
+  );
   clientRouteCache.set(cacheKey, calculated);
   return calculated;
 }

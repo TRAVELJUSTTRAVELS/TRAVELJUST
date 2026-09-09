@@ -10,11 +10,18 @@ import {
   Info,
   X,
   Trash2,
+  MessageSquare,
 } from 'lucide-react';
 import { BookingSearchState, Vehicle, PricingConfig } from '../types';
 import { VehicleCard } from './VehicleCard';
 import { vehiclesData } from '../data/vehicles';
 import { calculateFare } from '../utils/fareCalculator';
+import {
+  buildWhatsAppBookingEnquiryMessage,
+  trackWhatsAppBookingEnquiry,
+  openWhatsAppChat,
+  generateEnquiryId,
+} from '../utils/whatsapp';
 
 interface SearchResultsProps {
   searchDetails: BookingSearchState;
@@ -46,6 +53,31 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
     }
     return true;
   });
+
+  const handleWhatsAppEnquiry = () => {
+    if (!selectedVehicle) return;
+    const fareRes = calculateFare(searchDetails, selectedVehicle, pricingConfig);
+    const payload = {
+      enquiryId: generateEnquiryId(searchDetails.travelDate || searchDetails.pickupDate),
+      tripType: searchDetails.serviceType,
+      from: searchDetails.pickupLocation,
+      to: searchDetails.serviceType === 'local' ? undefined : searchDetails.dropLocation,
+      travelDate: searchDetails.travelDate || searchDetails.pickupDate || new Date().toISOString().split('T')[0],
+      pickupTime: searchDetails.pickupTime || '07:00 AM',
+      returnDate: searchDetails.returnDate || searchDetails.dropDate,
+      returnTime: searchDetails.returnTime,
+      passengers: searchDetails.passengers,
+      vehicleName: selectedVehicle.name,
+      vehicleCategory: selectedVehicle.category,
+      distanceKm: fareRes.exactDistanceKm || fareRes.estimatedDistanceKm || searchDetails.routeInfo?.distanceKm,
+      durationHours: searchDetails.durationHours,
+      estimatedFare: fareRes.totalEstimatedFare,
+      airportTransferType: searchDetails.airportTransferType,
+    };
+    const message = buildWhatsAppBookingEnquiryMessage(payload);
+    trackWhatsAppBookingEnquiry(payload);
+    openWhatsAppChat(message);
+  };
 
   const getServiceTitle = (type: string) => {
     switch (type) {
@@ -216,13 +248,27 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={onProceedToBooking}
-            className="w-full sm:w-auto bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold text-base px-8 py-3.5 rounded-xl shadow-lg transition-all active:scale-[0.99] flex items-center justify-center gap-2"
-          >
-            Proceed to Passenger Details
-          </button>
+          <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full sm:w-auto">
+            <button
+              type="button"
+              id="search-results-whatsapp-enquiry-btn"
+              onClick={handleWhatsAppEnquiry}
+              aria-label="Send booking enquiry to TRAVEL JUST on WhatsApp"
+              className="w-full sm:w-auto bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-sm px-5 py-3.5 rounded-xl shadow-md transition-all active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>WhatsApp Enquiry</span>
+            </button>
+
+            <button
+              type="button"
+              id="search-results-proceed-btn"
+              onClick={onProceedToBooking}
+              className="w-full sm:w-auto bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold text-base px-8 py-3.5 rounded-xl shadow-lg transition-all active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
+            >
+              Proceed to Passenger Details
+            </button>
+          </div>
         </div>
       )}
     </div>

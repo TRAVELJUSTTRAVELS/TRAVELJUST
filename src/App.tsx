@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   CheckCircle2,
   Sliders,
@@ -23,11 +23,9 @@ import { Footer } from './components/Footer';
 import { BookingModal } from './components/BookingModal';
 import { LegalModal } from './components/LegalModal';
 import { OwnerAuthModal } from './components/OwnerAuthModal';
-import { CustomerAuthModal } from './components/CustomerAuthModal';
 import { CustomerPortalModal } from './components/CustomerPortalModal';
-import { PriceFareEngineDrawer } from './components/PriceFareEngineDrawer';
+import { AdminFareManagementModal } from './components/AdminFareManagementModal';
 import { PopularRoutesLandingSection } from './components/PopularRoutesLandingSection';
-import { WhatsAppChatButton } from './components/WhatsAppChatButton';
 import { DriverPartnerDrawer } from './components/DriverPartnerDrawer';
 import { calculateRouteDistance } from './services/googleMapsService';
 import { getStoredCustomer, clearCustomerSession, saveCustomerSession } from './services/customerAuthService';
@@ -77,25 +75,16 @@ export default function App() {
 
   // Customer authentication state
   const [customer, setCustomer] = useState<CustomerUser | null>(() => getStoredCustomer());
-  const [customerAuthModalOpen, setCustomerAuthModalOpen] = useState(false);
   const [customerPortalModalOpen, setCustomerPortalModalOpen] = useState(false);
 
   const [ownerAuthModalOpen, setOwnerAuthModalOpen] = useState(false);
+  const [adminFareModalOpen, setAdminFareModalOpen] = useState(false);
+  const [fareUpdateTrigger, setFareUpdateTrigger] = useState(0);
   const [searchState, setSearchState] = useState<BookingSearchState | null>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [legalModalType, setLegalModalType] = useState<'privacy' | 'terms' | null>(null);
-  const [fareEngineOpen, setFareEngineOpen] = useState(false);
   const [partnerDrawerOpen, setPartnerDrawerOpen] = useState(false);
-
-  const handleUpdatePricingConfig = (newConfig: PricingConfig) => {
-    setPricingConfig(newConfig);
-    try {
-      localStorage.setItem('tj_pricing_config', JSON.stringify(newConfig));
-    } catch (e) {
-      console.warn('Could not save pricing config to localStorage:', e);
-    }
-  };
 
   const handleOwnerLoginSuccess = () => {
     setIsOwner(true);
@@ -104,21 +93,15 @@ export default function App() {
     } catch (e) {
       console.warn('Could not persist owner state:', e);
     }
-    setFareEngineOpen(true);
   };
 
   const handleExitOwnerMode = () => {
     setIsOwner(false);
-    setFareEngineOpen(false);
     try {
       localStorage.removeItem('tj_is_owner');
     } catch (e) {
       console.warn('Could not clear owner state:', e);
     }
-  };
-
-  const handleCustomerLoginSuccess = (cust: CustomerUser) => {
-    setCustomer(cust);
   };
 
   const handleCustomerLogout = () => {
@@ -144,7 +127,7 @@ export default function App() {
     };
   }, []);
 
-  const handleSearchSubmit = (state: BookingSearchState) => {
+  const handleSearchSubmit = useCallback((state: BookingSearchState) => {
     setSearchState(state);
     // Smooth scroll to search results
     setTimeout(() => {
@@ -153,13 +136,21 @@ export default function App() {
         resultsElem.scrollIntoView({ behavior: 'smooth' });
       }
     }, 100);
-  };
+  }, []);
 
-  const handleInstantConfirmBooking = (state: BookingSearchState, vehicle: Vehicle) => {
+  const handleInstantConfirmBooking = useCallback((state: BookingSearchState, preferredVehicleId?: string) => {
     setSearchState(state);
+    const vehicle = preferredVehicleId
+      ? vehiclesData.find((v) => v.id === preferredVehicleId) || vehiclesData[0]
+      : vehiclesData[0];
     setSelectedVehicle(vehicle);
     setBookingModalOpen(true);
-  };
+  }, []);
+
+  const handleResetSearch = useCallback(() => {
+    setSearchState(null);
+    setSelectedVehicle(null);
+  }, []);
 
   const handleSelectServiceFromSection = (serviceType: ServiceType) => {
     const today = new Date().toISOString().split('T')[0];
@@ -184,7 +175,8 @@ export default function App() {
     }
   };
 
-  const handleSelectVehicleFromFleet = (vehicle: Vehicle) => {
+  const handleSelectVehicleFromFleet = (vehicleId: string) => {
+    const vehicle = vehiclesData.find((v) => v.id === vehicleId) || vehiclesData[0];
     setSelectedVehicle(vehicle);
     const today = new Date().toISOString().split('T')[0];
     if (!searchState) {
@@ -377,14 +369,13 @@ export default function App() {
       <Header
         isOwner={isOwner}
         onBookRideClick={handleScrollToBookingSearch}
-        onOpenFareEngine={isOwner ? () => setFareEngineOpen(true) : undefined}
         onOpenOwnerLogin={() => setOwnerAuthModalOpen(true)}
         onExitOwnerMode={handleExitOwnerMode}
         onOpenLegal={(type) => setLegalModalType(type)}
         customer={customer}
-        onOpenCustomerLogin={() => setCustomerAuthModalOpen(true)}
         onOpenCustomerPortal={() => setCustomerPortalModalOpen(true)}
         onOpenPartnerDrawer={() => setPartnerDrawerOpen(true)}
+        onOpenFareEngine={() => setAdminFareModalOpen(true)}
       />
 
       {/* Main Page Layout */}
@@ -398,15 +389,12 @@ export default function App() {
         {/* Integrated Advanced Booking Search Section */}
         <section id="booking-search-section" className="py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto -mt-6 sm:-mt-10 relative z-30">
           <BookingSearch
+            key={`search-${fareUpdateTrigger}`}
             initialState={searchState || undefined}
             pricingConfig={pricingConfig}
-            onOpenFareEngine={isOwner ? () => setFareEngineOpen(true) : undefined}
             onSearch={handleSearchSubmit}
             onConfirmBooking={handleInstantConfirmBooking}
-            onReset={() => {
-              setSearchState(null);
-              setSelectedVehicle(null);
-            }}
+            onReset={handleResetSearch}
           />
         </section>
 
@@ -415,6 +403,7 @@ export default function App() {
           {searchState && (
             <section className="py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
               <SearchResults
+                key={`results-${fareUpdateTrigger}`}
                 searchDetails={searchState}
                 pricingConfig={pricingConfig}
                 selectedVehicle={selectedVehicle}
@@ -424,10 +413,7 @@ export default function App() {
                   if (searchElem) searchElem.scrollIntoView({ behavior: 'smooth' });
                 }}
                 onProceedToBooking={() => setBookingModalOpen(true)}
-                onClearSearch={() => {
-                  setSearchState(null);
-                  setSelectedVehicle(null);
-                }}
+                onClearSearch={handleResetSearch}
               />
             </section>
           )}
@@ -442,11 +428,13 @@ export default function App() {
         {/* Fleet Section */}
         <FleetSection onSelectVehicleForBooking={handleSelectVehicleFromFleet} />
 
-        {/* Recent Trips & Bookings Activity Section - EXCLUSIVELY RESTRICTED TO OWNER */}
+        {/* Live Dispatch & Bookings Registry Section - EXCLUSIVELY VISIBLE FOR FLEET MANAGER & OWNER PORTAL ONLY */}
         {isOwner && (
           <RecentTripsSection
             onRebookTrip={handleRebookTrip}
             onOpenBookingSearch={handleScrollToBookingSearch}
+            isOwner={isOwner}
+            onOpenOwnerLogin={() => setOwnerAuthModalOpen(true)}
           />
         )}
 
@@ -472,9 +460,7 @@ export default function App() {
         onOpenLegal={(type) => setLegalModalType(type)}
         onBookRideClick={handleScrollToBookingSearch}
         onOpenOwnerLogin={() => setOwnerAuthModalOpen(true)}
-        onOpenFareEngine={isOwner ? () => setFareEngineOpen(true) : undefined}
         customer={customer}
-        onOpenCustomerLogin={() => setCustomerAuthModalOpen(true)}
         onOpenCustomerPortal={() => setCustomerPortalModalOpen(true)}
         onOpenPartnerDrawer={() => setPartnerDrawerOpen(true)}
       />
@@ -495,7 +481,6 @@ export default function App() {
           pricingConfig={pricingConfig}
           onCompleteBooking={handleCompleteBooking}
           customer={customer}
-          onOpenCustomerLogin={() => setCustomerAuthModalOpen(true)}
         />
       )}
 
@@ -503,13 +488,6 @@ export default function App() {
       <LegalModal
         type={legalModalType}
         onClose={() => setLegalModalType(null)}
-      />
-
-      {/* Customer Login / Registration Modal */}
-      <CustomerAuthModal
-        isOpen={customerAuthModalOpen}
-        onClose={() => setCustomerAuthModalOpen(false)}
-        onSuccess={handleCustomerLoginSuccess}
       />
 
       {/* Customer Account & Trips Dashboard Portal */}
@@ -530,18 +508,12 @@ export default function App() {
         onSuccess={handleOwnerLoginSuccess}
       />
 
-      {/* Price & Fare Engine Drawer - ONLY accessible in Owner Mode */}
-      {isOwner && (
-        <PriceFareEngineDrawer
-          isOpen={fareEngineOpen}
-          onClose={() => setFareEngineOpen(false)}
-          pricingConfig={pricingConfig}
-          onUpdatePricing={handleUpdatePricingConfig}
-        />
-      )}
-
-      {/* Floating Draggable WhatsApp Button with Car Logo for Booking Confirmations & Customer Communication */}
-      <WhatsAppChatButton searchState={searchState} />
+      {/* Owner Dynamic Price & Fare Engine Modal */}
+      <AdminFareManagementModal
+        isOpen={adminFareModalOpen}
+        onClose={() => setAdminFareModalOpen(false)}
+        onPricingUpdated={() => setFareUpdateTrigger((prev) => prev + 1)}
+      />
     </div>
   );
 }

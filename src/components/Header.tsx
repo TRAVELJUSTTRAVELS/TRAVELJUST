@@ -6,41 +6,39 @@ import {
   Phone,
   MessageSquare,
   ChevronRight,
-  Sliders,
   ShieldAlert,
   LogOut,
   Lock,
   Database,
   User,
   UserCheck,
+  Sliders,
 } from 'lucide-react';
 import { siteConfig } from '../config/siteConfig';
 import { CustomerUser } from '../types';
 
 interface HeaderProps {
   onBookRideClick: () => void;
-  onOpenFareEngine?: () => void;
   onOpenLegal: (type: 'privacy' | 'terms') => void;
   isOwner?: boolean;
   onOpenOwnerLogin?: () => void;
   onExitOwnerMode?: () => void;
   customer?: CustomerUser | null;
-  onOpenCustomerLogin?: () => void;
   onOpenCustomerPortal?: () => void;
   onOpenPartnerDrawer?: () => void;
+  onOpenFareEngine?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onBookRideClick,
-  onOpenFareEngine,
   onOpenLegal,
   isOwner = false,
   onOpenOwnerLogin,
   onExitOwnerMode,
   customer = null,
-  onOpenCustomerLogin,
   onOpenCustomerPortal,
   onOpenPartnerDrawer,
+  onOpenFareEngine,
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -59,7 +57,6 @@ export const Header: React.FC<HeaderProps> = ({
         { name: 'Routes & Outstation', href: '#popular-routes-section' },
         { name: 'Services', href: '#services' },
         { name: 'Fleet', href: '#fleet' },
-        { name: 'AI Concierge', href: '#contact' },
         { name: 'Live Dispatch', href: '#recent-trips' },
         { name: 'About', href: '#about' },
         { name: 'FAQ', href: '#faq' },
@@ -69,7 +66,6 @@ export const Header: React.FC<HeaderProps> = ({
         { name: 'Routes & Outstation', href: '#popular-routes-section' },
         { name: 'Services', href: '#services' },
         { name: 'Fleet', href: '#fleet' },
-        { name: 'AI Concierge', href: '#contact' },
         { name: 'About', href: '#about' },
         { name: 'FAQ', href: '#faq' },
       ];
@@ -141,12 +137,13 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="flex items-center gap-1.5 bg-amber-50/80 p-1 rounded-2xl border border-amber-200">
                 {onOpenFareEngine && (
                   <button
+                    type="button"
                     onClick={onOpenFareEngine}
-                    className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs px-3.5 py-2 rounded-xl transition-all duration-200 flex items-center gap-1.5 shadow-xs"
-                    title="Open Owner Dynamic Price & Fare Engine"
+                    className="bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs px-3 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-xs"
+                    title="Configure Live Dynamic Price & Fare Engine"
                   >
-                    <Sliders className="w-4 h-4 text-slate-950" />
-                    <span>Price Engine</span>
+                    <Sliders className="w-3.5 h-3.5 text-emerald-300" />
+                    <span>Fare Engine</span>
                   </button>
                 )}
 
@@ -173,49 +170,6 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             )}
 
-            {/* Driver Partner / Fleet Attachment CTA */}
-            {onOpenPartnerDrawer && (
-              <button
-                type="button"
-                onClick={onOpenPartnerDrawer}
-                className="hidden"
-                title="Attach Your Cab / Drive With Us in Karnataka"
-              >
-                <Car className="w-3.5 h-3.5 text-emerald-700" />
-                <span>Attach Cab / Partner</span>
-              </button>
-            )}
-
-            {/* Customer Login / My Account Button */}
-            {customer ? (
-              <button
-                type="button"
-                onClick={onOpenCustomerPortal}
-                className="bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-200/80 font-bold text-xs px-3.5 py-2 rounded-xl transition-all duration-200 flex items-center gap-2 shadow-2xs"
-                title="Customer Profile & My Trips"
-              >
-                <div className="w-6 h-6 rounded-full bg-emerald-800 text-white flex items-center justify-center text-[10px] font-black">
-                  {customer.fullName.slice(0, 2).toUpperCase() || 'TJ'}
-                </div>
-                <div className="flex flex-col text-left">
-                  <span className="leading-tight text-slate-900">{customer.fullName.split(' ')[0]}</span>
-                  <span className="text-[10px] text-emerald-700 font-semibold leading-none">My Trips</span>
-                </div>
-              </button>
-            ) : (
-              onOpenCustomerLogin && (
-                <button
-                  type="button"
-                  onClick={onOpenCustomerLogin}
-                  className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs px-3.5 py-2.5 rounded-xl transition-colors flex items-center gap-1.5"
-                  title="Customer Sign In / My Bookings"
-                >
-                  <User className="w-3.5 h-3.5 text-slate-600" />
-                  <span>Customer Login</span>
-                </button>
-              )
-            )}
-
             <button
               onClick={onBookRideClick}
               className="bg-emerald-800 hover:bg-emerald-900 text-white font-semibold text-sm px-5 py-2.5 rounded-xl shadow-sm hover:shadow transition-all duration-200 active:scale-[0.98] flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-emerald-600"
@@ -227,8 +181,8 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Mobile Hamburger & Controls */}
           <div className="flex items-center gap-2 md:hidden">
-            {/* Customer Login / Profile Quick Icon on Mobile */}
-            {customer ? (
+            {/* Customer Profile Quick Icon on Mobile if logged in */}
+            {customer && (
               <button
                 type="button"
                 onClick={onOpenCustomerPortal}
@@ -237,30 +191,6 @@ export const Header: React.FC<HeaderProps> = ({
                 aria-label="My Trips"
               >
                 {customer.fullName.slice(0, 2).toUpperCase() || 'TJ'}
-              </button>
-            ) : (
-              onOpenCustomerLogin && (
-                <button
-                  type="button"
-                  onClick={onOpenCustomerLogin}
-                  className="p-2 text-slate-700 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors"
-                  title="Customer Login"
-                  aria-label="Customer Login"
-                >
-                  <User className="w-4 h-4" />
-                </button>
-              )
-            )}
-
-            {/* Price & Fare Engine - ONLY visible to OWNER on Mobile */}
-            {isOwner && onOpenFareEngine && (
-              <button
-                onClick={onOpenFareEngine}
-                className="p-2 text-slate-900 bg-amber-400 hover:bg-amber-500 rounded-xl border border-amber-500 shadow-xs"
-                title="Owner Price & Fare Engine"
-                aria-label="Price & Fare Engine"
-              >
-                <Sliders className="w-5 h-5 text-slate-950" />
               </button>
             )}
 
@@ -279,8 +209,8 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-slate-100 bg-white px-4 pt-3 pb-6 shadow-xl animate-in slide-in-from-top-2 duration-200">
-          {/* Customer Account card on Mobile */}
-          {customer ? (
+          {/* Customer Account card on Mobile if logged in */}
+          {customer && (
             <div className="mb-3 p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-emerald-800 text-white flex items-center justify-center font-bold text-sm">
@@ -307,51 +237,40 @@ export const Header: React.FC<HeaderProps> = ({
                 My Trips
               </button>
             </div>
-          ) : (
-            <div className="mb-3 p-3 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-slate-200 text-slate-700 flex items-center justify-center">
-                  <User className="w-4 h-4" />
-                </div>
-                <div className="text-left">
-                  <span className="text-xs font-bold text-slate-900 block leading-tight">
-                    Customer Account
-                  </span>
-                  <span className="text-[10px] text-slate-500">
-                    Sign in for 1-click booking & receipts
-                  </span>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onOpenCustomerLogin?.();
-                }}
-                className="text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-900 px-3 py-1.5 rounded-xl transition-colors shadow-xs"
-              >
-                Login
-              </button>
-            </div>
           )}
 
           {/* If Owner Mode is active, show banner */}
           {isOwner && (
-            <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ShieldAlert className="w-4 h-4 text-amber-700" />
-                <span className="text-xs font-bold text-amber-900">Owner Mode Active</span>
+            <div className="mb-3 space-y-2">
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4 text-amber-700" />
+                  <span className="text-xs font-bold text-amber-900">Owner Mode Active</span>
+                </div>
+                {onExitOwnerMode && (
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onExitOwnerMode();
+                    }}
+                    className="text-xs font-bold text-red-700 hover:underline"
+                  >
+                    Exit Mode
+                  </button>
+                )}
               </div>
-              {onExitOwnerMode && (
+
+              {onOpenFareEngine && (
                 <button
+                  type="button"
                   onClick={() => {
                     setMobileMenuOpen(false);
-                    onExitOwnerMode();
+                    onOpenFareEngine();
                   }}
-                  className="text-xs font-bold text-red-700 hover:underline"
+                  className="w-full bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs px-3 py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-xs"
                 >
-                  Exit Mode
+                  <Sliders className="w-4 h-4 text-emerald-300" />
+                  <span>Live Dynamic Fare Engine Settings</span>
                 </button>
               )}
             </div>
@@ -392,23 +311,6 @@ export const Header: React.FC<HeaderProps> = ({
             {/* In mobile nav: only show Owner tools if Owner */}
             {isOwner && (
               <div className="space-y-1.5 mt-2 pt-2 border-t border-amber-200">
-                {onOpenFareEngine && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      onOpenFareEngine();
-                    }}
-                    className="w-full text-left text-sm font-bold text-slate-900 bg-amber-100/70 hover:bg-amber-200/80 px-3 py-2.5 rounded-lg transition-colors flex items-center justify-between border border-amber-300/60"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Sliders className="w-4 h-4 text-slate-950" />
-                      <span>Price & Fare Engine</span>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-amber-700" />
-                  </button>
-                )}
-
                 <a
                   href="#recent-trips"
                   onClick={(e) => handleNavClick(e, '#recent-trips')}

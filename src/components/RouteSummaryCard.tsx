@@ -124,8 +124,16 @@ export const RouteSummaryCard: React.FC<RouteSummaryCardProps> = ({
           </div>
         </div>
 
-        {/* Stops & Toll pill */}
+        {/* Stops, Interstate & Toll pill */}
         <div className="flex items-center gap-2 flex-wrap">
+          {routeInfo.isInterstate && (
+            <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-purple-50 border border-purple-200 text-[11px] font-bold text-purple-800 shadow-2xs">
+              <span>Interstate ({routeInfo.interstateStates?.fromState || 'KA'} → {routeInfo.interstateStates?.toState || 'Outstation'})</span>
+              {routeInfo.interstateTaxEstimate ? (
+                <span className="font-normal text-purple-600">· Permit ~₹{routeInfo.interstateTaxEstimate}</span>
+              ) : null}
+            </div>
+          )}
           {typeof routeInfo.tollEstimate === 'number' && routeInfo.tollEstimate > 0 && (
             <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-50 border border-amber-200 text-[11px] font-bold text-amber-800 shadow-2xs">
               <span>Toll Approx. ₹{routeInfo.tollEstimate}</span>

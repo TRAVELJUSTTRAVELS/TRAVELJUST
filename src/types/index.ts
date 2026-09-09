@@ -1,3 +1,5 @@
+import { FareSnapshot, PricingModel } from './dynamicPricing';
+
 export type ServiceType = 'local' | 'oneway' | 'roundtrip' | 'airport';
 
 export type AirportTransferType = 'pickup' | 'drop';
@@ -10,10 +12,13 @@ export interface PlaceSuggestion {
   formattedAddress: string;  // e.g. "KIAL Rd, Devanahalli, Bengaluru, Karnataka 560300"
   taluk?: string;            // e.g. "Devanahalli Taluk", "Srirangapatna Taluk", "Madikeri Taluk"
   district?: string;         // e.g. "Mysuru District", "Kodagu District", "Mandya District"
+  state?: string;            // e.g. "Karnataka", "Tamil Nadu", "Kerala"
+  country?: string;          // e.g. "India"
+  postal_code?: string;      // e.g. "570001", "560300"
   village?: string;          // e.g. "Mandakalli", "Bylakuppe", "Melukote", "Nanjarayapatna"
   pincode?: string;
   landmark?: string;
-  category?: 'airports' | 'mysuru_local' | 'mysuru_areas' | 'bengaluru_metro' | 'hill_stations' | 'wildlife_safari' | 'heritage_pilgrimage' | 'coastal_beach' | 'intercity_hub';
+  category?: 'airports' | 'mysuru_local' | 'mysuru_areas' | 'bengaluru_metro' | 'hill_stations' | 'wildlife_safari' | 'heritage_pilgrimage' | 'coastal_beach' | 'intercity_hub' | 'hotels_resorts' | 'railway_stations' | 'tourist_attractions';
   types?: string[];
   isAirport?: boolean;
   lat?: number;
@@ -29,19 +34,44 @@ export interface CalculatedRouteInfo {
   distanceKm: number;
   distanceMeters?: number;
   durationMinutes: number;
-  durationFormatted: string; // e.g. "Approx. 32 min" or "3 hrs 15 min"
-  summaryText: string;       // e.g. "12.8 km · Approx. 32 min"
-  originAddress: string;
-  destinationAddress: string;
-  stopsCount: number;
+  durationFormatted?: string; // e.g. "Approx. 32 min" or "3 hrs 15 min"
+  durationText?: string;
+  summaryText?: string;       // e.g. "12.8 km · Approx. 32 min"
+  routeSummary?: string;
+  originAddress?: string;
+  destinationAddress?: string;
+  stopsCount?: number;
   viaStops?: string[];
   encodedPolyline?: string;
   routeDescription?: string;
   highwayCorridor?: string;
   tollEstimate?: number;
   isAirportRoute?: boolean;
+  recommendedService?: string;
   originCoords?: { lat: number; lng: number };
   destinationCoords?: { lat: number; lng: number };
+  destCoords?: { lat: number; lng: number };
+  originPlaceId?: string;
+  destinationPlaceId?: string;
+  destPlaceId?: string;
+  recommendedRoute?: string;
+  routesCount?: number;
+  alternateRoutes?: Array<{
+    routeIndex: number;
+    description: string;
+    distanceKm: number;
+    distanceMeters: number;
+    durationMinutes: number;
+    durationFormatted: string;
+    encodedPolyline?: string;
+    highwayCorridor?: string;
+    tollEstimate?: number;
+  }>;
+  interstateTaxEstimate?: number;
+  isInterstate?: boolean;
+  interstateStates?: { fromState: string; toState: string };
+  validationStatus?: 'VALID' | 'SANITY_CHECK_FAILED' | 'NO_ROUTE_FOUND' | 'API_ERROR';
+  validationMessage?: string;
   dataSource?: 'google_maps' | 'intelligent_matrix' | 'geocoded_route';
 }
 
@@ -66,6 +96,7 @@ export interface BookingSearchState {
   passengers: number;
   vehicleType: string; // 'all' or vehicle id
   routeInfo?: CalculatedRouteInfo;
+  flightNumber?: string;
 }
 
 export interface Vehicle {
@@ -124,16 +155,26 @@ export interface PricingConfig {
 
 export interface FareEstimate {
   estimatedDistanceKm: number;
+  exactDistanceKm?: number;
   estimatedDurationHours: number;
   baseFareAmount: number;
   distanceFareAmount: number;
   durationFareAmount: number;
+  driverAllowanceAmount?: number;
+  tollEstimate?: number;
+  interstatePermitEstimate?: number;
+  nightChargeAmount?: number;
   passengerSurchargeAmount: number;
   airportSurchargeAmount: number;
   totalEstimatedFare: number;
   roundTripDays?: number;
   includedMinKm?: number;
+  isValid?: boolean;
+  validationError?: string;
   breakdown: { label: string; amount: number }[];
+  fareSnapshot?: FareSnapshot;
+  pricingVersion?: number;
+  pricingModel?: PricingModel;
 }
 
 export interface PassengerDetails {
@@ -160,6 +201,8 @@ export interface BookingRequest {
   createdAt: string;
   status: 'Pending Confirmation' | 'Confirmed' | 'Driver Assigned' | 'Completed';
   driverDetails?: DriverDetails;
+  fare_snapshot?: FareSnapshot;
+  pricing_version?: number;
 }
 
 export interface SiteConfig {
@@ -277,3 +320,5 @@ export interface BookingDraftPlan {
 
 export type AIModelTier = 'auto' | 'gemini-3.1-pro-preview' | 'gemini-3.8-flash';
 export type AIGroundingMode = 'auto' | 'search' | 'maps';
+
+export * from './dynamicPricing';

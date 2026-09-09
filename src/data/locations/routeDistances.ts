@@ -11,8 +11,20 @@ export interface RouteCalculationResult {
 // Highly accurate, calibrated driving distance matrix for South Indian corridors
 export const ROUTE_MATRIX: Record<string, { distanceKm: number; durationMinutes: number; highway: string; toll: number }> = {
   // Mysuru - Airport corridors
-  'mysuru-kial_t1': { distanceKm: 185.5, durationMinutes: 195, highway: 'NH 275 Mysore-Bangalore Expressway + NH 44 Airport Corridor', toll: 320 },
-  'mysuru-kial_t2': { distanceKm: 186.0, durationMinutes: 195, highway: 'NH 275 Mysore-Bangalore Expressway + NH 44 Airport Corridor', toll: 320 },
+  'mysuru-kial_t1': { distanceKm: 170.0, durationMinutes: 210, highway: 'NH 275 Bengaluru-Mysuru Expressway + NH 44 Airport Corridor', toll: 320 },
+  'mysuru-kial_t2': { distanceKm: 170.0, durationMinutes: 210, highway: 'NH 275 Bengaluru-Mysuru Expressway + NH 44 Airport Corridor', toll: 320 },
+  'mysuru_palace-kempegowda_international_airport': { distanceKm: 170.0, durationMinutes: 210, highway: 'NH 275 Bengaluru-Mysuru Expressway + NH 44 Airport Corridor', toll: 320 },
+  'kempegowda_international_airport-mysuru_palace': { distanceKm: 170.0, durationMinutes: 210, highway: 'NH 275 Bengaluru-Mysuru Expressway + NH 44 Airport Corridor', toll: 320 },
+  'mysore_palace-kempegowda_international_airport': { distanceKm: 170.0, durationMinutes: 210, highway: 'NH 275 Bengaluru-Mysuru Expressway + NH 44 Airport Corridor', toll: 320 },
+  'kempegowda_international_airport-mysore_palace': { distanceKm: 170.0, durationMinutes: 210, highway: 'NH 275 Bengaluru-Mysuru Expressway + NH 44 Airport Corridor', toll: 320 },
+  'mysuru_palace-kial': { distanceKm: 170.0, durationMinutes: 210, highway: 'NH 275 Bengaluru-Mysuru Expressway + NH 44 Airport Corridor', toll: 320 },
+  'kial-mysuru_palace': { distanceKm: 170.0, durationMinutes: 210, highway: 'NH 275 Bengaluru-Mysuru Expressway + NH 44 Airport Corridor', toll: 320 },
+  'mysore_palace-kial': { distanceKm: 170.0, durationMinutes: 210, highway: 'NH 275 Bengaluru-Mysuru Expressway + NH 44 Airport Corridor', toll: 320 },
+  'kial-mysore_palace': { distanceKm: 170.0, durationMinutes: 210, highway: 'NH 275 Bengaluru-Mysuru Expressway + NH 44 Airport Corridor', toll: 320 },
+  'mysuru_palace-kempegowda': { distanceKm: 170.0, durationMinutes: 210, highway: 'NH 275 Bengaluru-Mysuru Expressway + NH 44 Airport Corridor', toll: 320 },
+  'kempegowda-mysuru_palace': { distanceKm: 170.0, durationMinutes: 210, highway: 'NH 275 Bengaluru-Mysuru Expressway + NH 44 Airport Corridor', toll: 320 },
+  'mysore_palace-kempegowda': { distanceKm: 170.0, durationMinutes: 210, highway: 'NH 275 Bengaluru-Mysuru Expressway + NH 44 Airport Corridor', toll: 320 },
+  'kempegowda-mysore_palace': { distanceKm: 170.0, durationMinutes: 210, highway: 'NH 275 Bengaluru-Mysuru Expressway + NH 44 Airport Corridor', toll: 320 },
   'mysuru-mys_airport': { distanceKm: 12.5, durationMinutes: 22, highway: 'NH 766 Kozhikode-Kollegal Highway', toll: 0 },
   'mysuru-mangalore_airport': { distanceKm: 255.0, durationMinutes: 330, highway: 'NH 275 via Madikeri-Mani Ghats', toll: 110 },
   'mysuru-coimbatore_airport': { distanceKm: 200.0, durationMinutes: 270, highway: 'NH 766 & NH 948 via Gundlupet-Sathyamangalam Ghats', toll: 85 },
@@ -279,4 +291,17 @@ export const ROUTE_MATRIX: Record<string, { distanceKm: number; durationMinutes:
   'bengaluru-coimbatore': { distanceKm: 365.0, durationMinutes: 390, highway: 'NH 44 6-Lane Expressway via Hosur-Salem-Erode', toll: 380 },
   'bengaluru-pondicherry': { distanceKm: 310.0, durationMinutes: 360, highway: 'NH 77 & NH 48 via Krishnagiri-Tiruvannamalai-Gingee', toll: 260 },
   'bengaluru-mangaluru': { distanceKm: 350.0, durationMinutes: 420, highway: 'NH 75 via Hassan & Shiradi Ghat / Sakleshpur', toll: 240 },
+
+  // New Requested Route Matrix Entries (Bidirectional)
+  'mysore-kabini': { distanceKm: 65.0, durationMinutes: 95, highway: 'SH 33 / HD Kote Road via Hampapura & Antharasanthe', toll: 0 },
+  'kabini-mysore': { distanceKm: 65.0, durationMinutes: 95, highway: 'SH 33 / HD Kote Road to Mysuru', toll: 0 },
+  'kabini-mysuru': { distanceKm: 65.0, durationMinutes: 95, highway: 'SH 33 / HD Kote Road to Mysuru', toll: 0 },
+  'ooty-bengaluru': { distanceKm: 275.0, durationMinutes: 345, highway: 'NH 181 / NH 766 Bandipur + NH 275 Expressway', toll: 320 },
+  'ooty-bangalore': { distanceKm: 275.0, durationMinutes: 345, highway: 'NH 181 / NH 766 Bandipur + NH 275 Expressway', toll: 320 },
+  'wayanad-bengaluru': { distanceKm: 280.0, durationMinutes: 350, highway: 'NH 766 Sulthan Bathery-Gundlupet + NH 275 Expressway', toll: 320 },
+  'wayanad-bangalore': { distanceKm: 280.0, durationMinutes: 350, highway: 'NH 766 Sulthan Bathery-Gundlupet + NH 275 Expressway', toll: 320 },
+  'kabini-bengaluru': { distanceKm: 215.0, durationMinutes: 255, highway: 'SH 33 via HD Kote & NH 275 10-Lane Expressway', toll: 320 },
+  'kabini-bangalore': { distanceKm: 215.0, durationMinutes: 255, highway: 'SH 33 via HD Kote & NH 275 10-Lane Expressway', toll: 320 },
+  'coorg-bengaluru': { distanceKm: 255.0, durationMinutes: 290, highway: 'NH 275 Madikeri-Kushalnagar + 10-Lane Expressway', toll: 320 },
+  'coorg-bangalore': { distanceKm: 255.0, durationMinutes: 290, highway: 'NH 275 Madikeri-Kushalnagar + 10-Lane Expressway', toll: 320 },
 };

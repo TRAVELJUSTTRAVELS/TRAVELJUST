@@ -4,10 +4,10 @@ export const MYSURU_LOCAL_LOCATIONS: PlaceSuggestion[] = [
   // Heritage & Sightseeing Icons
   {
     placeId: 'loc_mys_palace',
-    placeName: 'Mysore Palace (Amba Vilas Palace & Heritage Grounds)',
+    placeName: 'Mysuru Palace, Mysuru (Amba Vilas Palace & Heritage Grounds)',
     areaLocality: 'Sayyaji Rao Rd, Agrahara',
     city: 'Mysuru, Karnataka',
-    formattedAddress: 'Sayyaji Rao Rd, Agrahara, Chamrajpura, Mysuru, Karnataka 570001',
+    formattedAddress: 'Mysuru Palace, Sayyaji Rao Rd, Agrahara, Chamrajpura, Mysuru, Karnataka 570001',
     taluk: 'Mysuru Taluk',
     district: 'Mysuru District',
     village: 'Mysuru City Center',

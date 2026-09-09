@@ -1,42 +1,29 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  MapPin,
-  Calendar,
-  Clock as ClockIcon,
-  Users,
-  Car,
-  RotateCcw,
-  Plane,
-  AlertCircle,
+  ArrowLeftRight,
+  ChevronDown,
   Plus,
   Trash2,
-  Route,
-  CheckCircle2,
-  ArrowRight,
-  Navigation,
-  Sparkles,
-  ChevronDown,
-  ShieldCheck,
-  Info,
-  Timer,
-  UserCheck,
+  Plane,
+  RotateCcw,
   Check,
-  RefreshCw,
+  AlertCircle,
+  Search,
+  Route,
+  Sparkles,
 } from 'lucide-react';
 import {
   BookingSearchState,
   ServiceType,
   AirportTransferType,
-  PlaceSuggestion,
   CalculatedRouteInfo,
   PricingConfig,
+  PlaceSuggestion,
 } from '../types';
 import { ServiceSelector } from './ServiceSelector';
 import { LocationAutocompleteInput } from './LocationAutocompleteInput';
-import { RouteSummaryCard } from './RouteSummaryCard';
-import { vehiclesData } from '../data/vehicles';
 import { calculateRouteDistance, estimateDrivingDistanceMatrix } from '../services/googleMapsService';
-import { calculateRoundTripDays, ROUND_TRIP_TIERS, calculateFare } from '../utils/fareCalculator';
+import { calculateRoundTripDays } from '../utils/fareCalculator';
 import { defaultPricingConfig } from '../config/siteConfig';
 
 interface BookingSearchProps {
@@ -46,8 +33,53 @@ interface BookingSearchProps {
   onReset?: () => void;
   isCompact?: boolean;
   pricingConfig?: PricingConfig;
-  onOpenFareEngine?: () => void;
 }
+
+const TIME_OPTIONS = [
+  '12:00 AM', '12:30 AM', '01:00 AM', '01:30 AM', '02:00 AM', '02:30 AM',
+  '03:00 AM', '03:30 AM', '04:00 AM', '04:30 AM', '05:00 AM', '05:30 AM',
+  '06:00 AM', '06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM', '08:30 AM',
+  '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM',
+  '12:00 PM', '12:30 PM', '01:00 PM', '01:30 PM', '02:00 PM', '02:30 PM',
+  '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM', '05:00 PM', '05:30 PM',
+  '06:00 PM', '06:30 PM', '07:00 PM', '07:30 PM', '08:00 PM', '08:30 PM',
+  '09:00 PM', '09:30 PM', '10:00 PM', '10:30 PM', '11:00 PM', '11:30 PM'
+];
+
+// Helper to convert DD-MM-YYYY display from YYYY-MM-DD
+const formatDateToDDMMYYYY = (isoDate: string): string => {
+  if (!isoDate) return '';
+  const parts = isoDate.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  return isoDate;
+};
+
+// Helper to normalize 24-hour time to 12-hour format with AM/PM
+const formatTo12Hour = (timeStr: string): string => {
+  if (!timeStr) return '07:00 AM';
+  if (timeStr.includes('AM') || timeStr.includes('PM')) return timeStr;
+  const [hStr, mStr] = timeStr.split(':');
+  let hour = parseInt(hStr, 10);
+  const minute = mStr || '00';
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  hour = hour % 12;
+  if (hour === 0) hour = 12;
+  return `${hour.toString().padStart(2, '0')}:${minute} ${ampm}`;
+};
+
+// Helper to convert 12-hour AM/PM to 24-hour HH:mm
+const formatTo24Hour = (time12: string): string => {
+  if (!time12) return '07:00';
+  if (!time12.includes('AM') && !time12.includes('PM')) return time12;
+  const [time, modifier] = time12.split(' ');
+  const [hStr, mStr] = time.split(':');
+  let h = parseInt(hStr, 10);
+  if (modifier === 'PM' && h < 12) h += 12;
+  if (modifier === 'AM' && h === 12) h = 0;
+  return `${h.toString().padStart(2, '0')}:${mStr || '00'}`;
+};
 
 export const BookingSearch: React.FC<BookingSearchProps> = ({
   initialState,
@@ -55,85 +87,124 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
   onConfirmBooking,
   onReset,
   pricingConfig,
-  onOpenFareEngine,
 }) => {
-  const effectivePricingConfig = pricingConfig || defaultPricingConfig;
-  // Get tomorrow's date string YYYY-MM-DD as standard initial value
+  // Today's date in YYYY-MM-DD
+  const getTodayDate = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  };
+
   const getTomorrowDate = () => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     return tomorrow.toISOString().split('T')[0];
   };
 
-  const getDayAfterTomorrowDate = () => {
-    const date = new Date();
-    date.setDate(date.getDate() + 2);
-    return date.toISOString().split('T')[0];
-  };
-
   const [serviceType, setServiceType] = useState<ServiceType>(
     initialState?.serviceType || 'oneway'
   );
 
+  // Default locations: "Mysuru Palace, Mysuru" and "Kempegowda International Airport, Bengaluru"
   const [pickupLocation, setPickupLocation] = useState(
-    initialState?.pickupLocation || ''
+    initialState?.pickupLocation || 'Mysuru Palace, Mysuru'
+  );
+  const [pickupLocationObj, setPickupLocationObj] = useState<PlaceSuggestion | undefined>(
+    initialState?.pickupLocationObj || {
+      placeId: 'loc_mys_palace',
+      placeName: 'Mysuru Palace, Mysuru (Amba Vilas Palace & Heritage Grounds)',
+      areaLocality: 'Sayyaji Rao Rd, Agrahara',
+      city: 'Mysuru, Karnataka',
+      formattedAddress: 'Mysuru Palace, Sayyaji Rao Rd, Agrahara, Chamrajpura, Mysuru, Karnataka 570001',
+      lat: 12.3051,
+      lng: 76.6551,
+      category: 'mysuru_local',
+      types: ['tourist_attraction', 'locality'],
+    }
   );
   const [dropLocation, setDropLocation] = useState(
-    initialState?.dropLocation || ''
+    initialState?.dropLocation || 'Kempegowda International Airport, Bengaluru'
   );
-  const [travelDate, setTravelDate] = useState(initialState?.travelDate || initialState?.pickupDate || getTomorrowDate());
+  const [dropLocationObj, setDropLocationObj] = useState<PlaceSuggestion | undefined>(
+    initialState?.dropLocationObj || {
+      placeId: 'loc_kial_t1',
+      placeName: 'Kempegowda International Airport Terminal 1 (BLR T1 / KIAL)',
+      areaLocality: 'Devanahalli, North Bengaluru',
+      city: 'Bengaluru, Karnataka',
+      formattedAddress: 'Terminal 1, KIAL Rd, Devanahalli, Bengaluru, Karnataka 560300',
+      lat: 13.1986,
+      lng: 77.7066,
+      isAirport: true,
+      category: 'airports',
+      types: ['airport', 'transit_station'],
+    }
+  );
+
+  // Default travel date: today's date dynamically
+  const [travelDate, setTravelDate] = useState(
+    initialState?.travelDate || initialState?.pickupDate || getTodayDate()
+  );
+
+  // Return date for round trip
   const [dropDate, setDropDate] = useState(
-    initialState?.dropDate ||
-      initialState?.returnDate ||
-      (initialState?.serviceType === 'roundtrip' || (!initialState?.serviceType)
-        ? getDayAfterTomorrowDate()
-        : (initialState?.travelDate || getTomorrowDate()))
+    initialState?.dropDate || initialState?.returnDate || getTomorrowDate()
   );
   const [returnDate, setReturnDate] = useState(
-    initialState?.returnDate || initialState?.dropDate || getDayAfterTomorrowDate()
+    initialState?.returnDate || initialState?.dropDate || getTomorrowDate()
   );
-  const [pickupTime, setPickupTime] = useState(initialState?.pickupTime || '09:00');
-  const [returnTime, setReturnTime] = useState(initialState?.returnTime || initialState?.dropTime || '18:00');
+
+  // Default pickup time: 7:00 AM
+  const [pickupTime, setPickupTime] = useState(
+    initialState?.pickupTime ? formatTo12Hour(initialState.pickupTime) : '07:00 AM'
+  );
+  const [returnTime, setReturnTime] = useState(
+    initialState?.returnTime ? formatTo12Hour(initialState.returnTime) : '07:00 PM'
+  );
+
   const [durationHours, setDurationHours] = useState<number>(initialState?.durationHours || 8);
-  const [extraKm, setExtraKm] = useState<number>(initialState?.extraKm || 0);
   const [airportTransferType, setAirportTransferType] = useState<AirportTransferType>(
     initialState?.airportTransferType || 'pickup'
   );
+  const [flightNumber, setFlightNumber] = useState<string>(initialState?.flightNumber || '');
   const [passengers, setPassengers] = useState<number>(initialState?.passengers || 2);
-  const [vehicleType, setVehicleType] = useState<string>(initialState?.vehicleType || 'all');
   const [viaLocations, setViaLocations] = useState<string[]>(initialState?.viaLocations || []);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Today's date string for min date boundary
-  const getTodayDate = () => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  };
-
-  const handleTravelDateChange = (newDate: string) => {
-    setTravelDate(newDate);
-    if (errors.travelDate) setErrors((prev) => ({ ...prev, travelDate: '' }));
-    
-    // Automatically update drop date if it becomes earlier than pickup date
-    if (dropDate < newDate) {
-      setDropDate(newDate);
-      setReturnDate(newDate);
-    }
-  };
-
-  const handleDropDateChange = (newDate: string) => {
-    setDropDate(newDate);
-    setReturnDate(newDate);
-    if (errors.dropDate) setErrors((prev) => ({ ...prev, dropDate: '' }));
-  };
+  // Refs for HTML date pickers
+  const pickupDateInputRef = useRef<HTMLInputElement>(null);
+  const dropDateInputRef = useRef<HTMLInputElement>(null);
 
   // Live route calculation state
   const [routeInfo, setRouteInfo] = useState<CalculatedRouteInfo | null>(
-    initialState?.routeInfo || null
+    initialState?.routeInfo || {
+      distanceKm: 170.0,
+      durationMinutes: 210,
+      durationText: '3 hr 30 min',
+      routeSummary: 'Mysuru Palace to Kempegowda International Airport via NH 275 Bengaluru-Mysuru Expressway',
+      highwayCorridor: 'NH 275 Bengaluru-Mysuru Expressway + NH 44 Airport Corridor',
+      tollEstimate: 320,
+      recommendedService: 'airport',
+      dataSource: 'google_maps',
+      originCoords: { lat: 12.3051, lng: 76.6551 },
+      destCoords: { lat: 13.1986, lng: 77.7066 },
+      originPlaceId: 'loc_mys_palace',
+      destPlaceId: 'loc_kial_t1',
+    }
   );
   const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Trigger route computation when locations change
+  // Reset and auto-reset states
+  const [autoResetSecondsLeft, setAutoResetSecondsLeft] = useState<number>(300);
+  const [isResetting, setIsResetting] = useState<boolean>(false);
+  const [resetSuccessFeedback, setResetSuccessFeedback] = useState<boolean>(false);
+  const lastInteractionTimeRef = useRef<number>(Date.now());
+
+  // User activity tracker for auto-reset
+  const registerUserActivity = useCallback(() => {
+    lastInteractionTimeRef.current = Date.now();
+    setAutoResetSecondsLeft(300);
+  }, []);
+
+  // Compute route distance dynamically using Place ID and exact coordinates
   const computeActiveRoute = useCallback(async () => {
     const origin = pickupLocation.trim();
     const destination =
@@ -147,40 +218,76 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
     setIsCalculatingRoute(true);
     try {
       const validStops = viaLocations.filter((s) => s && s.trim().length > 0);
-      const computed = await calculateRouteDistance(origin, destination, validStops);
+      const originCoords =
+        pickupLocationObj?.lat && pickupLocationObj?.lng
+          ? { lat: pickupLocationObj.lat, lng: pickupLocationObj.lng }
+          : undefined;
+      const destCoords =
+        dropLocationObj?.lat && dropLocationObj?.lng
+          ? { lat: dropLocationObj.lat, lng: dropLocationObj.lng }
+          : undefined;
+
+      const computed = await calculateRouteDistance(
+        origin,
+        destination,
+        validStops,
+        originCoords,
+        destCoords,
+        pickupLocationObj?.placeId,
+        dropLocationObj?.placeId
+      );
       setRouteInfo(computed);
     } catch (err) {
-      console.debug('Route calculation error:', err);
+      console.debug('Route calculation fallback:', err);
       const fallback = estimateDrivingDistanceMatrix(origin, destination, viaLocations);
       setRouteInfo(fallback);
     } finally {
       setIsCalculatingRoute(false);
     }
-  }, [pickupLocation, dropLocation, viaLocations, serviceType]);
+  }, [pickupLocation, dropLocation, viaLocations, serviceType, pickupLocationObj, dropLocationObj]);
 
-  // Debounced auto-recalculate on change
   useEffect(() => {
     const timer = setTimeout(() => {
       computeActiveRoute();
-    }, 350);
+    }, 400);
     return () => clearTimeout(timer);
   }, [computeActiveRoute]);
 
-  // Adjust defaults when service type switches
-  const handleServiceChange = (newService: ServiceType) => {
-    setServiceType(newService);
-    setErrors({});
+  const handleTravelDateChange = (newDate: string) => {
+    setTravelDate(newDate);
+    if (errors.travelDate) setErrors((prev) => ({ ...prev, travelDate: '' }));
+    if (dropDate < newDate) {
+      setDropDate(newDate);
+      setReturnDate(newDate);
+    }
   };
 
-  const handleAirportTransferToggle = (type: AirportTransferType) => {
-    setAirportTransferType(type);
+  const handleDropDateChange = (newDate: string) => {
+    setDropDate(newDate);
+    setReturnDate(newDate);
+    if (errors.dropDate) setErrors((prev) => ({ ...prev, dropDate: '' }));
   };
 
-  const handleAddViaLocation = (initialVal = '') => {
-    setViaLocations((prev) => [...prev, initialVal]);
+  const handleSwapLocations = () => {
+    registerUserActivity();
+    const tempLoc = pickupLocation;
+    const tempObj = pickupLocationObj;
+    setPickupLocation(dropLocation);
+    setPickupLocationObj(dropLocationObj);
+    setDropLocation(tempLoc);
+    setDropLocationObj(tempObj);
+    if (errors.pickupLocation || errors.dropLocation) {
+      setErrors((prev) => ({ ...prev, pickupLocation: '', dropLocation: '' }));
+    }
   };
 
-  const handleUpdateViaLocation = (index: number, val: string) => {
+  const handleAddStop = () => {
+    registerUserActivity();
+    setViaLocations((prev) => [...prev, '']);
+  };
+
+  const handleUpdateStop = (index: number, val: string) => {
+    registerUserActivity();
     setViaLocations((prev) => {
       const updated = [...prev];
       updated[index] = val;
@@ -188,568 +295,800 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
     });
   };
 
-  const handleRemoveViaLocation = (index: number) => {
+  const handleRemoveStop = (index: number) => {
+    registerUserActivity();
     setViaLocations((prev) => prev.filter((_, i) => i !== index));
   };
+
+  const handleServiceChange = (newService: ServiceType) => {
+    registerUserActivity();
+    setServiceType(newService);
+    setErrors({});
+  };
+
+  const handleResetForm = useCallback(() => {
+    setIsResetting(true);
+    setPickupLocation('Mysuru Palace, Mysuru');
+    setPickupLocationObj({
+      placeId: 'loc_mys_palace',
+      placeName: 'Mysuru Palace, Mysuru (Amba Vilas Palace & Heritage Grounds)',
+      areaLocality: 'Sayyaji Rao Rd, Agrahara',
+      city: 'Mysuru, Karnataka',
+      formattedAddress: 'Mysuru Palace, Sayyaji Rao Rd, Agrahara, Chamrajpura, Mysuru, Karnataka 570001',
+      lat: 12.3051,
+      lng: 76.6551,
+      category: 'mysuru_local',
+      types: ['tourist_attraction', 'locality'],
+    });
+    setDropLocation('Kempegowda International Airport, Bengaluru');
+    setDropLocationObj({
+      placeId: 'loc_kial_t1',
+      placeName: 'Kempegowda International Airport Terminal 1 (BLR T1 / KIAL)',
+      areaLocality: 'Devanahalli, North Bengaluru',
+      city: 'Bengaluru, Karnataka',
+      formattedAddress: 'Terminal 1, KIAL Rd, Devanahalli, Bengaluru, Karnataka 560300',
+      lat: 13.1986,
+      lng: 77.7066,
+      isAirport: true,
+      category: 'airports',
+      types: ['airport', 'transit_station'],
+    });
+    setRouteInfo({
+      distanceKm: 170.0,
+      durationMinutes: 210,
+      durationText: '3 hr 30 min',
+      routeSummary: 'Mysuru Palace to Kempegowda International Airport via NH 275 Bengaluru-Mysuru Expressway',
+      highwayCorridor: 'NH 275 Bengaluru-Mysuru Expressway + NH 44 Airport Corridor',
+      tollEstimate: 320,
+      recommendedService: 'airport',
+      dataSource: 'google_maps',
+      originCoords: { lat: 12.3051, lng: 76.6551 },
+      destCoords: { lat: 13.1986, lng: 77.7066 },
+      originPlaceId: 'loc_mys_palace',
+      destPlaceId: 'loc_kial_t1',
+    });
+    setViaLocations([]);
+    setTravelDate(getTodayDate());
+    setDropDate(getTomorrowDate());
+    setReturnDate(getTomorrowDate());
+    setPickupTime('07:00 AM');
+    setReturnTime('07:00 PM');
+    setDurationHours(8);
+    setFlightNumber('');
+    setErrors({});
+    lastInteractionTimeRef.current = Date.now();
+    setAutoResetSecondsLeft(300);
+    if (onResetRef.current) onResetRef.current();
+
+    setResetSuccessFeedback(true);
+    setTimeout(() => {
+      setIsResetting(false);
+    }, 350);
+    setTimeout(() => {
+      setResetSuccessFeedback(false);
+    }, 2000);
+  }, []);
+
+  const onResetRef = useRef(onReset);
+  useEffect(() => {
+    onResetRef.current = onReset;
+  }, [onReset]);
+
+  const handleResetFormRef = useRef(handleResetForm);
+  useEffect(() => {
+    handleResetFormRef.current = handleResetForm;
+  }, [handleResetForm]);
+
+  // 5-minute inactivity auto-reset timer
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - lastInteractionTimeRef.current) / 1000);
+      const remaining = Math.max(0, 300 - elapsed);
+      setAutoResetSecondsLeft((prev) => (prev !== remaining ? remaining : prev));
+
+      if (remaining <= 0) {
+        handleResetFormRef.current?.();
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
     if (!pickupLocation.trim()) {
-      newErrors.pickupLocation =
-        serviceType === 'airport' && airportTransferType === 'pickup'
-          ? 'Please select or enter airport terminal'
-          : 'Please enter pickup location';
+      newErrors.pickupLocation = 'Please enter pickup location';
     }
 
-    if (
-      (serviceType === 'oneway' || serviceType === 'roundtrip' || serviceType === 'airport') &&
-      !dropLocation.trim()
-    ) {
-      newErrors.dropLocation =
-        serviceType === 'airport' && airportTransferType === 'drop'
-          ? 'Please select or enter airport destination'
-          : 'Please enter drop location';
+    if (serviceType !== 'local' && !dropLocation.trim()) {
+      newErrors.dropLocation = 'Please enter destination';
     }
 
-    const activeTravelDate = travelDate || getTomorrowDate();
     if (!travelDate) {
-      setTravelDate(activeTravelDate);
+      newErrors.travelDate = 'Please select travel date';
     }
 
-    if (passengers < 1) {
-      newErrors.passengers = 'Minimum 1 passenger required';
+    if (serviceType === 'roundtrip' && !dropDate) {
+      newErrors.dropDate = 'Please select return date';
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const activeRoundTripDays = calculateRoundTripDays(travelDate, returnDate);
-  const activeIncludedMinKm = activeRoundTripDays * 300;
-
-  // Selected vehicle and calculated fares for in-form live breakdown
-  const selectedVehicleObj = vehicleType !== 'all' 
-    ? vehiclesData.find((v) => v.id === vehicleType) || vehiclesData[0] 
-    : vehiclesData[0];
-  const selectedLocalVehicle = selectedVehicleObj;
-  const selectedRoundTripVehicle = selectedVehicleObj;
-  const selectedOneWayVehicle = selectedVehicleObj;
-  const selectedAirportVehicle = selectedVehicleObj;
-
-  const selectedOneWayFare = serviceType === 'oneway'
-    ? calculateFare(
-        {
-          serviceType: 'oneway',
-          pickupLocation: pickupLocation || 'Mysuru',
-          dropLocation: dropLocation || 'Drop Location',
-          travelDate,
-          pickupTime,
-          durationHours,
-          airportTransferType,
-          passengers,
-          vehicleType: selectedVehicleObj.id,
-          routeInfo,
-        },
-        selectedVehicleObj,
-        effectivePricingConfig
-      )
-    : null;
-
-  const selectedLocalFare = serviceType === 'local' 
-    ? calculateFare(
-        {
-          serviceType: 'local',
-          pickupLocation,
-          dropLocation: 'Local Mysuru City Coverage',
-          travelDate,
-          pickupTime,
-          durationHours,
-          extraKm,
-          airportTransferType,
-          passengers,
-          vehicleType: selectedVehicleObj.id,
-        },
-        selectedVehicleObj,
-        effectivePricingConfig
-      )
-    : null;
-
-  const selectedRoundTripFare = serviceType === 'roundtrip'
-    ? calculateFare(
-        {
-          serviceType: 'roundtrip',
-          pickupLocation: pickupLocation || 'Mysuru',
-          dropLocation: dropLocation || 'Outstation Destination',
-          viaLocations: viaLocations.filter((l) => l && l.trim() !== ''),
-          travelDate,
-          returnDate,
-          roundTripDays: activeRoundTripDays,
-          pickupTime,
-          returnTime,
-          durationHours,
-          airportTransferType,
-          passengers,
-          vehicleType: selectedVehicleObj.id,
-          routeInfo,
-        },
-        selectedVehicleObj,
-        effectivePricingConfig
-      )
-    : null;
-
-  const selectedAirportFare = serviceType === 'airport'
-    ? calculateFare(
-        {
-          serviceType: 'airport',
-          pickupLocation: pickupLocation || (airportTransferType === 'drop' ? 'Mysuru City' : 'Mysuru Airport (MYQ)'),
-          dropLocation: dropLocation || (airportTransferType === 'drop' ? 'Bengaluru Kempegowda Intl Airport (BLR)' : 'Mysuru Destination'),
-          travelDate,
-          pickupTime,
-          durationHours,
-          airportTransferType,
-          passengers,
-          vehicleType: selectedVehicleObj.id,
-          routeInfo,
-        },
-        selectedVehicleObj,
-        effectivePricingConfig
-      )
-    : null;
-
-  const handleSelectRoundTripDays = (days: number) => {
-    const base = travelDate ? new Date(travelDate + 'T00:00:00') : new Date();
-    const target = new Date(base);
-    target.setDate(target.getDate() + (days - 1));
-    const targetStr = target.toISOString().split('T')[0];
-    setDropDate(targetStr);
-    setReturnDate(targetStr);
-  };
-
-  const formatFriendlyDate = (dateStr: string) => {
-    if (!dateStr) return '';
-    try {
-      const d = new Date(dateStr + 'T00:00:00');
-      if (isNaN(d.getTime())) return dateStr;
-      return d.toLocaleDateString('en-IN', {
-        weekday: 'short',
-        day: 'numeric',
-        month: 'short',
-      });
-    } catch {
-      return dateStr;
-    }
-  };
-
   const constructSearchPayload = (): BookingSearchState => {
-    const validViaStops = viaLocations.filter((l) => l && l.trim() !== '');
+    const validViaStops = viaLocations.filter((v) => v.trim().length > 0);
     const activeRoute =
       routeInfo ||
       estimateDrivingDistanceMatrix(
         pickupLocation,
-        serviceType === 'local' ? 'Local Mysuru Coverage' : dropLocation,
-        validViaStops
+        serviceType === 'local' ? 'Local Coverage' : dropLocation,
+        validViaStops,
+        pickupLocationObj?.lat && pickupLocationObj?.lng ? { lat: pickupLocationObj.lat, lng: pickupLocationObj.lng } : undefined,
+        dropLocationObj?.lat && dropLocationObj?.lng ? { lat: dropLocationObj.lat, lng: dropLocationObj.lng } : undefined
       );
 
-    const effectiveDropDate = dropDate || returnDate || travelDate;
+    const activeRoundTripDays = calculateRoundTripDays(travelDate, returnDate || dropDate);
 
     return {
       serviceType,
-      pickupLocation,
-      dropLocation: serviceType === 'local' ? 'Local Mysuru City Coverage' : dropLocation,
-      viaLocations: serviceType === 'roundtrip' ? validViaStops : undefined,
+      pickupLocation: pickupLocation.trim(),
+      pickupLocationObj,
+      dropLocation: serviceType === 'local' ? 'Local Mysuru City Coverage' : dropLocation.trim(),
+      dropLocationObj,
+      viaLocations: validViaStops.length > 0 ? validViaStops : undefined,
       travelDate,
       pickupDate: travelDate,
-      dropDate: effectiveDropDate,
-      returnDate: serviceType === 'roundtrip' ? returnDate || effectiveDropDate : effectiveDropDate,
+      dropDate: serviceType === 'roundtrip' ? dropDate : travelDate,
+      returnDate: serviceType === 'roundtrip' ? returnDate || dropDate : travelDate,
       roundTripDays: serviceType === 'roundtrip' ? activeRoundTripDays : undefined,
-      pickupTime,
-      dropTime: returnTime,
-      returnTime: serviceType === 'roundtrip' ? returnTime : undefined,
-      durationHours,
-      extraKm: serviceType === 'local' ? extraKm : undefined,
+      pickupTime: formatTo24Hour(pickupTime),
+      dropTime: serviceType === 'roundtrip' ? formatTo24Hour(returnTime) : undefined,
+      returnTime: serviceType === 'roundtrip' ? formatTo24Hour(returnTime) : undefined,
+      durationHours: serviceType === 'local' ? durationHours : 8,
       airportTransferType,
       passengers,
-      vehicleType,
+      vehicleType: 'all',
+      flightNumber: flightNumber.trim() || undefined,
       routeInfo: activeRoute,
     };
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
-    onSearch(constructSearchPayload());
-  };
-
-  const handleConfirmBookingClick = (e: React.MouseEvent) => {
-    e.preventDefault();
+    registerUserActivity();
     if (!validateForm()) return;
     const searchData = constructSearchPayload();
-
-    if (onConfirmBooking) {
-      onConfirmBooking(searchData, vehicleType);
-    } else {
-      onSearch(searchData);
+    if (searchData.serviceType !== 'local' && searchData.routeInfo?.validationStatus === 'NO_ROUTE_FOUND') {
+      setErrors((prev) => ({
+        ...prev,
+        dropLocation: 'Unable to trace road route between these points. Please pick from suggested places.',
+      }));
+      return;
     }
+    onSearch(searchData);
   };
-
-  const [autoResetSecondsLeft, setAutoResetSecondsLeft] = useState<number>(300); // 5 minutes = 300 seconds
-  const [isResetting, setIsResetting] = useState<boolean>(false);
-  const [resetSuccessFeedback, setResetSuccessFeedback] = useState<boolean>(false);
-  const lastInteractionTimeRef = React.useRef<number>(Date.now());
-
-  // Function to register user activity/interaction
-  const registerUserActivity = useCallback(() => {
-    lastInteractionTimeRef.current = Date.now();
-    setAutoResetSecondsLeft(300);
-  }, []);
-
-  const handleResetForm = useCallback(() => {
-    setIsResetting(true);
-    setPickupLocation('');
-    setDropLocation('');
-    setViaLocations([]);
-    setTravelDate(getTomorrowDate());
-    setReturnDate(getDayAfterTomorrowDate());
-    setPickupTime('09:00');
-    setReturnTime('18:00');
-    setDurationHours(8);
-    setExtraKm(0);
-    setPassengers(2);
-    setVehicleType('all');
-    setErrors({});
-    lastInteractionTimeRef.current = Date.now();
-    setAutoResetSecondsLeft(300);
-    if (onReset) onReset();
-
-    // Visual feedback
-    setResetSuccessFeedback(true);
-    setTimeout(() => {
-      setIsResetting(false);
-    }, 450);
-    setTimeout(() => {
-      setResetSuccessFeedback(false);
-    }, 2200);
-  }, [onReset]);
-
-  // 5-minute automatic reset timer (runs strictly within this component)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - lastInteractionTimeRef.current) / 1000);
-      const remaining = Math.max(0, 300 - elapsed);
-      setAutoResetSecondsLeft(remaining);
-
-      if (remaining <= 0) {
-        handleResetForm();
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [handleResetForm]);
-
-  const minutesLeft = Math.floor(autoResetSecondsLeft / 60);
-  const secondsLeft = autoResetSecondsLeft % 60;
-  const formattedCountdown = `${minutesLeft}:${secondsLeft.toString().padStart(2, '0')}`;
 
   return (
     <div
+      id="travel-just-booking-widget"
       onKeyDown={registerUserActivity}
       onClick={registerUserActivity}
-      className="bg-white rounded-2xl shadow-xl border border-slate-200/80 p-5 sm:p-7 relative z-20 transition-all"
+      className="bg-white rounded-[26px] shadow-sm border border-slate-200/80 p-5 sm:p-7 md:p-8 lg:px-10 lg:py-8 transition-all relative z-20 w-full"
     >
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Service Type Switcher */}
+      <form onSubmit={handleSubmit} className="space-y-6 md:space-y-7">
+        {/* TOP BOOKING TYPE TABS */}
         <ServiceSelector
           selectedService={serviceType}
           onSelectService={handleServiceChange}
         />
 
-        {/* Airport Transfer Specific Type Selector */}
+        {/* AIRPORT TRANSFER DIRECTION SELECTOR (When Airport tab is active) */}
         {serviceType === 'airport' && (
-          <div className="bg-sky-50/70 p-3.5 rounded-2xl border border-sky-200/80 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-sky-950 uppercase tracking-wider flex items-center gap-1.5">
-                <Plane className="w-4 h-4 text-sky-700" />
-                <span>Airport Transfer Direction</span>
-              </span>
-              <span className="text-[11px] font-semibold text-sky-700">Flight Hub Transfer</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2.5">
+          <div className="flex justify-center">
+            <div className="inline-flex rounded-lg border border-slate-300 p-1 bg-slate-50 gap-1 text-xs sm:text-sm font-bold">
               <button
                 type="button"
-                onClick={() => handleAirportTransferToggle('pickup')}
-                className={`py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                onClick={() => setAirportTransferType('pickup')}
+                className={`px-4 py-1.5 rounded-md transition-all cursor-pointer ${
                   airportTransferType === 'pickup'
-                    ? 'bg-sky-800 text-white shadow-sm ring-2 ring-sky-600/30'
-                    : 'bg-white text-slate-700 hover:bg-sky-100/60 border border-slate-200'
+                    ? 'bg-[#D0FAE5] text-slate-900 font-bold shadow-xs border border-emerald-300/60'
+                    : 'text-slate-700 hover:bg-slate-200/70'
                 }`}
               >
-                <span
-                  className={`px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
-                    airportTransferType === 'pickup'
-                      ? 'bg-sky-950 text-sky-200'
-                      : 'bg-slate-100 text-slate-700'
-                  }`}
-                >
-                  FROM
-                </span>
-                <span>Pickup from Airport</span>
+                Pickup from Airport
               </button>
               <button
                 type="button"
-                onClick={() => handleAirportTransferToggle('drop')}
-                className={`py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                onClick={() => setAirportTransferType('drop')}
+                className={`px-4 py-1.5 rounded-md transition-all cursor-pointer ${
                   airportTransferType === 'drop'
-                    ? 'bg-sky-800 text-white shadow-sm ring-2 ring-sky-600/30'
-                    : 'bg-white text-slate-700 hover:bg-sky-100/60 border border-slate-200'
+                    ? 'bg-[#D0FAE5] text-slate-900 font-bold shadow-xs border border-emerald-300/60'
+                    : 'text-slate-700 hover:bg-slate-200/70'
                 }`}
               >
-                <span
-                  className={`px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
-                    airportTransferType === 'drop'
-                      ? 'bg-sky-950 text-sky-200'
-                      : 'bg-slate-100 text-slate-700'
-                  }`}
-                >
-                  TO
-                </span>
-                <span>Drop to Airport</span>
+                Drop to Airport
               </button>
             </div>
           </div>
         )}
 
-        {/* Form Fields Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Pickup Location Field (FROM) */}
-          <div className="relative">
-            <LocationAutocompleteInput
-              id="pickup-location-input"
-              label={
-                serviceType === 'airport' && airportTransferType === 'pickup'
-                  ? 'FROM (Airport Pickup Terminal)'
-                  : 'FROM (Pickup Location)'
-              }
-              placeholder={
-                serviceType === 'airport' && airportTransferType === 'pickup'
-                  ? 'e.g. KIAL Terminal 1 or Mysuru Airport'
-                  : 'Enter pickup address, locality, or landmark'
-              }
-              value={pickupLocation}
-              onChange={(val) => {
-                setPickupLocation(val);
-                if (errors.pickupLocation) setErrors({ ...errors, pickupLocation: '' });
-              }}
-              iconType={
-                serviceType === 'airport' && airportTransferType === 'pickup'
-                  ? 'airport'
-                  : 'pickup'
-              }
-              error={errors.pickupLocation}
-              required
-              onClear={() => setPickupLocation('')}
-            />
-          </div>
-
-          {/* Drop Location Field (TO) */}
-          {serviceType !== 'local' ? (
-            <div className="relative">
-              <LocationAutocompleteInput
-                id="drop-location-input"
-                label={
-                  serviceType === 'airport' && airportTransferType === 'drop'
-                    ? 'TO (Airport Drop Terminal)'
-                    : 'TO (Destination Location)'
-                }
-                placeholder={
-                  serviceType === 'airport' && airportTransferType === 'drop'
-                    ? 'e.g. KIAL Terminal 1 / Terminal 2'
-                    : 'Enter destination city, hotel, or landmark'
-                }
-                value={dropLocation}
-                onChange={(val) => {
-                  setDropLocation(val);
-                  if (errors.dropLocation) setErrors({ ...errors, dropLocation: '' });
-                }}
-                iconType={
-                  serviceType === 'airport' && airportTransferType === 'drop' ? 'airport' : 'drop'
-                }
-                error={errors.dropLocation}
-                required
-                onClear={() => setDropLocation('')}
-              />
-            </div>
-          ) : (
-            <div>
-              <div className="flex items-center justify-between min-h-[20px] mb-1.5">
-                <label className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
-                  <ClockIcon className="w-3.5 h-3.5 text-emerald-700" />
-                  <span>Local Package Hours</span>
-                </label>
+        {/* ONE WAY BOOKING FORM */}
+        {serviceType === 'oneway' && (
+          <div className="w-full">
+            {/* Desktop: single horizontal row; Mobile/Tablet: vertical stacked */}
+            <div className="flex flex-col lg:flex-row lg:items-end gap-5 lg:gap-4 xl:gap-6">
+              {/* 1. FROM Field */}
+              <div className="flex-1 min-w-0">
+                <LocationAutocompleteInput
+                  id="from-location-input"
+                  label="FROM"
+                  variant="underline"
+                  showSearchIconLeft
+                  placeholder="Enter pickup city, hotel, or station"
+                  value={pickupLocation}
+                  selectedPlace={pickupLocationObj}
+                  allowCurrentLocation={true}
+                  onChange={(val, suggestion) => {
+                    setPickupLocation(val);
+                    if (suggestion) setPickupLocationObj(suggestion);
+                    if (errors.pickupLocation) setErrors((prev) => ({ ...prev, pickupLocation: '' }));
+                  }}
+                  error={errors.pickupLocation}
+                  onClear={() => {
+                    setPickupLocation('');
+                    setPickupLocationObj(undefined);
+                  }}
+                />
               </div>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-emerald-800">
-                  <ClockIcon className="w-5 h-5" />
-                </div>
-                <select
-                  value={durationHours}
-                  onChange={(e) => setDurationHours(Number(e.target.value))}
-                  className="w-full h-[52px] pl-11 pr-9 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white appearance-none transition-all font-medium cursor-pointer"
+
+              {/* 2. SWAP BUTTON */}
+              <div className="flex justify-center items-center lg:self-end lg:mb-1.5">
+                <button
+                  type="button"
+                  id="swap-locations-btn"
+                  onClick={handleSwapLocations}
+                  title="Swap Pickup and Destination"
+                  aria-label="Swap locations"
+                  className="w-11 h-11 md:w-12 md:h-12 rounded-full bg-[#f1f3f5] hover:bg-[#e9ecef] border border-[#dee2e6] flex items-center justify-center transition-all duration-150 cursor-pointer shadow-2xs active:scale-95 group"
                 >
-                  <option value={4}>4 Hours / 40 Km Package</option>
-                  <option value={8}>8 Hours / 80 Km Package (Recommended)</option>
-                  <option value={12}>12 Hours / 120 Km Full Day Package</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-slate-400">
-                  <ChevronDown className="w-4 h-4" />
+                  <ArrowLeftRight className="w-5 h-5 text-[#14CD03] group-hover:rotate-180 transition-transform duration-300" />
+                </button>
+              </div>
+
+              {/* 3. TO Field */}
+              <div className="flex-1 min-w-0 relative">
+                <div className="relative">
+                  <LocationAutocompleteInput
+                    id="to-location-input"
+                    label="TO"
+                    variant="underline"
+                    showSearchIconLeft
+                    placeholder="Enter destination city, hotel, or station"
+                    value={dropLocation}
+                    selectedPlace={dropLocationObj}
+                    allowCurrentLocation={false}
+                    onChange={(val, suggestion) => {
+                      setDropLocation(val);
+                      if (suggestion) setDropLocationObj(suggestion);
+                      if (errors.dropLocation) setErrors((prev) => ({ ...prev, dropLocation: '' }));
+                    }}
+                    error={errors.dropLocation}
+                    onClear={() => {
+                      setDropLocation('');
+                      setDropLocationObj(undefined);
+                    }}
+                  />
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* PICKUP DATE */}
-          <div>
-            <div className="flex items-center justify-between min-h-[20px] mb-1.5">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-emerald-700" />
-                <span>Pickup Date</span>
-                <span className="text-red-500">*</span>
-              </label>
-              {travelDate && (
-                <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                  {formatFriendlyDate(travelDate)}
-                </span>
-              )}
-            </div>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-emerald-800">
-                <Calendar className="w-5 h-5" />
-              </div>
-              <input
-                id="pickup-date-input"
-                type="date"
-                min={getTodayDate()}
-                value={travelDate}
-                onChange={(e) => handleTravelDateChange(e.target.value)}
-                className={`w-full h-[52px] pl-11 pr-3.5 bg-slate-50 border rounded-xl text-sm text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white transition-all ${
-                  errors.travelDate ? 'border-red-500 ring-1 ring-red-500' : 'border-slate-300'
-                }`}
-                required
-              />
-            </div>
-            {errors.travelDate && (
-              <p className="text-xs text-red-600 mt-1 flex items-center gap-1 font-medium">
-                <AlertCircle className="w-3.5 h-3.5" /> {errors.travelDate}
-              </p>
-            )}
-          </div>
-
-          {/* PICKUP TIME */}
-          <div>
-            <div className="flex items-center justify-between min-h-[20px] mb-1.5">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
-                <ClockIcon className="w-3.5 h-3.5 text-emerald-700" />
-                <span>Pickup Time</span>
-                <span className="text-red-500">*</span>
-              </label>
-              <span className="text-[11px] font-medium text-slate-500">24hr / IST</span>
-            </div>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-emerald-800">
-                <ClockIcon className="w-5 h-5" />
-              </div>
-              <input
-                id="pickup-time-input"
-                type="time"
-                value={pickupTime}
-                onChange={(e) => setPickupTime(e.target.value)}
-                className="w-full h-[52px] pl-11 pr-3.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white transition-all"
-                required
-              />
-            </div>
-          </div>
-
-          {/* DROP / RETURN DATE (Only for Round Trip) */}
-          {serviceType === 'roundtrip' && (
-            <div>
-              <div className="flex items-center justify-between min-h-[20px] mb-1.5">
-                <label className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-emerald-700" />
-                  <span>Drop / Return Date</span>
-                  <span className="text-red-500">*</span>
+              {/* 4. PICK UP DATE Field */}
+              <div className="w-full lg:w-44 xl:w-48 space-y-1">
+                <label
+                  htmlFor="pickup-date-display"
+                  className="text-[12px] leading-[16px] font-bold uppercase tracking-wide text-[#0f2441] block whitespace-nowrap"
+                >
+                  PICK UP DATE
                 </label>
-                {dropDate && (
-                  <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                    {formatFriendlyDate(dropDate)}
-                    {activeRoundTripDays > 1 && ` (${activeRoundTripDays}D)`}
+                <div
+                  id="pickup-date-display"
+                  onClick={() => {
+                    if (pickupDateInputRef.current?.showPicker) {
+                      pickupDateInputRef.current.showPicker();
+                    } else {
+                      pickupDateInputRef.current?.focus();
+                    }
+                  }}
+                  className="relative cursor-pointer border-b border-gray-300 pb-1.5 flex items-center justify-between hover:border-[#20A8D8] transition-colors"
+                >
+                  <span className="text-base md:text-lg lg:text-[19px] font-bold text-slate-900 select-none">
+                    {formatDateToDDMMYYYY(travelDate)}
                   </span>
+                  <ChevronDown className="w-5 h-5 text-[#20A8D8] shrink-0 pointer-events-none" />
+                  <input
+                    ref={pickupDateInputRef}
+                    id="pickup-date-native-input"
+                    type="date"
+                    min={getTodayDate()}
+                    value={travelDate}
+                    onChange={(e) => handleTravelDateChange(e.target.value)}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    aria-label="Select pickup date"
+                  />
+                </div>
+                {errors.travelDate && (
+                  <p className="text-xs text-rose-600 font-medium mt-1">{errors.travelDate}</p>
                 )}
               </div>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-emerald-800">
-                  <Calendar className="w-5 h-5" />
+
+              {/* 5. PICK UP TIME Field */}
+              <div className="w-full lg:w-36 xl:w-40 space-y-1">
+                <label
+                  htmlFor="pickup-time-select"
+                  className="text-[12px] leading-[16px] font-bold uppercase tracking-wide text-[#0f2441] block whitespace-nowrap"
+                >
+                  PICK UP TIME
+                </label>
+                <div className="relative border-b border-gray-300 pb-1.5 flex items-center justify-between hover:border-[#20A8D8] transition-colors">
+                  <select
+                    id="pickup-time-select"
+                    value={pickupTime}
+                    onChange={(e) => setPickupTime(e.target.value)}
+                    className="w-full bg-transparent border-none p-0 text-base md:text-lg lg:text-[19px] font-bold text-slate-900 focus:outline-none appearance-none cursor-pointer pr-6"
+                    aria-label="Select pickup time"
+                  >
+                    {TIME_OPTIONS.map((timeOption) => (
+                      <option key={timeOption} value={timeOption} className="text-slate-900 font-medium py-1">
+                        {timeOption}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-5 h-5 text-[#20A8D8] shrink-0 pointer-events-none absolute right-0" />
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ROUND TRIP BOOKING FORM */}
+        {serviceType === 'roundtrip' && (
+          <div className="w-full space-y-5">
+            {/* Top Row: FROM <SWAP> TO */}
+            <div className="flex flex-col lg:flex-row lg:items-end gap-5 lg:gap-4 xl:gap-6">
+              {/* FROM */}
+              <div className="flex-1 min-w-0">
+                <LocationAutocompleteInput
+                  id="rt-from-location-input"
+                  label="FROM"
+                  variant="underline"
+                  showSearchIconLeft
+                  placeholder="Enter pickup city, hotel, or station"
+                  value={pickupLocation}
+                  selectedPlace={pickupLocationObj}
+                  allowCurrentLocation={true}
+                  onChange={(val, suggestion) => {
+                    setPickupLocation(val);
+                    if (suggestion) setPickupLocationObj(suggestion);
+                    if (errors.pickupLocation) setErrors((prev) => ({ ...prev, pickupLocation: '' }));
+                  }}
+                  error={errors.pickupLocation}
+                  onClear={() => {
+                    setPickupLocation('');
+                    setPickupLocationObj(undefined);
+                  }}
+                />
+              </div>
+
+              {/* SWAP */}
+              <div className="flex justify-center items-center lg:self-end lg:mb-1.5">
+                <button
+                  type="button"
+                  onClick={handleSwapLocations}
+                  title="Swap Pickup and Destination"
+                  aria-label="Swap locations"
+                  className="w-11 h-11 md:w-12 md:h-12 rounded-full bg-[#f1f3f5] hover:bg-[#e9ecef] border border-[#dee2e6] flex items-center justify-center transition-all cursor-pointer shadow-2xs active:scale-95 group"
+                >
+                  <ArrowLeftRight className="w-5 h-5 text-[#14CD03] group-hover:rotate-180 transition-transform duration-300" />
+                </button>
+              </div>
+
+              {/* TO with explicit "+ ADD STOP" */}
+              <div className="flex-1 min-w-0 relative">
+                <div className="relative">
+                  <LocationAutocompleteInput
+                    id="rt-to-location-input"
+                    label="TO"
+                    variant="underline"
+                    showSearchIconLeft
+                    placeholder="Enter destination city, hotel, or station"
+                    value={dropLocation}
+                    selectedPlace={dropLocationObj}
+                    allowCurrentLocation={false}
+                    onChange={(val, suggestion) => {
+                      setDropLocation(val);
+                      if (suggestion) setDropLocationObj(suggestion);
+                      if (errors.dropLocation) setErrors((prev) => ({ ...prev, dropLocation: '' }));
+                    }}
+                    error={errors.dropLocation}
+                    onClear={() => {
+                      setDropLocation('');
+                      setDropLocationObj(undefined);
+                    }}
+                  />
+
+                  {/* Explicit "+ ADD STOP" badge beside TO in Round Trip */}
+                  <div className="absolute right-0 top-0">
+                    <button
+                      type="button"
+                      id="rt-add-stop-explicit-btn"
+                      onClick={handleAddStop}
+                      title="Add enroute stop"
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-[#14CD03] hover:text-[#0fa302] bg-emerald-50/70 hover:bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-200 cursor-pointer transition-colors shadow-2xs"
+                    >
+                      <Plus className="w-3.5 h-3.5 text-[#14CD03]" />
+                      <span>ADD STOP</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Row: Pickup Date, Pickup Time, Return Date, Return Time */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6 pt-2">
+              {/* Pickup Date */}
+              <div className="space-y-1">
+                <label className="text-[12px] leading-[16px] font-bold uppercase tracking-wide text-[#0f2441] block whitespace-nowrap">
+                  PICK UP DATE
+                </label>
+                <div
+                  onClick={() => {
+                    if (pickupDateInputRef.current?.showPicker) {
+                      pickupDateInputRef.current.showPicker();
+                    } else {
+                      pickupDateInputRef.current?.focus();
+                    }
+                  }}
+                  className="relative cursor-pointer border-b border-gray-300 pb-1.5 flex items-center justify-between hover:border-[#20A8D8] transition-colors"
+                >
+                  <span className="text-base md:text-lg lg:text-[19px] font-bold text-slate-900 select-none">
+                    {formatDateToDDMMYYYY(travelDate)}
+                  </span>
+                  <ChevronDown className="w-5 h-5 text-[#20A8D8] shrink-0 pointer-events-none" />
+                  <input
+                    ref={pickupDateInputRef}
+                    type="date"
+                    min={getTodayDate()}
+                    value={travelDate}
+                    onChange={(e) => handleTravelDateChange(e.target.value)}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    aria-label="Select pickup date"
+                  />
+                </div>
+              </div>
+
+              {/* Pickup Time */}
+              <div className="space-y-1">
+                <label className="text-[12px] leading-[16px] font-bold uppercase tracking-wide text-[#0f2441] block whitespace-nowrap">
+                  PICK UP TIME
+                </label>
+                <div className="relative border-b border-gray-300 pb-1.5 flex items-center justify-between hover:border-[#20A8D8] transition-colors">
+                  <select
+                    value={pickupTime}
+                    onChange={(e) => setPickupTime(e.target.value)}
+                    className="w-full bg-transparent border-none p-0 text-base md:text-lg lg:text-[19px] font-bold text-slate-900 focus:outline-none appearance-none cursor-pointer pr-6"
+                    aria-label="Select pickup time"
+                  >
+                    {TIME_OPTIONS.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-5 h-5 text-[#20A8D8] shrink-0 pointer-events-none absolute right-0" />
+                </div>
+              </div>
+
+              {/* Return Date */}
+              <div className="space-y-1">
+                <label className="text-[12px] leading-[16px] font-bold uppercase tracking-wide text-[#0f2441] block whitespace-nowrap">
+                  RETURN DATE
+                </label>
+                <div
+                  onClick={() => {
+                    if (dropDateInputRef.current?.showPicker) {
+                      dropDateInputRef.current.showPicker();
+                    } else {
+                      dropDateInputRef.current?.focus();
+                    }
+                  }}
+                  className="relative cursor-pointer border-b border-gray-300 pb-1.5 flex items-center justify-between hover:border-[#20A8D8] transition-colors"
+                >
+                  <span className="text-base md:text-lg lg:text-[19px] font-bold text-slate-900 select-none">
+                    {formatDateToDDMMYYYY(dropDate)}
+                  </span>
+                  <ChevronDown className="w-5 h-5 text-[#20A8D8] shrink-0 pointer-events-none" />
+                  <input
+                    ref={dropDateInputRef}
+                    type="date"
+                    min={travelDate || getTodayDate()}
+                    value={dropDate}
+                    onChange={(e) => handleDropDateChange(e.target.value)}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    aria-label="Select return date"
+                  />
+                </div>
+                {errors.dropDate && (
+                  <p className="text-xs text-rose-600 font-medium mt-1">{errors.dropDate}</p>
+                )}
+              </div>
+
+              {/* Return Time */}
+              <div className="space-y-1">
+                <label className="text-[12px] leading-[16px] font-bold uppercase tracking-wide text-[#0f2441] block whitespace-nowrap">
+                  RETURN TIME
+                </label>
+                <div className="relative border-b border-gray-300 pb-1.5 flex items-center justify-between hover:border-[#20A8D8] transition-colors">
+                  <select
+                    value={returnTime}
+                    onChange={(e) => setReturnTime(e.target.value)}
+                    className="w-full bg-transparent border-none p-0 text-base md:text-lg lg:text-[19px] font-bold text-slate-900 focus:outline-none appearance-none cursor-pointer pr-6"
+                    aria-label="Select return time"
+                  >
+                    {TIME_OPTIONS.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-5 h-5 text-[#20A8D8] shrink-0 pointer-events-none absolute right-0" />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* LOCAL BOOKING FORM */}
+        {serviceType === 'local' && (
+          <div className="w-full">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6 items-end">
+              {/* 1. PICKUP LOCATION */}
+              <div className="min-w-0">
+                <LocationAutocompleteInput
+                  id="local-pickup-location-input"
+                  label="PICKUP LOCATION"
+                  variant="underline"
+                  showSearchIconLeft
+                  placeholder="Enter pickup address, hotel, or landmark"
+                  value={pickupLocation}
+                  selectedPlace={pickupLocationObj}
+                  allowCurrentLocation={true}
+                  onChange={(val, suggestion) => {
+                    setPickupLocation(val);
+                    if (suggestion) setPickupLocationObj(suggestion);
+                    if (errors.pickupLocation) setErrors((prev) => ({ ...prev, pickupLocation: '' }));
+                  }}
+                  error={errors.pickupLocation}
+                  onClear={() => {
+                    setPickupLocation('');
+                    setPickupLocationObj(undefined);
+                  }}
+                />
+              </div>
+
+              {/* 2. DATE */}
+              <div className="space-y-1">
+                <label className="text-[12px] leading-[16px] font-bold uppercase tracking-wide text-[#0f2441] block whitespace-nowrap">
+                  DATE
+                </label>
+                <div
+                  onClick={() => {
+                    if (pickupDateInputRef.current?.showPicker) {
+                      pickupDateInputRef.current.showPicker();
+                    } else {
+                      pickupDateInputRef.current?.focus();
+                    }
+                  }}
+                  className="relative cursor-pointer border-b border-gray-300 pb-1.5 flex items-center justify-between hover:border-[#20A8D8] transition-colors"
+                >
+                  <span className="text-base md:text-lg lg:text-[19px] font-bold text-slate-900 select-none">
+                    {formatDateToDDMMYYYY(travelDate)}
+                  </span>
+                  <ChevronDown className="w-5 h-5 text-[#20A8D8] shrink-0 pointer-events-none" />
+                  <input
+                    ref={pickupDateInputRef}
+                    type="date"
+                    min={getTodayDate()}
+                    value={travelDate}
+                    onChange={(e) => handleTravelDateChange(e.target.value)}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    aria-label="Select date"
+                  />
+                </div>
+              </div>
+
+              {/* 3. START TIME */}
+              <div className="space-y-1">
+                <label className="text-[12px] leading-[16px] font-bold uppercase tracking-wide text-[#0f2441] block whitespace-nowrap">
+                  START TIME
+                </label>
+                <div className="relative border-b border-gray-300 pb-1.5 flex items-center justify-between hover:border-[#20A8D8] transition-colors">
+                  <select
+                    value={pickupTime}
+                    onChange={(e) => setPickupTime(e.target.value)}
+                    className="w-full bg-transparent border-none p-0 text-base md:text-lg lg:text-[19px] font-bold text-slate-900 focus:outline-none appearance-none cursor-pointer pr-6"
+                    aria-label="Select start time"
+                  >
+                    {TIME_OPTIONS.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-5 h-5 text-[#20A8D8] shrink-0 pointer-events-none absolute right-0" />
+                </div>
+              </div>
+
+              {/* 4. DURATION / PACKAGE */}
+              <div className="space-y-1">
+                <label className="text-[12px] leading-[16px] font-bold uppercase tracking-wide text-[#0f2441] block whitespace-nowrap">
+                  DURATION / PACKAGE
+                </label>
+                <div className="relative border-b border-gray-300 pb-1.5 flex items-center justify-between hover:border-[#20A8D8] transition-colors">
+                  <select
+                    value={durationHours}
+                    onChange={(e) => setDurationHours(Number(e.target.value))}
+                    className="w-full bg-transparent border-none p-0 text-base md:text-lg lg:text-[18px] font-bold text-slate-900 focus:outline-none appearance-none cursor-pointer pr-6"
+                    aria-label="Select package duration"
+                  >
+                    <option value={4}>4 Hours / 40 Km</option>
+                    <option value={8}>8 Hours / 80 Km</option>
+                    <option value={12}>12 Hours / 120 Km</option>
+                  </select>
+                  <ChevronDown className="w-5 h-5 text-[#20A8D8] shrink-0 pointer-events-none absolute right-0" />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* AIRPORT BOOKING FORM */}
+        {serviceType === 'airport' && (
+          <div className="w-full space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6 items-end">
+              {/* AIRPORT / PICKUP LOCATION */}
+              <div className="min-w-0">
+                <LocationAutocompleteInput
+                  id="airport-pickup-input"
+                  label={airportTransferType === 'pickup' ? 'AIRPORT LOCATION' : 'PICKUP LOCATION'}
+                  variant="underline"
+                  showSearchIconLeft
+                  placeholder={
+                    airportTransferType === 'pickup'
+                      ? 'e.g. KIAL Bengaluru or Mysuru Airport'
+                      : 'Enter your pickup address'
+                  }
+                  value={pickupLocation}
+                  selectedPlace={pickupLocationObj}
+                  allowCurrentLocation={airportTransferType !== 'pickup'}
+                  onChange={(val, suggestion) => {
+                    setPickupLocation(val);
+                    if (suggestion) setPickupLocationObj(suggestion);
+                    if (errors.pickupLocation) setErrors((prev) => ({ ...prev, pickupLocation: '' }));
+                  }}
+                  error={errors.pickupLocation}
+                  onClear={() => {
+                    setPickupLocation('');
+                    setPickupLocationObj(undefined);
+                  }}
+                />
+              </div>
+
+              {/* DROP LOCATION */}
+              <div className="min-w-0">
+                <LocationAutocompleteInput
+                  id="airport-drop-input"
+                  label={airportTransferType === 'drop' ? 'AIRPORT LOCATION' : 'DROP LOCATION'}
+                  variant="underline"
+                  showSearchIconLeft
+                  placeholder={
+                    airportTransferType === 'drop'
+                      ? 'e.g. KIAL Bengaluru Terminal 1/2'
+                      : 'Enter your drop address'
+                  }
+                  value={dropLocation}
+                  selectedPlace={dropLocationObj}
+                  allowCurrentLocation={false}
+                  onChange={(val, suggestion) => {
+                    setDropLocation(val);
+                    if (suggestion) setDropLocationObj(suggestion);
+                    if (errors.dropLocation) setErrors((prev) => ({ ...prev, dropLocation: '' }));
+                  }}
+                  error={errors.dropLocation}
+                  onClear={() => {
+                    setDropLocation('');
+                    setDropLocationObj(undefined);
+                  }}
+                />
+              </div>
+
+              {/* DATE */}
+              <div className="space-y-1">
+                <label className="text-[12px] leading-[16px] font-bold uppercase tracking-wide text-[#0f2441] block whitespace-nowrap">
+                  DATE
+                </label>
+                <div
+                  onClick={() => {
+                    if (pickupDateInputRef.current?.showPicker) {
+                      pickupDateInputRef.current.showPicker();
+                    } else {
+                      pickupDateInputRef.current?.focus();
+                    }
+                  }}
+                  className="relative cursor-pointer border-b border-gray-300 pb-1.5 flex items-center justify-between hover:border-[#20A8D8] transition-colors"
+                >
+                  <span className="text-base md:text-lg lg:text-[19px] font-bold text-slate-900 select-none">
+                    {formatDateToDDMMYYYY(travelDate)}
+                  </span>
+                  <ChevronDown className="w-5 h-5 text-[#20A8D8] shrink-0 pointer-events-none" />
+                  <input
+                    ref={pickupDateInputRef}
+                    type="date"
+                    min={getTodayDate()}
+                    value={travelDate}
+                    onChange={(e) => handleTravelDateChange(e.target.value)}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    aria-label="Select airport date"
+                  />
+                </div>
+              </div>
+
+              {/* TIME */}
+              <div className="space-y-1">
+                <label className="text-[12px] leading-[16px] font-bold uppercase tracking-wide text-[#0f2441] block whitespace-nowrap">
+                  TIME
+                </label>
+                <div className="relative border-b border-gray-300 pb-1.5 flex items-center justify-between hover:border-[#20A8D8] transition-colors">
+                  <select
+                    value={pickupTime}
+                    onChange={(e) => setPickupTime(e.target.value)}
+                    className="w-full bg-transparent border-none p-0 text-base md:text-lg lg:text-[19px] font-bold text-slate-900 focus:outline-none appearance-none cursor-pointer pr-6"
+                    aria-label="Select airport time"
+                  >
+                    {TIME_OPTIONS.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-5 h-5 text-[#20A8D8] shrink-0 pointer-events-none absolute right-0" />
+                </div>
+              </div>
+            </div>
+
+            {/* Optional Flight Number */}
+            <div className="max-w-md pt-1">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                Flight Number (Optional)
+              </label>
+              <div className="border-b border-gray-300 pb-1.5 flex items-center gap-2 focus-within:border-[#20A8D8] transition-colors">
+                <Plane className="w-4 h-4 text-slate-400 shrink-0" />
                 <input
-                  id="drop-date-input"
-                  type="date"
-                  min={travelDate || getTodayDate()}
-                  value={dropDate}
-                  onChange={(e) => handleDropDateChange(e.target.value)}
-                  className={`w-full h-[52px] pl-11 pr-3.5 bg-slate-50 border rounded-xl text-sm text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white transition-all ${
-                    errors.dropDate ? 'border-red-500 ring-1 ring-red-500' : 'border-slate-300'
-                  }`}
-                  required
+                  type="text"
+                  placeholder="e.g. 6E 543 or AI 802"
+                  value={flightNumber}
+                  onChange={(e) => setFlightNumber(e.target.value)}
+                  className="w-full bg-transparent border-none p-0 text-sm font-semibold text-slate-900 focus:outline-none uppercase placeholder:normal-case placeholder:font-normal placeholder:text-slate-400"
                 />
               </div>
             </div>
-          )}
-
-          {/* Vehicle Preference Filter */}
-          <div>
-            <div className="flex items-center justify-between min-h-[20px] mb-1.5">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
-                <Car className="w-3.5 h-3.5 text-emerald-700" />
-                <span>Vehicle Preference</span>
-              </label>
-            </div>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-emerald-800">
-                <Car className="w-5 h-5" />
-              </div>
-              <select
-                id="vehicle-preference-select"
-                value={vehicleType}
-                onChange={(e) => setVehicleType(e.target.value)}
-                className="w-full h-[52px] pl-11 pr-9 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white appearance-none transition-all font-medium cursor-pointer"
-              >
-                <option value="all">All Available Vehicles ({vehiclesData.length} Models)</option>
-                {vehiclesData.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.name} ({v.category} - {v.seatingCapacity} Seater)
-                  </option>
-                ))}
-              </select>
-              <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-slate-400">
-                <ChevronDown className="w-4 h-4" />
-              </div>
-            </div>
           </div>
-        </div>
+        )}
 
-        {/* Dynamic Via Stop Inputs for Round Trip */}
-        {serviceType === 'roundtrip' && viaLocations.length > 0 && (
-          <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-200/80 space-y-3 animate-in fade-in duration-200">
+        {/* DYNAMIC ADDITIONAL ENROUTE STOPS (When added via '+' button) */}
+        {viaLocations.length > 0 && (
+          <div className="bg-sky-50/50 p-4 rounded-xl border border-sky-100 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-emerald-700" />
-                <span>Enroute / Sightseeing Stops ({viaLocations.length})</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-[#0f2441] flex items-center gap-1.5">
+                <span>Enroute / Additional Stops ({viaLocations.length})</span>
               </span>
-              {viaLocations.length < 5 && (
+              {viaLocations.length < 4 && (
                 <button
                   type="button"
-                  onClick={() => handleAddViaLocation('')}
-                  className="text-xs font-bold text-emerald-800 hover:text-emerald-950 flex items-center gap-1 cursor-pointer bg-white px-2.5 py-1 rounded-lg border border-emerald-200 shadow-xs"
+                  onClick={handleAddStop}
+                  className="text-xs font-bold text-[#20A8D8] hover:text-[#1880a6] flex items-center gap-1 cursor-pointer bg-white px-2.5 py-1 rounded-md border border-sky-200"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Add Another Stop</span>
@@ -763,19 +1102,20 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                   <div className="flex-1">
                     <LocationAutocompleteInput
                       id={`via-stop-input-${idx}`}
-                      label={`Stop #${idx + 1} (Enroute Location)`}
-                      placeholder="e.g. Bandipur, Coorg, Wayanad..."
+                      label={`Stop #${idx + 1}`}
+                      placeholder="e.g. Srirangapatna, Mandya..."
                       value={viaLoc}
-                      onChange={(val) => handleUpdateViaLocation(idx, val)}
+                      onChange={(val) => handleUpdateStop(idx, val)}
                       iconType="via"
-                      onClear={() => handleUpdateViaLocation(idx, '')}
+                      onClear={() => handleUpdateStop(idx, '')}
                     />
                   </div>
                   <button
                     type="button"
-                    onClick={() => handleRemoveViaLocation(idx)}
-                    title="Remove this stop"
-                    className="p-2.5 mt-5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer border border-transparent hover:border-red-200"
+                    onClick={() => handleRemoveStop(idx)}
+                    title="Remove stop"
+                    aria-label="Remove stop"
+                    className="p-2.5 mt-5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -785,398 +1125,139 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
           </div>
         )}
 
-        {/* Live Distance and Route Calculation Summary Card (Hidden when dedicated in-form fare cards are active) */}
-        {serviceType !== 'oneway' && serviceType !== 'roundtrip' && serviceType !== 'local' && serviceType !== 'airport' && (
-          <RouteSummaryCard routeInfo={routeInfo} isLoading={isCalculatingRoute} />
+        {/* LIVE GOOGLE MAPS ROUTE & ACCURATE ROAD DISTANCE STRIP */}
+        {routeInfo && routeInfo.distanceKm > 0 && (
+          <div
+            id="google-maps-route-info-card"
+            className="bg-slate-50/90 border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3.5 transition-all"
+          >
+            {/* Main Key Route Data Metrics */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4 text-xs">
+              {/* FROM */}
+              <div className="bg-white border border-slate-200 rounded-xl p-2.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">FROM</span>
+                <p className="font-bold text-slate-800 text-xs sm:text-sm truncate" title={pickupLocation}>
+                  {pickupLocation}
+                </p>
+              </div>
+
+              {/* TO */}
+              <div className="bg-white border border-slate-200 rounded-xl p-2.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">TO</span>
+                <p className="font-bold text-slate-800 text-xs sm:text-sm truncate" title={dropLocation}>
+                  {dropLocation}
+                </p>
+              </div>
+
+              {/* DISTANCE */}
+              <div className="bg-white border border-emerald-200/80 rounded-xl p-2.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 block mb-0.5">DISTANCE</span>
+                <p className="font-extrabold text-emerald-700 text-xs sm:text-sm flex items-center gap-1">
+                  <span>~{Math.round(routeInfo.distanceKm)} km</span>
+                  <span className="text-[11px] font-normal text-slate-500">({routeInfo.distanceKm} km)</span>
+                </p>
+              </div>
+
+              {/* DRIVING TIME */}
+              <div className="bg-white border border-sky-200/80 rounded-xl p-2.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#009966] block mb-0.5">DRIVING TIME</span>
+                <p className="font-extrabold text-slate-900 text-xs sm:text-sm flex items-center gap-1">
+                  <span>~{routeInfo.durationText || routeInfo.durationFormatted || '3 hr 30 min'}</span>
+                </p>
+              </div>
+            </div>
+
+            {/* ROUTE Highway Description, Tolls & Interstate Badges */}
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-1 border-t border-slate-200/60">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider bg-slate-200 text-slate-700 px-2 py-0.5 rounded">
+                  ROUTE
+                </span>
+                <span className="font-semibold text-slate-700 text-xs flex items-center gap-1">
+                  <Route className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Actual road route:</span>
+                  <span className="text-slate-900 font-bold">{routeInfo.highwayCorridor || 'NH 275 Bengaluru-Mysuru Expressway + NH 44 Airport Corridor'}</span>
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                {routeInfo.isInterstate && (
+                  <div className="flex items-center gap-1 text-purple-800 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-lg font-bold text-[11px]">
+                    <span>Interstate ({routeInfo.interstateStates?.fromState || 'KA'} → {routeInfo.interstateStates?.toState || 'Outstation'})</span>
+                    {routeInfo.interstateTaxEstimate ? (
+                      <span className="font-normal text-purple-600">· Permit ~₹{routeInfo.interstateTaxEstimate}</span>
+                    ) : null}
+                  </div>
+                )}
+
+                {typeof routeInfo.tollEstimate === 'number' && routeInfo.tollEstimate > 0 && (
+                  <div className="flex items-center gap-1 text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-lg font-bold text-[11px]">
+                    <span>Fastag Tolls: ₹{routeInfo.tollEstimate}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Alternate Routes Chip if Available */}
+            {routeInfo.alternateRoutes && routeInfo.alternateRoutes.length > 0 && (
+              <div className="text-[11px] text-slate-600 flex items-center gap-2 pt-1 border-t border-slate-100">
+                <span className="font-bold text-slate-700">Alternate Route:</span>
+                <span>
+                  {routeInfo.alternateRoutes[0].description} ({routeInfo.alternateRoutes[0].distanceKm} km · {routeInfo.alternateRoutes[0].durationFormatted})
+                </span>
+              </div>
+            )}
+          </div>
         )}
 
-        {/* Dynamic Fare Engine Live Comparison Header / Badge */}
-        {(selectedOneWayFare || selectedLocalFare || selectedRoundTripFare || selectedAirportFare) && onOpenFareEngine && (
-          <div className="flex items-center justify-between px-1 text-xs">
-            <div className="flex items-center gap-1.5 text-emerald-800 font-bold">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
-              <span>Live Dynamic Fare Engine Active</span>
+        {/* Route Validation Warning Banner */}
+        {routeInfo && (routeInfo.validationStatus === 'NO_ROUTE_FOUND' || routeInfo.validationStatus === 'SANITY_CHECK_FAILED') && (
+          <div
+            id="route-validation-warning-card"
+            className="bg-amber-50 border border-amber-300 rounded-2xl p-4 text-xs text-amber-900 flex items-start gap-3 shadow-2xs"
+          >
+            <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="font-bold text-amber-950">
+                {routeInfo.validationStatus === 'SANITY_CHECK_FAILED' ? 'Route Verification Warning' : 'Unable to Trace Exact Road Route'}
+              </p>
+              <p className="text-amber-800 leading-relaxed">
+                {routeInfo.validationMessage || 'Please select a recognized pickup and drop location from the autocomplete suggestions to ensure 100% road-accurate distance and transparent pricing.'}
+              </p>
             </div>
+          </div>
+        )}
+
+        {/* PRIMARY CTA BUTTON: EXPLORE CABS */}
+        <div className="flex flex-col items-center justify-center pt-2 sm:pt-3">
+          <button
+            type="submit"
+            id="explore-cabs-primary-btn"
+            className="w-full max-w-[280px] h-[48px] sm:h-[50px] bg-[#A4F4CF] hover:bg-[#8ee8be] text-slate-900 font-extrabold text-base sm:text-lg uppercase tracking-wide rounded-lg shadow-sm hover:shadow transition-all duration-150 active:scale-[0.99] flex items-center justify-center cursor-pointer select-none"
+          >
+            EXPLORE CABS
+          </button>
+
+          {/* Minimal, subtle reset details */}
+          <div className="flex items-center justify-center mt-3 text-xs text-slate-400">
             <button
               type="button"
-              onClick={onOpenFareEngine}
-              className="text-emerald-800 hover:text-emerald-950 font-extrabold underline underline-offset-2 flex items-center gap-1 cursor-pointer transition-colors text-[11px]"
-            >
-              <span>Compare All Vehicle Rates</span>
-              <ArrowRight className="w-3 h-3" />
-            </button>
-          </div>
-        )}
-
-        {/* One Way Drop Selected Vehicle Fare Details Card */}
-        {serviceType === 'oneway' && selectedOneWayFare && (
-          <div className="bg-slate-50 border border-emerald-200/90 rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-sm animate-in fade-in duration-200">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-200">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-100/90 text-emerald-800 flex items-center justify-center font-black shrink-0">
-                  <Car className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 bg-emerald-100/60 px-2 py-0.5 rounded">
-                      One Way Drop Fare Details
-                    </span>
-                    <span className="text-xs font-semibold text-slate-500">
-                      {selectedOneWayVehicle.category}
-                    </span>
-                  </div>
-                  <h4 className="text-base font-extrabold text-slate-900 leading-tight">
-                    {selectedOneWayVehicle.name}
-                  </h4>
-                </div>
-              </div>
-
-              <div className="text-left sm:text-right bg-white sm:bg-transparent p-2.5 sm:p-0 rounded-xl border sm:border-0 border-emerald-100">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide block">
-                  Estimated Total Fare
-                </span>
-                <span className="text-xl sm:text-2xl font-black text-emerald-800">
-                  Rs. {Number(selectedOneWayFare?.totalEstimatedFare ?? 0).toLocaleString('en-IN')}
-                </span>
-              </div>
-            </div>
-
-            {/* Inclusions breakdown */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-              <div className="bg-white p-2.5 rounded-xl border border-slate-200/80 flex items-center gap-2.5">
-                <Route className="w-4 h-4 text-emerald-700 shrink-0" />
-                <div>
-                  <div className="text-[10px] font-bold uppercase text-slate-500">Estimated Route</div>
-                  <div className="text-xs font-bold text-slate-800">
-                    {routeInfo?.distanceKm ? `${routeInfo.distanceKm} KM` : 'Direct Route'}
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white p-2.5 rounded-xl border border-slate-200/80 flex items-center gap-2.5">
-                <ClockIcon className="w-4 h-4 text-emerald-700 shrink-0" />
-                <div>
-                  <div className="text-[10px] font-bold uppercase text-slate-500">Estimated ETA</div>
-                  <div className="text-xs font-bold text-slate-800">
-                    {routeInfo?.durationText || 'Standard Highway'}
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white p-2.5 rounded-xl border border-slate-200/80 flex items-center gap-2.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
-                <div>
-                  <div className="text-[10px] font-bold uppercase text-slate-500">EXTRA PER KM</div>
-                  <div className="text-xs font-bold text-slate-800">
-                    Rs. {(effectivePricingConfig.vehiclePricing[selectedOneWayVehicle.id]?.oneWayPerKmRate || effectivePricingConfig.vehiclePricing[selectedOneWayVehicle.id]?.perKmFare || Math.round(effectivePricingConfig.perKmFare * selectedOneWayVehicle.basePriceFactor)).toFixed(1)}/KM
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <p className="text-[11px] text-slate-500 flex items-center gap-1.5 pt-0.5">
-              <Info className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-              <span>* <strong className="text-[#F54900] font-bold no-underline">Note:</strong> Toll charges, parking fees, and state permit taxes are payable as per actuals during the trip.</span>
-            </p>
-          </div>
-        )}
-
-        {/* Local Package Selected Vehicle Fare Details Card */}
-        {serviceType === 'local' && selectedLocalFare && (
-          <div className="bg-slate-50 border border-emerald-200/90 rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-sm animate-in fade-in duration-200">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-200">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-100/90 text-emerald-800 flex items-center justify-center font-black shrink-0">
-                  <Car className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 bg-emerald-100/60 px-2 py-0.5 rounded">
-                      Local Travel Package Fare
-                    </span>
-                    <span className="text-xs font-semibold text-slate-500">
-                      {selectedLocalVehicle.category}
-                    </span>
-                  </div>
-                  <h4 className="text-base font-extrabold text-slate-900 leading-tight">
-                    {selectedLocalVehicle.name}
-                  </h4>
-                </div>
-              </div>
-
-              <div className="text-left sm:text-right bg-white sm:bg-transparent p-2.5 sm:p-0 rounded-xl border sm:border-0 border-emerald-100">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide block">
-                  Estimated Total Fare
-                </span>
-                <span className="text-xl sm:text-2xl font-black text-emerald-800">
-                  Rs. {Number(selectedLocalFare?.totalEstimatedFare ?? 0).toLocaleString('en-IN')}
-                </span>
-              </div>
-            </div>
-
-            {/* Inclusions breakdown */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-              <div className="bg-white p-2.5 rounded-xl border border-slate-200/80 flex items-center gap-2.5">
-                <ClockIcon className="w-4 h-4 text-emerald-700 shrink-0" />
-                <div>
-                  <div className="text-[10px] font-bold uppercase text-slate-500">Package Duration</div>
-                  <div className="text-xs font-bold text-slate-800">{durationHours} Hours Included</div>
-                </div>
-              </div>
-              <div className="bg-white p-2.5 rounded-xl border border-slate-200/80 flex items-center gap-2.5">
-                <Route className="w-4 h-4 text-emerald-700 shrink-0" />
-                <div>
-                  <div className="text-[10px] font-bold uppercase text-slate-500">Included Distance</div>
-                  <div className="text-xs font-bold text-slate-800">
-                    {durationHours * 10} KM Included
-                    {extraKm > 0 && (
-                      <span className="text-emerald-700 font-extrabold ml-1">
-                        (+{extraKm} KM Extra)
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white p-2.5 rounded-xl border border-slate-200/80 flex items-center gap-2.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
-                <div>
-                  <div className="text-[10px] font-bold uppercase text-slate-500">EXTRA PER KM</div>
-                  <div className="text-xs font-bold text-slate-800">
-                    Rs. {(effectivePricingConfig.vehiclePricing[selectedLocalVehicle.id]?.localPerKmRate || 12).toFixed(1)}/KM
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white p-2.5 rounded-xl border border-slate-200/80 flex items-center gap-2.5">
-                <Timer className="w-4 h-4 text-emerald-700 shrink-0" />
-                <div>
-                  <div className="text-[10px] font-bold uppercase text-slate-500">Extra Hour Rate</div>
-                  <div className="text-xs font-bold text-slate-800">
-                    Rs. {effectivePricingConfig.vehiclePricing[selectedLocalVehicle.id]?.perHourFare || effectivePricingConfig.perHourFare || 150}/Hr
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <p className="text-[11px] text-slate-500 flex items-center gap-1.5 pt-0.5">
-              <Info className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-              <span>* <strong className="text-[#F54900] font-bold no-underline">Note:</strong> Extra distance billed at Rs. {(effectivePricingConfig.vehiclePricing[selectedLocalVehicle.id]?.localPerKmRate || 12).toFixed(1)}/KM & extra hours billed at Rs. {effectivePricingConfig.vehiclePricing[selectedLocalVehicle.id]?.perHourFare || effectivePricingConfig.perHourFare || 150}/Hour beyond package limit. Parking/entry fees as per actuals.</span>
-            </p>
-          </div>
-        )}
-
-        {/* Round Trip Selected Vehicle Fare Details Card */}
-        {serviceType === 'roundtrip' && selectedRoundTripFare && (
-          <div className="bg-slate-50 border border-emerald-200/90 rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-sm animate-in fade-in duration-200">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-200">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-100/90 text-emerald-800 flex items-center justify-center font-black shrink-0">
-                  <Car className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 bg-emerald-100/60 px-2 py-0.5 rounded">
-                      Round Trip Fare Details
-                    </span>
-                    <span className="text-xs font-semibold text-slate-500">
-                      {selectedRoundTripVehicle.category}
-                    </span>
-                  </div>
-                  <h4 className="text-base font-extrabold text-slate-900 leading-tight">
-                    {selectedRoundTripVehicle.name}
-                  </h4>
-                </div>
-              </div>
-
-              <div className="text-left sm:text-right bg-white sm:bg-transparent p-2.5 sm:p-0 rounded-xl border sm:border-0 border-emerald-100">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide block">
-                  Estimated Total Fare
-                </span>
-                <span className="text-xl sm:text-2xl font-black text-emerald-800">
-                  Rs. {Number(selectedRoundTripFare?.totalEstimatedFare ?? 0).toLocaleString('en-IN')}
-                </span>
-              </div>
-            </div>
-
-            {/* Inclusions breakdown */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-              <div className="bg-white p-2.5 rounded-xl border border-slate-200/80 flex items-center gap-2.5">
-                <Calendar className="w-4 h-4 text-emerald-700 shrink-0" />
-                <div>
-                  <div className="text-[10px] font-bold uppercase text-slate-500">Trip Duration</div>
-                  <div className="text-xs font-bold text-slate-800">
-                    {activeRoundTripDays} Day{activeRoundTripDays > 1 ? 's' : ''} Round Trip
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white p-2.5 rounded-xl border border-slate-200/80 flex items-center gap-2.5">
-                <Route className="w-4 h-4 text-emerald-700 shrink-0" />
-                <div>
-                  <div className="text-[10px] font-bold uppercase text-slate-500">Included Distance</div>
-                  <div className="text-xs font-bold text-slate-800">
-                    Min. {Number(activeIncludedMinKm ?? 0).toLocaleString('en-IN')} KM
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white p-2.5 rounded-xl border border-slate-200/80 flex items-center gap-2.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
-                <div>
-                  <div className="text-[10px] font-bold uppercase text-slate-500">EXTRA PER KM</div>
-                  <div className="text-xs font-bold text-slate-800">
-                    Rs. {(effectivePricingConfig.vehiclePricing[selectedRoundTripVehicle.id]?.perKmFare || Math.round(effectivePricingConfig.perKmFare * selectedRoundTripVehicle.basePriceFactor)).toFixed(1)}/KM
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Breakdown summary */}
-            <div className="bg-white rounded-xl p-3 border border-slate-200/80 space-y-1.5 text-xs">
-              <div className="font-bold text-slate-700 flex items-center justify-between pb-1 border-b border-slate-100">
-                <span>Fare Breakdown Details</span>
-                <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">Transparent Pricing</span>
-              </div>
-              {selectedRoundTripFare.breakdown.map((item, idx) => (
-                <div key={idx} className="flex justify-between text-slate-600">
-                  <span>{item.label}</span>
-                  <span className="font-semibold text-slate-900">Rs. {Number(item?.amount ?? 0).toLocaleString('en-IN')}</span>
-                </div>
-              ))}
-            </div>
-
-            <p className="text-[11px] text-slate-500 flex items-center gap-1.5 pt-0.5">
-              <Info className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-              <span>* <strong className="text-[#F54900] font-bold no-underline">Note:</strong> Toll charges, parking, and state permit taxes are payable as per actuals during the journey.</span>
-            </p>
-          </div>
-        )}
-
-        {/* Airport Transfer Selected Vehicle Fare Details Card */}
-        {serviceType === 'airport' && selectedAirportFare && (
-          <div className="bg-slate-50 border border-emerald-200/90 rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-sm animate-in fade-in duration-200">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-200">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-100/90 text-emerald-800 flex items-center justify-center font-black shrink-0">
-                  <Plane className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 bg-emerald-100/60 px-2 py-0.5 rounded">
-                      Airport Transfer Fare Details
-                    </span>
-                    <span className="text-xs font-semibold text-slate-500">
-                      {selectedAirportVehicle.category}
-                    </span>
-                  </div>
-                  <h4 className="text-base font-extrabold text-slate-900 leading-tight">
-                    {selectedAirportVehicle.name}
-                  </h4>
-                </div>
-              </div>
-
-              <div className="text-left sm:text-right bg-white sm:bg-transparent p-2.5 sm:p-0 rounded-xl border sm:border-0 border-emerald-100">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide block">
-                  Estimated Total Fare
-                </span>
-                <span className="text-xl sm:text-2xl font-black text-emerald-800">
-                  Rs. {Number(selectedAirportFare?.totalEstimatedFare ?? 0).toLocaleString('en-IN')}
-                </span>
-              </div>
-            </div>
-
-            {/* Inclusions breakdown */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-              <div className="bg-white p-2.5 rounded-xl border border-slate-200/80 flex items-center gap-2.5">
-                <Plane className="w-4 h-4 text-emerald-700 shrink-0" />
-                <div>
-                  <div className="text-[10px] font-bold uppercase text-slate-500">Transfer Direction</div>
-                  <div className="text-xs font-bold text-slate-800">
-                    {airportTransferType === 'pickup' ? 'Airport Pickup' : 'Airport Drop'}
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white p-2.5 rounded-xl border border-slate-200/80 flex items-center gap-2.5">
-                <Route className="w-4 h-4 text-emerald-700 shrink-0" />
-                <div>
-                  <div className="text-[10px] font-bold uppercase text-slate-500">Route Distance</div>
-                  <div className="text-xs font-bold text-slate-800">
-                    {routeInfo?.distanceKm ? `${routeInfo.distanceKm} KM` : 'Dedicated Corridor'}
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white p-2.5 rounded-xl border border-slate-200/80 flex items-center gap-2.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
-                <div>
-                  <div className="text-[10px] font-bold uppercase text-slate-500">EXTRA PER KM</div>
-                  <div className="text-xs font-bold text-slate-800">
-                    Rs. {(effectivePricingConfig.vehiclePricing[selectedAirportVehicle.id]?.airportPerKmRate || effectivePricingConfig.vehiclePricing[selectedAirportVehicle.id]?.perKmFare || 14).toFixed(1)}/KM
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <p className="text-[11px] text-slate-500 flex items-center gap-1.5 pt-0.5">
-              <Info className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-              <span>* <strong className="text-[#F54900] font-bold no-underline">Note:</strong> Airport terminal parking tickets and expressway toll charges are payable as per actuals.</span>
-            </p>
-          </div>
-        )}
-
-        {/* Action Buttons Row */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3.5 pt-5 border-t border-slate-200/80">
-          <div className="flex items-center gap-2.5 w-full sm:w-auto order-2 sm:order-1">
-            <button
-              type="button"
-              id="reset-booking-details-btn"
+              id="reset-booking-details-link"
               onClick={handleResetForm}
               disabled={isResetting}
-              aria-label="Reset all search details"
-              className={`group relative w-full sm:w-auto px-4 py-2.5 text-xs font-bold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer border active:scale-95 select-none ${
-                resetSuccessFeedback
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 shadow-xs'
-                  : 'bg-slate-50/80 hover:bg-slate-100 text-slate-600 hover:text-slate-900 border-slate-200 hover:border-slate-300 shadow-2xs hover:shadow-xs'
-              }`}
+              className="hover:text-slate-600 font-medium cursor-pointer transition-colors flex items-center gap-1"
             >
-              <span className="relative flex items-center justify-center">
-                {resetSuccessFeedback ? (
-                  <Check className="w-3.5 h-3.5 text-emerald-600 animate-in zoom-in-50 duration-200" />
-                ) : (
-                  <RotateCcw
-                    className={`w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 transition-transform duration-500 ease-out ${
-                      isResetting ? '-rotate-180 scale-110 text-emerald-700' : 'group-hover:-rotate-45'
-                    }`}
-                  />
-                )}
-              </span>
-
-              <span>{resetSuccessFeedback ? 'Details Cleared' : 'Reset Details'}</span>
-
-              {/* Micro badge when reset active */}
-              {resetSuccessFeedback && (
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+              {resetSuccessFeedback ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                  <span className="text-emerald-700 font-semibold">Details Cleared</span>
+                </>
+              ) : (
+                <>
+                  <RotateCcw className={`w-3.5 h-3.5 ${isResetting ? 'animate-spin text-slate-600' : ''}`} />
+                  <span>Reset Details</span>
+                </>
               )}
-            </button>
-
-            <div
-              title="Form details auto-reset after 5 minutes of inactivity"
-              className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100/90 hover:bg-slate-200/70 text-[11px] font-semibold text-slate-500 border border-slate-200/70 transition-colors"
-            >
-              <Timer className="w-3 h-3 text-slate-400" />
-              <span>Auto-reset in {formattedCountdown}</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 w-full sm:w-auto order-1 sm:order-2">
-            <button
-              type="button"
-              id="confirm-booking-btn"
-              onClick={handleConfirmBookingClick}
-              className="group relative w-full sm:w-auto overflow-hidden bg-gradient-to-r from-emerald-800 via-emerald-700 to-emerald-800 hover:from-emerald-900 hover:via-emerald-800 hover:to-emerald-900 text-white font-black text-sm sm:text-base px-8 py-3.5 rounded-xl shadow-lg hover:shadow-xl hover:shadow-emerald-900/25 transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 cursor-pointer border border-emerald-600/40"
-            >
-              {/* Shimmer light bar animation */}
-              <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform pointer-events-none" />
-
-              <div className="w-5 h-5 rounded-full bg-emerald-600/90 text-white flex items-center justify-center shadow-xs shrink-0 group-hover:bg-white group-hover:text-emerald-800 transition-colors">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-              </div>
-              <span className="tracking-wide">Confirm Booking</span>
-              <ArrowRight className="w-4 h-4 text-emerald-200 group-hover:text-white group-hover:translate-x-1 transition-all" />
             </button>
           </div>
         </div>

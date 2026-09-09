@@ -32,20 +32,39 @@ export const PopularRoutesLandingSection: React.FC<PopularRoutesLandingSectionPr
   onSelectRouteForBooking,
 }) => {
   const [selectedRouteId, setSelectedRouteId] = useState<string>('mysore-to-bengaluru');
-  const [routeFilter, setRouteFilter] = useState<'all' | 'from-mysore' | 'to-mysore'>('all');
+  const [routeFilter, setRouteFilter] = useState<'all' | 'mysore' | 'bengaluru' | 'hills-wildlife'>('all');
 
   const filteredRoutes = POPULAR_ROUTE_PAGES.filter((route) => {
-    if (routeFilter === 'from-mysore') {
-      return route.id.startsWith('mysore-to-');
+    if (routeFilter === 'mysore') {
+      return (
+        route.id.includes('mysore') ||
+        route.origin.toLowerCase().includes('mysor') ||
+        route.destination.toLowerCase().includes('mysor')
+      );
     }
-    if (routeFilter === 'to-mysore') {
-      return !route.id.startsWith('mysore-to-');
+    if (routeFilter === 'bengaluru') {
+      return (
+        route.id.includes('bengaluru') ||
+        route.id.includes('bangalore') ||
+        route.origin.toLowerCase().includes('bengaluru') ||
+        route.destination.toLowerCase().includes('bengaluru')
+      );
+    }
+    if (routeFilter === 'hills-wildlife') {
+      const matchKey = route.id.toLowerCase();
+      return (
+        matchKey.includes('kabini') ||
+        matchKey.includes('ooty') ||
+        matchKey.includes('wayanad') ||
+        matchKey.includes('coorg')
+      );
     }
     return true;
   });
 
   const activeRoute =
     filteredRoutes.find((r) => r.id === selectedRouteId) ||
+    POPULAR_ROUTE_PAGES.find((r) => r.id === selectedRouteId) ||
     filteredRoutes[0] ||
     POPULAR_ROUTE_PAGES[0];
 
@@ -85,7 +104,7 @@ export const PopularRoutesLandingSection: React.FC<PopularRoutesLandingSectionPr
         </p>
 
         {/* Direction Filter Toggle */}
-        <div className="flex items-center justify-center gap-2 pt-2">
+        <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
           <button
             onClick={() => setRouteFilter('all')}
             className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
@@ -94,33 +113,43 @@ export const PopularRoutesLandingSection: React.FC<PopularRoutesLandingSectionPr
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            All 10 Routes
+            All 20 Routes
           </button>
           <button
-            onClick={() => setRouteFilter('from-mysore')}
+            onClick={() => setRouteFilter('mysore')}
             className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-              routeFilter === 'from-mysore'
+              routeFilter === 'mysore'
                 ? 'bg-emerald-800 text-white shadow-xs'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            From Mysore (5)
+            Mysuru Corridors
           </button>
           <button
-            onClick={() => setRouteFilter('to-mysore')}
+            onClick={() => setRouteFilter('bengaluru')}
             className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-              routeFilter === 'to-mysore'
+              routeFilter === 'bengaluru'
                 ? 'bg-emerald-800 text-white shadow-xs'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            To Mysore / Inbound (5)
+            Bengaluru Corridors
+          </button>
+          <button
+            onClick={() => setRouteFilter('hills-wildlife')}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+              routeFilter === 'hills-wildlife'
+                ? 'bg-emerald-800 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            Coorg, Ooty, Kabini & Wayanad
           </button>
         </div>
       </div>
 
       {/* Route Selection Tabs - Balanced Multi-Column Layout */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-3 mb-8">
         {filteredRoutes.map((route) => {
           const isSelected = route.id === selectedRouteId;
           const isAirport = route.popularServiceType === 'airport';

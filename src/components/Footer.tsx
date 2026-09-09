@@ -1,5 +1,5 @@
 import React from 'react';
-import { Compass, ShieldCheck, Phone, Mail, Lock, Sliders, Database, User, Car, Globe } from 'lucide-react';
+import { Compass, ShieldCheck, Phone, Mail, Lock, Database, User, Car, Globe } from 'lucide-react';
 import { siteConfig } from '../config/siteConfig';
 import { CustomerUser } from '../types';
 
@@ -8,9 +8,7 @@ interface FooterProps {
   onBookRideClick: () => void;
   isOwner?: boolean;
   onOpenOwnerLogin?: () => void;
-  onOpenFareEngine?: () => void;
   customer?: CustomerUser | null;
-  onOpenCustomerLogin?: () => void;
   onOpenCustomerPortal?: () => void;
   onOpenPartnerDrawer?: () => void;
 }
@@ -20,9 +18,7 @@ export const Footer: React.FC<FooterProps> = ({
   onBookRideClick,
   isOwner = false,
   onOpenOwnerLogin,
-  onOpenFareEngine,
   customer = null,
-  onOpenCustomerLogin,
   onOpenCustomerPortal,
   onOpenPartnerDrawer,
 }) => {
@@ -119,8 +115,8 @@ export const Footer: React.FC<FooterProps> = ({
                   FAQ
                 </a>
               </li>
-              <li>
-                {customer ? (
+              {customer && (
+                <li>
                   <button
                     type="button"
                     onClick={onOpenCustomerPortal}
@@ -129,17 +125,8 @@ export const Footer: React.FC<FooterProps> = ({
                     <User className="w-3.5 h-3.5" />
                     <span>My Account & Trips</span>
                   </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={onOpenCustomerLogin}
-                    className="hover:text-emerald-400 transition-colors flex items-center gap-1.5 text-left cursor-pointer w-full text-slate-400"
-                  >
-                    <User className="w-3.5 h-3.5 text-emerald-500" />
-                    <span>Customer Login / Register</span>
-                  </button>
-                )}
-              </li>
+                </li>
+              )}
               {isOwner && (
                 <li>
                   <a href="#recent-trips" onClick={(e) => handleNavClick(e, '#recent-trips')} className="text-amber-400 hover:text-amber-300 font-semibold transition-colors flex items-center gap-1">
@@ -289,27 +276,19 @@ export const Footer: React.FC<FooterProps> = ({
 
           <div className="flex flex-wrap items-center gap-4">
             {/* Customer Account trigger */}
-            {customer ? (
-              <button
-                type="button"
-                onClick={onOpenCustomerPortal}
-                className="text-emerald-400 hover:text-emerald-300 font-semibold transition-colors flex items-center gap-1"
-              >
-                <User className="w-3 h-3" />
-                <span>My Account ({customer.fullName.split(' ')[0]})</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={onOpenCustomerLogin}
-                className="hover:text-slate-300 transition-colors flex items-center gap-1"
-              >
-                <User className="w-3 h-3 text-emerald-500" />
-                <span>Customer Login</span>
-              </button>
+            {customer && (
+              <>
+                <button
+                  type="button"
+                  onClick={onOpenCustomerPortal}
+                  className="text-emerald-400 hover:text-emerald-300 font-semibold transition-colors flex items-center gap-1"
+                >
+                  <User className="w-3 h-3" />
+                  <span>My Account ({customer.fullName.split(' ')[0]})</span>
+                </button>
+                <span>•</span>
+              </>
             )}
-
-            <span>•</span>
             <button
               onClick={() => onOpenLegal('privacy')}
               className="hover:text-slate-300 transition-colors"
@@ -328,14 +307,6 @@ export const Footer: React.FC<FooterProps> = ({
             <span>•</span>
             {isOwner ? (
               <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={onOpenFareEngine}
-                  className="flex items-center gap-1.5 text-amber-400 hover:text-amber-300 font-bold transition-colors"
-                >
-                  <Sliders className="w-3 h-3" />
-                  <span>Price & Fare Engine</span>
-                </button>
                 <a
                   href="#recent-trips"
                   onClick={(e) => handleNavClick(e, '#recent-trips')}
@@ -350,10 +321,10 @@ export const Footer: React.FC<FooterProps> = ({
                 type="button"
                 onClick={onOpenOwnerLogin}
                 className="flex items-center gap-1 text-slate-500 hover:text-slate-300 transition-colors"
-                title="Business Owner Login"
+                title="Fleet Manager & Business Owner Login"
               >
                 <Lock className="w-3 h-3" />
-                <span>Owner Portal</span>
+                <span>Fleet Manager / Owner Portal</span>
               </button>
             )}
           </div>

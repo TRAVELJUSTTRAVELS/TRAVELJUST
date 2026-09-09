@@ -20,28 +20,28 @@ export const Hero: React.FC<HeroProps> = ({ onBookRideClick, onGetQuoteClick }) 
           </h1>
 
           {/* Supporting Text */}
-          <p className="text-lg sm:text-xl text-[#314158] font-normal leading-relaxed mb-8 max-w-2xl mx-auto">
+          <p className="text-lg sm:text-xl text-slate-600 font-medium leading-relaxed mb-8 max-w-2xl mx-auto">
             Reliable rides for local travel, one-way drops, round trips and airport transfers.
           </p>
 
           {/* Key Value Highlights Badges */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-6 border-t border-slate-200/80 max-w-4xl mx-auto">
-            <div className="flex items-center justify-center gap-2 text-xs sm:text-sm font-medium text-slate-700 bg-[#ECFDF5] py-2.5 px-3 rounded-lg border border-emerald-100 shadow-2xs">
+            <div className="flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold text-slate-700 bg-[#ECFDF5] py-2.5 px-3 rounded-lg border border-emerald-100 shadow-2xs">
               <CheckCircle2 className="w-4 h-4 text-emerald-800 shrink-0" />
               <span>24/7 Service</span>
             </div>
 
-            <div className="flex items-center justify-center gap-2 text-xs sm:text-sm font-medium text-slate-700 bg-[#ECFDF5] py-2.5 px-3 rounded-lg border border-emerald-100 shadow-2xs">
+            <div className="flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold text-slate-700 bg-[#ECFDF5] py-2.5 px-3 rounded-lg border border-emerald-100 shadow-2xs">
               <Clock className="w-4 h-4 text-emerald-800 shrink-0" />
               <span>Punctual Service</span>
             </div>
 
-            <div className="flex items-center justify-center gap-2 text-xs sm:text-sm font-medium text-slate-700 bg-[#ECFDF5] py-2.5 px-3 rounded-lg border border-emerald-100 shadow-2xs">
+            <div className="flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold text-slate-700 bg-[#ECFDF5] py-2.5 px-3 rounded-lg border border-emerald-100 shadow-2xs">
               <ShieldCheck className="w-4 h-4 text-emerald-800 shrink-0" />
               <span>Verified Drivers</span>
             </div>
 
-            <div className="flex items-center justify-center gap-2 text-xs sm:text-sm font-medium text-slate-700 bg-[#ECFDF5] py-2.5 px-3 rounded-lg border border-emerald-100 shadow-2xs">
+            <div className="flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold text-slate-700 bg-[#ECFDF5] py-2.5 px-3 rounded-lg border border-emerald-100 shadow-2xs">
               <Plane className="w-4 h-4 text-emerald-800 shrink-0" />
               <span>Airport Transfers</span>
             </div>

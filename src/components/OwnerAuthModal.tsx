@@ -62,13 +62,13 @@ export const OwnerAuthModal: React.FC<OwnerAuthModalProps> = ({
             </div>
             <div>
               <h3 className="font-bold text-base text-white flex items-center gap-2">
-                <span>Owner Portal Access</span>
+                <span>Fleet Manager & Owner Portal</span>
                 <span className="text-[10px] bg-amber-400/20 text-amber-300 border border-amber-300/30 px-2 py-0.5 rounded-full font-bold uppercase">
-                  Confidential
+                  Authorized
                 </span>
               </h3>
               <p className="text-xs text-slate-300 mt-0.5">
-                Authentication required for Price & Fare Engine
+                Authentication required for Live Dispatch Registry & Owner Operations
               </p>
             </div>
           </div>
@@ -89,10 +89,10 @@ export const OwnerAuthModal: React.FC<OwnerAuthModalProps> = ({
             <ShieldCheck className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
             <div>
               <span className="font-bold text-slate-900 block mb-0.5">
-                Restricted to Business Owner
+                Restricted to Fleet Manager & Business Owner
               </span>
               <span>
-                Customers do not have access to backend pricing rules, driver allowances, or rate multipliers.
+                Customers do not have access to live fleet dispatch, driver phone numbers, or backend pricing rules.
               </span>
             </div>
           </div>
@@ -100,7 +100,7 @@ export const OwnerAuthModal: React.FC<OwnerAuthModalProps> = ({
           <form onSubmit={handleVerify} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Owner PIN / Passkey
+                Fleet Manager / Owner PIN or Passkey
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
