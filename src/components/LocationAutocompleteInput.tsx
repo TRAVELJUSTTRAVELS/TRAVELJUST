@@ -11,6 +11,7 @@ import {
   Train,
   Mountain,
   Compass,
+  AlertCircle,
 } from 'lucide-react';
 import { PlaceSuggestion } from '../types';
 import {
@@ -36,7 +37,7 @@ interface LocationAutocompleteInputProps {
   required?: boolean;
   onClear?: () => void;
   className?: string;
-  variant?: 'box' | 'underline';
+  variant?: 'box' | 'underline' | 'card-box';
   labelClassName?: string;
   inputClassName?: string;
   showSearchIconLeft?: boolean;
@@ -170,7 +171,7 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
   };
 
   const handleUseCurrentLocation = async () => {
-    if (!navigator.geolocation) {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
       setGpsError('Geolocation is not supported by your browser.');
       return;
     }
@@ -178,42 +179,68 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
     setIsLocatingGPS(true);
     setGpsError(null);
 
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude } = pos.coords;
-        try {
-          const place = await reverseGeocodeCoordinates(latitude, longitude);
-          saveRecentSearch(place);
-          onChange(place.placeName, place);
-          setIsOpen(false);
-        } catch (err) {
-          console.error('Reverse geocoding error:', err);
-          const fallbackPlace: PlaceSuggestion = {
-            placeId: `gps_${Date.now()}`,
-            placeName: 'My Current Location (GPS)',
-            areaLocality: 'Current Location',
-            city: 'Karnataka, South India',
-            formattedAddress: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
-            lat: latitude,
-            lng: longitude,
-          };
-          onChange(fallbackPlace.placeName, fallbackPlace);
-          setIsOpen(false);
-        } finally {
-          setIsLocatingGPS(false);
+    const getPositionPromise = (options: PositionOptions): Promise<GeolocationPosition> => {
+      return new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, options);
+      });
+    };
+
+    try {
+      let pos: GeolocationPosition;
+      try {
+        // Attempt 1: High accuracy (GPS satellite / cellular) with 5s timeout
+        pos = await getPositionPromise({
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 30000,
+        });
+      } catch (firstErr: any) {
+        // If user denied permission explicitly, respect and don't retry
+        if (firstErr && firstErr.code === 1 /* PERMISSION_DENIED */) {
+          throw firstErr;
         }
-      },
-      (error) => {
-        console.warn('Geolocation error:', error);
-        setIsLocatingGPS(false);
-        if (error.code === error.PERMISSION_DENIED) {
-          setGpsError('Location permission denied. Please search your pickup location.');
-        } else {
-          setGpsError('Unable to retrieve your location. Please enter your location manually.');
-        }
-      },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
-    );
+        // Attempt 2: Standard accuracy (Wi-Fi / network geolocation) with 10s timeout
+        pos = await getPositionPromise({
+          enableHighAccuracy: false,
+          timeout: 10000,
+          maximumAge: 60000,
+        });
+      }
+
+      const { latitude, longitude } = pos.coords;
+      try {
+        const place = await reverseGeocodeCoordinates(latitude, longitude);
+        saveRecentSearch(place);
+        onChange(place.placeName, place);
+        setIsOpen(false);
+      } catch (err) {
+        console.error('Reverse geocoding error:', err);
+        const fallbackPlace: PlaceSuggestion = {
+          placeId: `gps_${Date.now()}`,
+          placeName: 'My Current Location (GPS)',
+          areaLocality: 'Current Location',
+          city: 'Karnataka, South India',
+          formattedAddress: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+          lat: latitude,
+          lng: longitude,
+        };
+        onChange(fallbackPlace.placeName, fallbackPlace);
+        setIsOpen(false);
+      }
+    } catch (error: any) {
+      console.warn('Geolocation error:', error);
+      if (error?.code === 1 /* PERMISSION_DENIED */) {
+        setGpsError('Location permission denied. Please allow location access in your browser or site settings.');
+      } else if (error?.code === 2 /* POSITION_UNAVAILABLE */) {
+        setGpsError('Position unavailable. Please ensure location services are enabled on your device.');
+      } else if (error?.code === 3 /* TIMEOUT */) {
+        setGpsError('Location request timed out. Please enter your location manually.');
+      } else {
+        setGpsError('Unable to retrieve your location. Please enter your location manually.');
+      }
+    } finally {
+      setIsLocatingGPS(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -279,43 +306,151 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
   const hasVerifiedCoords = Boolean(selectedPlace?.lat && selectedPlace?.lng);
 
   return (
-    <div ref={containerRef} className={`relative ${variant === 'underline' ? 'space-y-1' : 'space-y-1.5'} ${className}`}>
-      {/* Label & Actions */}
-      <div className="flex items-center justify-between min-h-[20px]">
-        <label
-          htmlFor={inputId}
-          className={
-            variant === 'underline'
-              ? `text-[12px] leading-[16px] font-bold uppercase tracking-wide text-[#0f2441] flex items-center gap-1.5 ${labelClassName}`
-              : `text-[12px] leading-[16px] font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5 ${labelClassName}`
-          }
-        >
-          {variant !== 'underline' && renderIcon()}
-          <span className="font-bold text-[12px] leading-[16px]">{label}</span>
-          {required && <span className="text-rose-500">*</span>}
-        </label>
-        
-        <div className="flex items-center gap-2">
-          {hasVerifiedCoords && (
-            <span className="hidden sm:inline-flex items-center gap-1 text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-              <Check className="w-3 h-3 text-emerald-600" />
-              <span>Verified Location</span>
-            </span>
-          )}
-          {value && !disabled && onClear && (
-            <button
-              type="button"
-              onClick={onClear}
-              className="text-[11px] text-slate-400 hover:text-slate-600 font-medium cursor-pointer"
-            >
-              Clear
-            </button>
-          )}
+    <div ref={containerRef} className={`relative ${variant === 'card-box' ? '' : variant === 'underline' ? 'space-y-1' : 'space-y-1.5'} ${className}`}>
+      {/* Label & Actions (shown outside for underline and box variants) */}
+      {variant !== 'card-box' && (
+        <div className="flex items-center justify-between min-h-[20px]">
+          <label
+            htmlFor={inputId}
+            className={
+              variant === 'underline'
+                ? `text-[12px] leading-[16px] font-bold uppercase tracking-wide text-[#0f2441] flex items-center gap-1.5 ${labelClassName}`
+                : `text-[12px] leading-[16px] font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5 ${labelClassName}`
+            }
+          >
+            {variant !== 'underline' && renderIcon()}
+            <span className="font-bold text-[12px] leading-[16px]">{label}</span>
+            {required && <span className="text-rose-500">*</span>}
+          </label>
+          
+          <div className="flex items-center gap-2">
+            {allowCurrentLocation && !disabled && (
+              <button
+                type="button"
+                id={`${inputId}-gps-btn`}
+                onClick={handleUseCurrentLocation}
+                disabled={isLocatingGPS}
+                title="Detect and use current geographic location"
+                className="inline-flex items-center gap-1 text-[11px] text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 px-2 py-0.5 rounded-md font-semibold cursor-pointer transition-colors shadow-2xs"
+              >
+                {isLocatingGPS ? (
+                  <>
+                    <Loader2 className="w-3 h-3 text-emerald-600 animate-spin" />
+                    <span>Locating...</span>
+                  </>
+                ) : (
+                  <>
+                    <Navigation className="w-3 h-3 text-emerald-600" />
+                    <span>Use Current Location</span>
+                  </>
+                )}
+              </button>
+            )}
+            {hasVerifiedCoords && (
+              <span className="hidden sm:inline-flex items-center gap-1 text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                <Check className="w-3 h-3 text-emerald-600" />
+                <span>Verified Location</span>
+              </span>
+            )}
+            {value && !disabled && onClear && (
+              <button
+                type="button"
+                onClick={onClear}
+                className="text-[11px] text-slate-400 hover:text-slate-600 font-medium cursor-pointer"
+              >
+                Clear
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Input Container */}
-      {variant === 'underline' ? (
+      {variant === 'card-box' ? (
+        <div
+          className={`relative border rounded-xl bg-white p-3 sm:py-3 sm:px-4 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] shadow-2xs ${
+            error
+              ? 'border-rose-400 ring-1 ring-rose-300'
+              : isOpen
+              ? 'border-slate-400 ring-2 ring-slate-100'
+              : 'border-slate-200 hover:border-slate-300'
+          }`}
+        >
+          {/* Top Label & Compact Actions inside card box */}
+          <div className="flex items-center justify-between min-h-[18px] mb-1">
+            <span className="text-slate-500 text-xs sm:text-[13px] font-normal leading-none block">
+              {label}
+            </span>
+            <div className="flex items-center gap-1.5">
+              {error && (
+                <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+              )}
+              {allowCurrentLocation && !disabled && (
+                <button
+                  type="button"
+                  id={`${inputId}-gps-btn`}
+                  onClick={handleUseCurrentLocation}
+                  disabled={isLocatingGPS}
+                  title="Detect GPS location"
+                  className="inline-flex items-center gap-1 text-[10px] text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/70 px-1.5 py-0.5 rounded font-medium cursor-pointer transition-colors"
+                >
+                  {isLocatingGPS ? (
+                    <>
+                      <Loader2 className="w-2.5 h-2.5 text-emerald-600 animate-spin" />
+                      <span>Locating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Navigation className="w-2.5 h-2.5 text-emerald-600" />
+                      <span>Current Location</span>
+                    </>
+                  )}
+                </button>
+              )}
+              {value && !disabled && onClear && (
+                <button
+                  type="button"
+                  onClick={onClear}
+                  className="text-[11px] text-slate-400 hover:text-slate-600 font-medium cursor-pointer"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Bottom input */}
+          <div className="relative flex items-center">
+            <input
+              ref={inputRef}
+              id={inputId}
+              type="text"
+              value={value}
+              disabled={disabled}
+              onChange={(e) => {
+                onChange(e.target.value);
+                if (!isOpen) setIsOpen(true);
+              }}
+              onFocus={() => setIsOpen(true)}
+              onClick={() => setIsOpen(true)}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholder}
+              autoComplete="off"
+              className={`w-full bg-transparent border-none p-0 text-slate-900 font-medium text-sm sm:text-base focus:outline-none placeholder:text-slate-400 placeholder:font-normal truncate ${inputClassName} ${
+                disabled ? 'opacity-60 cursor-not-allowed' : ''
+              }`}
+            />
+            {isLoading && (
+              <Loader2 className="w-3.5 h-3.5 text-slate-400 animate-spin shrink-0 ml-1.5 pointer-events-none" />
+            )}
+          </div>
+          {error && (
+            <span className="text-[10px] text-rose-600 font-medium truncate block leading-tight mt-0.5">
+              {error}
+            </span>
+          )}
+        </div>
+      ) : variant === 'underline' ? (
         <div className="relative flex items-center gap-2 border-b border-gray-300 pb-1.5 focus-within:border-[#20A8D8] transition-colors">
           {showSearchIconLeft && (
             <Search className="w-5 h-5 text-gray-400 shrink-0 pointer-events-none" />
@@ -392,7 +527,7 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
       )}
 
       {/* Error Message */}
-      {error && <p className="text-xs text-rose-600 font-medium">{error}</p>}
+      {error && variant !== 'card-box' && <p className="text-xs text-rose-600 font-medium">{error}</p>}
       {gpsError && <p className="text-xs text-amber-600 font-medium">{gpsError}</p>}
 
       {/* Intelligent Suggestions Dropdown */}

@@ -19,15 +19,15 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({
     { type: 'local', label: 'LOCAL' },
     { type: 'oneway', label: 'ONE WAY' },
     { type: 'roundtrip', label: 'ROUND TRIP' },
-    { type: 'airport', label: 'AIRPORT TRANSFERS' },
+    { type: 'airport', label: 'Airport' },
   ];
 
   return (
     <div className="w-full flex justify-center" id="service-type-selector-wrapper">
-      {/* Centered Segmented Tab Navigation - 180px width each on desktop, 50px height, #999 border, #D0FAE5 active */}
+      {/* Centered White Pill Container with Service Tabs */}
       <div
         id="service-selector-segmented-bar"
-        className="w-full max-w-[760px] grid grid-cols-4 border border-[#999] rounded-lg overflow-hidden bg-white shadow-2xs divide-x divide-[#999]"
+        className="inline-flex flex-wrap items-center justify-center bg-white rounded-xl sm:rounded-2xl p-1 sm:p-1.5 shadow-sm border border-slate-200/90 gap-1 sm:gap-1.5"
         role="tablist"
         aria-label="Trip Service Type"
       >
@@ -41,13 +41,21 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({
               aria-selected={isSelected}
               id={`service-tab-${option.type}`}
               onClick={() => onSelectService(option.type)}
-              className={`h-[46px] sm:h-[50px] px-1 sm:px-2 md:px-3 flex items-center justify-center text-center font-bold uppercase transition-colors duration-150 cursor-pointer select-none text-[10.5px] min-[380px]:text-xs sm:text-sm md:text-[15px] lg:text-[16px] tracking-tight sm:tracking-normal ${
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-150 cursor-pointer select-none flex items-center gap-1.5 sm:gap-2 ${
                 isSelected
-                  ? 'bg-[#D0FAE5] text-slate-900 font-black'
-                  : 'bg-white text-black hover:bg-slate-50 active:bg-slate-100'
+                  ? 'bg-[#ECFDF5] text-[#0f2441] border border-emerald-300/80 shadow-2xs font-semibold'
+                  : 'bg-transparent text-slate-700 hover:text-slate-900 hover:bg-slate-100/70'
               }`}
             >
-              <span className="truncate">{option.label}</span>
+              {/* Radio circle matching screenshot 8 */}
+              <span
+                className={`w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+                  isSelected ? 'border-2 border-emerald-700' : 'border-2 border-slate-400'
+                }`}
+              >
+                {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-emerald-700" />}
+              </span>
+              <span className="whitespace-nowrap">{option.label}</span>
             </button>
           );
         })}
@@ -55,4 +63,5 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({
     </div>
   );
 };
+
 

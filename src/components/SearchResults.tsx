@@ -1,15 +1,7 @@
 import React from 'react';
 import {
-  MapPin,
-  Calendar,
-  Clock,
-  Users,
-  Edit3,
   Car,
-  SlidersHorizontal,
   Info,
-  X,
-  Trash2,
   MessageSquare,
 } from 'lucide-react';
 import { BookingSearchState, Vehicle, PricingConfig } from '../types';
@@ -79,97 +71,8 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
     openWhatsAppChat(message);
   };
 
-  const getServiceTitle = (type: string) => {
-    switch (type) {
-      case 'local':
-        return 'Local Travel Package';
-      case 'oneway':
-        return 'One Way Drop';
-      case 'roundtrip':
-        return 'Round Trip Journey';
-      case 'airport':
-        return `Airport Transfer (${searchDetails.airportTransferType === 'pickup' ? 'Pickup' : 'Drop'})`;
-      default:
-        return 'Travel Service';
-    }
-  };
-
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {/* Search Criteria Bar */}
-      <div className="bg-emerald-900 text-white rounded-2xl p-5 sm:p-6 shadow-md relative overflow-hidden">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative z-10">
-          <div>
-            <div className="inline-block px-2.5 py-0.5 rounded-md bg-emerald-800 text-emerald-100 text-xs font-bold uppercase tracking-wider mb-2">
-              {getServiceTitle(searchDetails.serviceType)}
-            </div>
-            <h2 className="text-xl sm:text-2xl font-bold flex flex-wrap items-center gap-2">
-              <span>{searchDetails.pickupLocation}</span>
-              {searchDetails.dropLocation && searchDetails.serviceType !== 'local' && (
-                <>
-                  <span className="text-emerald-300">→</span>
-                  <span>{searchDetails.dropLocation}</span>
-                </>
-              )}
-            </h2>
-            <div className="flex flex-wrap items-center gap-4 text-xs text-emerald-100/90 mt-2">
-              <span className="flex items-center gap-1.5 bg-emerald-800/80 px-2.5 py-1 rounded-lg border border-emerald-700/60 font-medium">
-                <Calendar className="w-3.5 h-3.5 text-emerald-300" />
-                <span className="font-bold text-white">Pickup:</span>
-                <span>{searchDetails.pickupDate || searchDetails.travelDate}</span>
-              </span>
-
-              <span className="flex items-center gap-1.5 bg-emerald-800/80 px-2.5 py-1 rounded-lg border border-emerald-700/60 font-medium">
-                <Clock className="w-3.5 h-3.5 text-emerald-300" />
-                <span className="font-bold text-white">Time:</span>
-                <span>{searchDetails.pickupTime || '09:00'}</span>
-              </span>
-
-              {searchDetails.serviceType === 'roundtrip' && (
-                <span className="flex items-center gap-1.5 bg-emerald-800/80 px-2.5 py-1 rounded-lg border border-emerald-700/60 font-medium">
-                  <Calendar className="w-3.5 h-3.5 text-emerald-300" />
-                  <span className="font-bold text-white">Return:</span>
-                  <span>{searchDetails.dropDate || searchDetails.returnDate || searchDetails.travelDate}</span>
-                </span>
-              )}
-
-              <span className="flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5 text-emerald-300" />
-                {searchDetails.passengers} Passengers
-              </span>
-              {searchDetails.routeInfo?.summaryText && (
-                <span className="flex items-center gap-1.5 bg-emerald-800/90 border border-emerald-700/80 px-2.5 py-0.5 rounded-full text-emerald-200 font-bold">
-                  <span>📍</span>
-                  {searchDetails.routeInfo.summaryText}
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 self-start lg:self-center">
-            <button
-              type="button"
-              onClick={onEditSearch}
-              className="bg-white/10 hover:bg-white/20 text-white font-semibold text-xs px-4 py-2.5 rounded-xl border border-white/20 transition-all flex items-center gap-2"
-            >
-              <Edit3 className="w-4 h-4" />
-              Modify Search
-            </button>
-            {onClearSearch && (
-              <button
-                type="button"
-                onClick={onClearSearch}
-                title="Close and dismiss search results"
-                className="bg-red-500/20 hover:bg-red-500/30 text-white font-semibold text-xs px-3 py-2.5 rounded-xl border border-red-400/30 transition-all flex items-center gap-1.5"
-              >
-                <X className="w-4 h-4" />
-                <span>Close</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
       {/* Available Vehicles Section */}
       <div>
         <div className="flex items-center justify-between mb-4">

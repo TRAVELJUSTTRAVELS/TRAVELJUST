@@ -311,51 +311,111 @@ export interface BookingWhatsAppPayload {
  * Builds a formatted WhatsApp message for booking confirmations and dispatch communication
  */
 export function formatBookingConfirmationMessage(payload: BookingWhatsAppPayload): string {
-  const { referenceId, searchDetails, selectedVehicle, passengerDetails, estimatedFare } = payload;
-  const days = estimatedFare.roundTripDays || searchDetails.roundTripDays || 1;
-  const includedMinKm = estimatedFare.includedMinKm || (days * 300);
+  const { searchDetails, selectedVehicle, passengerDetails, estimatedFare } = payload;
 
-  const serviceLabel = 
-    searchDetails.serviceType === 'airport' 
-      ? `Airport ${searchDetails.airportTransferType === 'pickup' ? 'Pickup' : 'Drop'}`
-      : searchDetails.serviceType === 'roundtrip'
-      ? `Round Trip Outstation (${days} Day${days > 1 ? 's' : ''} Package • ${Number(includedMinKm ?? (days * 300)).toLocaleString('en-IN')} km Included Min + ${days} Day${days > 1 ? 's' : ''} Driver Bata)`
-      : searchDetails.serviceType === 'local'
-      ? `Local Package (${searchDetails.durationHours} Hours)`
-      : 'One-Way Drop';
+  let tripTypeFormatted = 'ONE WAY';
+  if (searchDetails.serviceType === 'roundtrip') {
+    tripTypeFormatted = 'ROUND TRIP';
+  } else if (searchDetails.serviceType === 'local') {
+    tripTypeFormatted = 'LOCAL';
+  } else if (searchDetails.serviceType === 'airport') {
+    tripTypeFormatted = 'AIRPORT';
+  }
 
-  const dropDateVal = searchDetails.dropDate || searchDetails.returnDate || searchDetails.travelDate;
-  const dropDateInfo = searchDetails.serviceType === 'roundtrip' && dropDateVal
-    ? `\n📅 *Return / Drop Date:* ${dropDateVal}`
-    : '';
+  const fromLocation = searchDetails.pickupLocation || 'Mysuru';
+  const toLocation =
+    searchDetails.serviceType === 'local'
+      ? 'Local City Coverage'
+      : searchDetails.dropLocation || (searchDetails.airportTransferType === 'pickup' ? 'Mysuru' : 'Bangalore Airport');
 
-  const viaStopsInfo = searchDetails.viaLocations && searchDetails.viaLocations.length > 0
-    ? `\n🛑 *Via Stops:* ${searchDetails.viaLocations.join(', ')}`
-    : '';
+  const validStops = (searchDetails.viaLocations || []).filter((s) => s && s.trim().length > 0);
+  const stopsText = validStops.length > 0 ? validStops.join(' -> ') : 'None';
 
-  const notesInfo = passengerDetails.specialInstructions 
-    ? `\n📝 *Notes:* ${passengerDetails.specialInstructions}`
-    : '';
+  const pickupDate = searchDetails.pickupDate || searchDetails.travelDate || '';
+  const pickupTime = searchDetails.pickupTime || '07:00 AM';
 
-  return (
-`🚕 *TRAVEL JUST - BOOKING CONFIRMATION REQUEST* 🚕
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-🆔 *Booking Ref:* ${referenceId}
-👤 *Passenger Name:* ${passengerDetails.fullName}
-📱 *Mobile Number:* ${passengerDetails.mobileNumber}
-👥 *No. of Passengers:* ${passengerDetails.passengersCount}
+  const returnDate =
+    searchDetails.serviceType === 'roundtrip'
+      ? searchDetails.returnDate || searchDetails.dropDate || ''
+      : undefined;
+  const returnTime =
+    searchDetails.serviceType === 'roundtrip'
+      ? searchDetails.returnTime || searchDetails.pickupTime || ''
+      : undefined;
 
-🚗 *Vehicle:* ${selectedVehicle.name} (${selectedVehicle.category})
-🛣️ *Trip Type:* ${serviceLabel}
-📍 *Pickup Location:* ${searchDetails.pickupLocation}
-🏁 *Drop Location:* ${searchDetails.dropLocation}${viaStopsInfo}
-📅 *Pickup Date:* ${searchDetails.pickupDate || searchDetails.travelDate}
-⏰ *Pickup Time:* ${searchDetails.pickupTime || '09:00 AM'}${dropDateInfo}
+  const distanceKmVal = estimatedFare.exactDistanceKm || searchDetails.routeInfo?.distanceKm;
+  const distanceStr = distanceKmVal ? `${Math.round(distanceKmVal)} KM` : (searchDetails.routeInfo?.distanceKm ? `${Math.round(searchDetails.routeInfo.distanceKm)} KM` : 'As per Google Maps');
 
-💰 *Estimated Fare:* ₹${Number(estimatedFare?.totalEstimatedFare ?? 0).toLocaleString('en-IN')}${notesInfo}
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-_Please confirm vehicle dispatch, driver contact details, and trip schedule._`
+  const durationStr =
+    searchDetails.routeInfo?.durationText ||
+    searchDetails.routeInfo?.durationFormatted ||
+    (searchDetails.routeInfo?.durationMinutes
+      ? `${Math.floor(searchDetails.routeInfo.durationMinutes / 60)} hr ${searchDetails.routeInfo.durationMinutes % 60} min`
+      : 'Standard driving time');
+
+  const fareStr = estimatedFare?.totalEstimatedFare
+    ? `${Number(estimatedFare.totalEstimatedFare).toLocaleString('en-IN')}`
+    : '0';
+
+  const specialRequest = passengerDetails.specialInstructions?.trim() || 'None';
+
+  const lines = [
+    'TRAVEL JUST BOOKING REQUEST',
+    '',
+    'Customer Name:',
+    passengerDetails.fullName,
+    '',
+    'Mobile:',
+    passengerDetails.mobileNumber,
+    '',
+    'Trip Type:',
+    tripTypeFormatted,
+    '',
+    'FROM:',
+    fromLocation,
+    '',
+    'TO:',
+    toLocation,
+    '',
+    'STOPS:',
+    stopsText,
+    '',
+    'PICK UP DATE:',
+    pickupDate,
+    '',
+    'PICK UP TIME:',
+    pickupTime,
+  ];
+
+  if (returnDate !== undefined) {
+    lines.push('', 'RETURN DATE:', returnDate);
+  }
+  if (returnTime !== undefined) {
+    lines.push('', 'RETURN TIME:', returnTime);
+  }
+
+  lines.push(
+    '',
+    'DISTANCE:',
+    distanceStr,
+    '',
+    'ESTIMATED DURATION:',
+    durationStr,
+    '',
+    'VEHICLE:',
+    `${selectedVehicle.name} (${selectedVehicle.category})`,
+    '',
+    'CALCULATED FARE:',
+    `₹${fareStr}`,
+    '',
+    'SPECIAL REQUEST:',
+    specialRequest,
+    '',
+    'Website:',
+    'WWW.TRAVELJUST.IN'
   );
+
+  return lines.join('\n');
 }
 
 /**

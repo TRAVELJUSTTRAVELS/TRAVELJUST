@@ -212,22 +212,22 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({
               type="button"
               disabled={fareEstimate.isValid === false}
               onClick={() => onSelect(vehicle)}
-              className={`w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-sm shadow-xs transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-emerald-600 ${
+              className={`w-full sm:w-auto px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-[#20A8D8] cursor-pointer ${
                 fareEstimate.isValid === false
                   ? 'bg-slate-200 text-slate-500 cursor-not-allowed border border-slate-300'
                   : isSelected
-                  ? 'bg-emerald-900 text-white hover:bg-emerald-950 cursor-pointer'
-                  : 'bg-emerald-800 hover:bg-emerald-900 text-white cursor-pointer'
+                  ? 'bg-[#20A8D8] text-white hover:bg-[#1b93be]'
+                  : 'bg-emerald-800 hover:bg-emerald-900 text-white'
               }`}
             >
               {fareEstimate.isValid === false ? (
                 'Route Required'
               ) : isSelected ? (
                 <>
-                  <Check className="w-4 h-4 stroke-[3]" /> Vehicle Selected
+                  <Check className="w-4 h-4 stroke-[3]" /> Selected
                 </>
               ) : (
-                'Select Vehicle'
+                'SELECT'
               )}
             </button>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Car,
   Menu,
@@ -6,6 +6,7 @@ import {
   Phone,
   MessageSquare,
   ChevronRight,
+  ChevronDown,
   ShieldAlert,
   LogOut,
   Lock,
@@ -13,6 +14,7 @@ import {
   User,
   UserCheck,
   Sliders,
+  Smartphone,
 } from 'lucide-react';
 import { siteConfig } from '../config/siteConfig';
 import { CustomerUser } from '../types';
@@ -27,6 +29,9 @@ interface HeaderProps {
   onOpenCustomerPortal?: () => void;
   onOpenPartnerDrawer?: () => void;
   onOpenFareEngine?: () => void;
+  onOpenDownloadApp?: () => void;
+  onOpenCustomerAuth?: () => void;
+  onCustomerLogout?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -39,9 +44,14 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenCustomerPortal,
   onOpenPartnerDrawer,
   onOpenFareEngine,
+  onOpenDownloadApp,
+  onOpenCustomerAuth,
+  onCustomerLogout,
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
+  const accountDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -51,6 +61,20 @@ export const Header: React.FC<HeaderProps> = ({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        accountDropdownRef.current &&
+        !accountDropdownRef.current.contains(event.target as Node)
+      ) {
+        setAccountDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Navigation links are visible strictly in owner portal
   const navLinks = isOwner
     ? [
         { name: 'Home', href: '#home' },
@@ -61,14 +85,7 @@ export const Header: React.FC<HeaderProps> = ({
         { name: 'About', href: '#about' },
         { name: 'FAQ', href: '#faq' },
       ]
-    : [
-        { name: 'Home', href: '#home' },
-        { name: 'Routes & Outstation', href: '#popular-routes-section' },
-        { name: 'Services', href: '#services' },
-        { name: 'Fleet', href: '#fleet' },
-        { name: 'About', href: '#about' },
-        { name: 'FAQ', href: '#faq' },
-      ];
+    : [];
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     e.preventDefault();
@@ -116,25 +133,157 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </a>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-6" aria-label="Main Navigation">
-            {navLinks.map((link) => (
-              <a
-                key={link.name}
-                href={link.href}
-                onClick={(e) => handleNavClick(e, link.href)}
-                className="text-sm font-medium text-slate-700 hover:text-emerald-800 transition-colors py-1 focus:outline-none focus:ring-2 focus:ring-emerald-600 rounded"
-              >
-                {link.name}
-              </a>
-            ))}
-          </nav>
+          {/* Desktop Navigation - visible only in owner portal */}
+          {isOwner && navLinks.length > 0 && (
+            <nav className="hidden md:flex items-center gap-6" aria-label="Main Navigation">
+              {navLinks.map((link) => (
+                <a
+                  key={link.name}
+                  href={link.href}
+                  onClick={(e) => handleNavClick(e, link.href)}
+                  className="text-sm font-medium text-slate-700 hover:text-emerald-800 transition-colors py-1 focus:outline-none focus:ring-2 focus:ring-emerald-600 rounded"
+                >
+                  {link.name}
+                </a>
+              ))}
+            </nav>
+          )}
 
           {/* Right Action CTA */}
           <div className="hidden md:flex items-center gap-2.5">
+            {/* Customer CTA Buttons - Shown ONLY for Customers (hidden in Owner Portal) */}
+            {!isOwner && (
+              <>
+                {/* Download App Button (White Pill with Blue Smartphone Icon) */}
+            <button
+              id="desktop-download-app-btn"
+              type="button"
+              onClick={onOpenDownloadApp}
+              className="flex items-center gap-2 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-900 border border-slate-200/90 hover:border-slate-300 rounded-xl font-bold text-sm shadow-2xs hover:shadow-xs transition-all duration-150 cursor-pointer select-none"
+              title="Download TRAVEL JUST Mobile App"
+            >
+              <Smartphone className="w-4 h-4 text-[#0ea5e9] shrink-0" />
+              <span>Download App</span>
+            </button>
+
+            {/* Login or Create Account Button (Vibrant Blue with Dropdown Arrow) */}
+            <div className="relative" ref={accountDropdownRef}>
+              <button
+                id="desktop-login-account-btn"
+                type="button"
+                onClick={() => setAccountDropdownOpen((prev) => !prev)}
+                className="flex items-center gap-2 px-4 py-2 bg-[#4D8BF5] hover:bg-[#3b7be8] active:bg-[#2f6cd6] text-white rounded-xl text-sm font-medium shadow-xs hover:shadow transition-all duration-150 active:scale-[0.98] cursor-pointer select-none"
+                title={customer ? `Signed in as ${customer.fullName}` : 'Login or Create Account'}
+                aria-expanded={accountDropdownOpen}
+                aria-haspopup="true"
+              >
+                <span className="truncate max-w-[140px]">
+                  {customer ? customer.fullName : 'Login or Create Account'}
+                </span>
+                <ChevronDown
+                  className={`w-4 h-4 text-white shrink-0 transition-transform duration-200 ${
+                    accountDropdownOpen ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+
+              {/* Account Dropdown Menu */}
+              {accountDropdownOpen && (
+                <div
+                  id="desktop-account-dropdown-menu"
+                  className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in zoom-in-95 duration-150"
+                >
+                  {customer ? (
+                    <>
+                      <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/80">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-[#4D8BF5]/15 text-[#4D8BF5] font-bold text-xs flex items-center justify-center">
+                            {customer.fullName.slice(0, 2).toUpperCase() || 'TJ'}
+                          </div>
+                          <div className="overflow-hidden">
+                            <p className="text-xs font-bold text-slate-900 truncate">
+                              {customer.fullName}
+                            </p>
+                            <p className="text-[11px] text-slate-500 truncate">
+                              +91 {customer.mobileNumber}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="py-1 text-xs">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAccountDropdownOpen(false);
+                            onOpenCustomerPortal?.();
+                          }}
+                          className="w-full text-left px-4 py-2.5 font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-800 flex items-center justify-between cursor-pointer"
+                        >
+                          <span>My Trips & Bookings</span>
+                          <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAccountDropdownOpen(false);
+                            onBookRideClick?.();
+                          }}
+                          className="w-full text-left px-4 py-2.5 font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-800 flex items-center justify-between cursor-pointer"
+                        >
+                          <span>Book a New Ride</span>
+                          <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                        </button>
+                      </div>
+
+                      <div className="border-t border-slate-100 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAccountDropdownOpen(false);
+                            onCustomerLogout?.();
+                          }}
+                          className="w-full text-left px-4 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer"
+                        >
+                          <LogOut className="w-3.5 h-3.5" />
+                          <span>Sign Out</span>
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50/50">
+                        <p className="text-xs font-bold text-slate-900">Welcome to TRAVEL JUST</p>
+                        <p className="text-[11px] text-slate-500">Sign in to track trips & invoices</p>
+                      </div>
+
+                      <div className="py-1">
+                        <button
+                          type="button"
+                          id="dropdown-login-btn"
+                          onClick={() => {
+                            setAccountDropdownOpen(false);
+                            onOpenCustomerAuth?.();
+                          }}
+                          className="w-full text-left px-4 py-2.5 text-xs font-bold text-[#4D8BF5] hover:bg-sky-50 flex items-center justify-between cursor-pointer"
+                        >
+                          <span>Login or Sign Up with OTP</span>
+                          <ChevronRight className="w-3.5 h-3.5 text-[#4D8BF5]" />
+                        </button>
+                      </div>
+
+                      {/* Login action */}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+              </>
+            )}
+
             {/* Price / Fare Engine & Dispatch - ONLY visible to OWNER */}
             {isOwner && (
-              <div className="flex items-center gap-1.5 bg-amber-50/80 p-1 rounded-2xl border border-amber-200">
+              <div className="flex items-center gap-1.5 bg-amber-50/80 p-1 rounded-2xl border border-amber-200 ml-1">
                 {onOpenFareEngine && (
                   <button
                     type="button"
@@ -169,14 +318,6 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
               </div>
             )}
-
-            <button
-              onClick={onBookRideClick}
-              className="bg-emerald-800 hover:bg-emerald-900 text-white font-semibold text-sm px-5 py-2.5 rounded-xl shadow-sm hover:shadow transition-all duration-200 active:scale-[0.98] flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-emerald-600"
-            >
-              Book a Ride
-              <ChevronRight className="w-4 h-4" />
-            </button>
           </div>
 
           {/* Mobile Hamburger & Controls */}
@@ -276,19 +417,23 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           )}
 
-          <div className="flex flex-col gap-1 py-2">
-            {navLinks.map((link) => (
-              <a
-                key={link.name}
-                href={link.href}
-                onClick={(e) => handleNavClick(e, link.href)}
-                className="text-base font-medium text-slate-800 hover:text-emerald-800 hover:bg-emerald-50/60 px-3 py-2.5 rounded-lg transition-colors flex items-center justify-between"
-              >
-                {link.name}
-                <ChevronRight className="w-4 h-4 text-slate-400" />
-              </a>
-            ))}
+          {isOwner && navLinks.length > 0 && (
+            <div className="flex flex-col gap-1 py-2">
+              {navLinks.map((link) => (
+                <a
+                  key={link.name}
+                  href={link.href}
+                  onClick={(e) => handleNavClick(e, link.href)}
+                  className="text-base font-medium text-slate-800 hover:text-emerald-800 hover:bg-emerald-50/60 px-3 py-2.5 rounded-lg transition-colors flex items-center justify-between"
+                >
+                  {link.name}
+                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                </a>
+              ))}
+            </div>
+          )}
 
+          <div className="flex flex-col gap-1 py-1">
             {onOpenPartnerDrawer && (
               <button
                 type="button"
@@ -326,7 +471,51 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
 
-          <div className="pt-4 border-t border-slate-100 space-y-3">
+          {!isOwner && (
+            <div className="pt-3 border-t border-slate-100 space-y-2">
+              {/* Mobile Download App Button */}
+              <button
+                id="mobile-download-app-btn"
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenDownloadApp?.();
+                }}
+                className="w-full flex items-center justify-between px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-900 border border-slate-200 rounded-xl font-bold text-sm cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Smartphone className="w-4 h-4 text-[#0ea5e9]" />
+                  <span>Download App</span>
+                </div>
+                <span className="text-[10px] uppercase font-bold bg-sky-100 text-sky-800 px-2 py-0.5 rounded">
+                  Android & iOS
+                </span>
+              </button>
+
+              {/* Mobile Login / Account Button */}
+              <button
+                id="mobile-login-account-btn"
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  if (customer) {
+                    onOpenCustomerPortal?.();
+                  } else {
+                    onOpenCustomerAuth?.();
+                  }
+                }}
+                className="w-full flex items-center justify-between px-3.5 py-2.5 bg-[#4D8BF5] hover:bg-[#3b7be8] text-white rounded-xl font-bold text-sm cursor-pointer shadow-xs"
+              >
+                <div className="flex items-center gap-2.5">
+                  <User className="w-4 h-4" />
+                  <span>{customer ? customer.fullName : 'Login or Create Account'}</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-white/80" />
+              </button>
+            </div>
+          )}
+
+          <div className="pt-2 space-y-3">
             <button
               onClick={() => {
                 setMobileMenuOpen(false);

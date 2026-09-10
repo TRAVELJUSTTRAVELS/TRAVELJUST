@@ -96,8 +96,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const [autoWhatsAppSent, setAutoWhatsAppSent] = useState(false);
   const [autoDispatchCountdown, setAutoDispatchCountdown] = useState<number | null>(null);
 
-  if (!isOpen) return null;
-
   const currentSearchDetails: BookingSearchState = {
     ...searchDetails,
     travelDate: pickupDate,
@@ -113,13 +111,14 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     const newErrors: Record<string, string> = {};
 
     if (!passengerDetails.fullName.trim()) {
-      newErrors.fullName = 'Full name is required';
+      newErrors.fullName = 'Customer name is required';
     }
 
+    const cleanMobile = passengerDetails.mobileNumber.replace(/\D/g, '');
     if (!passengerDetails.mobileNumber.trim()) {
       newErrors.mobileNumber = 'Mobile number is required for booking confirmation';
-    } else if (passengerDetails.mobileNumber.trim().length < 7) {
-      newErrors.mobileNumber = 'Please enter a valid phone number';
+    } else if (cleanMobile.length < 10) {
+      newErrors.mobileNumber = 'Please enter a valid 10-digit mobile number';
     }
 
     if (!pickupDate) {
@@ -216,6 +215,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200">
@@ -367,7 +368,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                    Full Name <span className="text-red-500">*</span>
+                    CUSTOMER NAME <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <User className="w-5 h-5 absolute left-3.5 top-3 text-slate-400" />
@@ -377,8 +378,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                       onChange={(e) =>
                         setPassengerDetails({ ...passengerDetails, fullName: e.target.value })
                       }
-                      placeholder="Enter your full name"
-                      className={`w-full pl-10 pr-3 py-2.5 bg-slate-50 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white ${
+                      placeholder="Enter customer name"
+                      className={`w-full pl-10 pr-3 py-2.5 bg-slate-50 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#20A8D8] focus:bg-white ${
                         errors.fullName ? 'border-red-500' : 'border-slate-300'
                       }`}
                     />
@@ -392,7 +393,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                    Mobile Number <span className="text-red-500">*</span>
+                    MOBILE NUMBER <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <Phone className="w-5 h-5 absolute left-3.5 top-3 text-slate-400" />
@@ -405,8 +406,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                           mobileNumber: e.target.value,
                         })
                       }
-                      placeholder="Enter mobile number"
-                      className={`w-full pl-10 pr-3 py-2.5 bg-slate-50 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white ${
+                      placeholder="Enter 10-digit mobile number"
+                      className={`w-full pl-10 pr-3 py-2.5 bg-slate-50 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#20A8D8] focus:bg-white ${
                         errors.mobileNumber ? 'border-red-500' : 'border-slate-300'
                       }`}
                     />
@@ -420,7 +421,28 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                    Number of Passengers
+                    EMAIL (OPTIONAL)
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-5 h-5 absolute left-3.5 top-3 text-slate-400" />
+                    <input
+                      type="email"
+                      value={passengerDetails.email || ''}
+                      onChange={(e) =>
+                        setPassengerDetails({
+                          ...passengerDetails,
+                          email: e.target.value,
+                        })
+                      }
+                      placeholder="Enter email address (optional)"
+                      className="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#20A8D8] focus:bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    NUMBER OF PASSENGERS
                   </label>
                   <div className="relative">
                     <Users className="w-5 h-5 absolute left-3.5 top-3 text-slate-400" />
@@ -432,7 +454,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                           passengersCount: Number(e.target.value),
                         })
                       }
-                      className="w-full pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white appearance-none"
+                      className="w-full pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#20A8D8] focus:bg-white appearance-none"
                     >
                       {Array.from(
                         { length: selectedVehicle.seatingCapacity },
@@ -448,7 +470,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                    Special Instructions / Flight Details
+                    SPECIAL REQUEST / TRAVEL NOTES
                   </label>
                   <div className="relative">
                     <MessageSquare className="w-5 h-5 absolute left-3.5 top-3 text-slate-400" />
@@ -461,8 +483,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                           specialInstructions: e.target.value,
                         })
                       }
-                      placeholder="Mention any flight numbers, terminal details, luggage notes, or special requirements..."
-                      className="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white"
+                      placeholder="Mention any flight numbers, terminal details, luggage notes, or special requests..."
+                      className="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#20A8D8] focus:bg-white"
                     />
                   </div>
                 </div>
@@ -604,6 +626,53 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   <span>Transparent Pricing</span>
                   <br />
                   <span>No Hidden Charges</span>
+                </div>
+              </div>
+
+              {/* Price Transparency Fare Breakdown */}
+              <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4 space-y-2 text-xs">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                  Fare Breakdown
+                </span>
+                <div className="space-y-1.5 font-mono text-slate-700">
+                  <div className="flex justify-between items-center py-0.5 border-b border-dashed border-slate-200">
+                    <span className="uppercase text-[11px] text-slate-500">TRIP DISTANCE</span>
+                    <span className="font-bold text-slate-900">
+                      {fareEstimate.exactDistanceKm || fareEstimate.estimatedDistanceKm || searchDetails.routeInfo?.distanceKm || 0} KM
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center py-0.5">
+                    <span className="uppercase text-[11px] text-slate-500">BASE FARE</span>
+                    <span className="font-semibold text-slate-900">{pricingConfig.currencySymbol}{fareEstimate.baseFareAmount}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-0.5">
+                    <span className="uppercase text-[11px] text-slate-500">DISTANCE CHARGE</span>
+                    <span className="font-semibold text-slate-900">{pricingConfig.currencySymbol}{fareEstimate.distanceFareAmount}</span>
+                  </div>
+                  {fareEstimate.driverAllowanceAmount && fareEstimate.driverAllowanceAmount > 0 ? (
+                    <div className="flex justify-between items-center py-0.5">
+                      <span className="uppercase text-[11px] text-slate-500">DRIVER ALLOWANCE</span>
+                      <span className="font-semibold text-slate-900">{pricingConfig.currencySymbol}{fareEstimate.driverAllowanceAmount}</span>
+                    </div>
+                  ) : null}
+                  <div className="flex justify-between items-center py-0.5 text-slate-500">
+                    <span className="uppercase text-[11px]">TOLL</span>
+                    <span className="italic">As applicable</span>
+                  </div>
+                  <div className="flex justify-between items-center py-0.5 text-slate-500">
+                    <span className="uppercase text-[11px]">PARKING</span>
+                    <span className="italic">As applicable</span>
+                  </div>
+                  <div className="pt-2 border-t-2 border-slate-700 flex justify-between items-baseline font-sans">
+                    <span className="font-extrabold uppercase text-xs tracking-wider text-slate-900">ESTIMATED TOTAL</span>
+                    <span className="text-lg font-black text-slate-900">
+                      {pricingConfig.currencySymbol}{fareEstimate.totalEstimatedFare}
+                    </span>
+                  </div>
+                </div>
+                <div className="pt-1 text-[10px] text-slate-500 space-y-0.5">
+                  <p>• <strong>Included charges:</strong> Base vehicle rate, estimated distance fare, driver allowance.</p>
+                  <p>• <strong>Additional applicable charges:</strong> Toll receipts, parking fees, and interstate permits as applicable.</p>
                 </div>
               </div>
 

@@ -25,8 +25,9 @@ import { LegalModal } from './components/LegalModal';
 import { OwnerAuthModal } from './components/OwnerAuthModal';
 import { CustomerPortalModal } from './components/CustomerPortalModal';
 import { AdminFareManagementModal } from './components/AdminFareManagementModal';
-import { PopularRoutesLandingSection } from './components/PopularRoutesLandingSection';
 import { DriverPartnerDrawer } from './components/DriverPartnerDrawer';
+import { DownloadAppModal } from './components/DownloadAppModal';
+import { CustomerAuthModal } from './components/CustomerAuthModal';
 import { calculateRouteDistance } from './services/googleMapsService';
 import { getStoredCustomer, clearCustomerSession, saveCustomerSession } from './services/customerAuthService';
 import {
@@ -85,6 +86,8 @@ export default function App() {
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [legalModalType, setLegalModalType] = useState<'privacy' | 'terms' | null>(null);
   const [partnerDrawerOpen, setPartnerDrawerOpen] = useState(false);
+  const [downloadAppModalOpen, setDownloadAppModalOpen] = useState(false);
+  const [customerAuthModalOpen, setCustomerAuthModalOpen] = useState(false);
 
   const handleOwnerLoginSuccess = () => {
     setIsOwner(true);
@@ -311,58 +314,6 @@ export default function App() {
     }
   };
 
-  const handleSelectRouteForBooking = async (
-    pickup: string,
-    drop: string,
-    serviceType: ServiceType,
-    estimatedKm?: number
-  ) => {
-    const today = new Date().toISOString().split('T')[0];
-    let routeInfo = undefined;
-    try {
-      routeInfo = await calculateRouteDistance(pickup, drop);
-    } catch {
-      if (estimatedKm) {
-        routeInfo = {
-          distanceKm: estimatedKm,
-          distanceText: `${estimatedKm} km`,
-          durationMinutes: Math.round(estimatedKm * 1.2),
-          durationText: `~${Math.round(estimatedKm / 50)} hrs`,
-          originAddress: pickup,
-          destinationAddress: drop,
-          status: 'OK' as const,
-        };
-      }
-    }
-
-    const newSearch: BookingSearchState = {
-      serviceType,
-      pickupLocation: pickup,
-      dropLocation: drop,
-      travelDate: today,
-      pickupDate: today,
-      dropDate: today,
-      returnDate: today,
-      pickupTime: '08:30',
-      durationHours: 8,
-      airportTransferType: serviceType === 'airport' ? 'drop' : 'pickup',
-      passengers: 2,
-      vehicleType: 'all',
-      routeInfo,
-    };
-
-    setSearchState(newSearch);
-    setTimeout(() => {
-      const resultsElem = document.getElementById('search-results-anchor');
-      if (resultsElem) {
-        resultsElem.scrollIntoView({ behavior: 'smooth' });
-      } else {
-        const searchElem = document.getElementById('booking-search-section');
-        if (searchElem) searchElem.scrollIntoView({ behavior: 'smooth' });
-      }
-    }, 150);
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans antialiased selection:bg-emerald-800 selection:text-white flex flex-col">
       {/* Header with Customer & Owner access */}
@@ -376,6 +327,9 @@ export default function App() {
         onOpenCustomerPortal={() => setCustomerPortalModalOpen(true)}
         onOpenPartnerDrawer={() => setPartnerDrawerOpen(true)}
         onOpenFareEngine={() => setAdminFareModalOpen(true)}
+        onOpenDownloadApp={() => setDownloadAppModalOpen(true)}
+        onOpenCustomerAuth={() => setCustomerAuthModalOpen(true)}
+        onCustomerLogout={handleCustomerLogout}
       />
 
       {/* Main Page Layout */}
@@ -418,9 +372,6 @@ export default function App() {
             </section>
           )}
         </div>
-
-        {/* Dedicated Popular Routes & Destination Guides for SEO */}
-        <PopularRoutesLandingSection onSelectRouteForBooking={handleSelectRouteForBooking} />
 
         {/* Services Section */}
         <ServicesSection onSelectService={handleSelectServiceFromSection} />
@@ -472,7 +423,7 @@ export default function App() {
       />
 
       {/* Multi-step Booking Dialog Modal */}
-      {searchState && selectedVehicle && (
+      {bookingModalOpen && searchState && selectedVehicle && (
         <BookingModal
           isOpen={bookingModalOpen}
           onClose={() => setBookingModalOpen(false)}
@@ -513,6 +464,30 @@ export default function App() {
         isOpen={adminFareModalOpen}
         onClose={() => setAdminFareModalOpen(false)}
         onPricingUpdated={() => setFareUpdateTrigger((prev) => prev + 1)}
+      />
+
+      {/* Download App Modal */}
+      <DownloadAppModal
+        isOpen={downloadAppModalOpen}
+        onClose={() => setDownloadAppModalOpen(false)}
+      />
+
+      {/* Customer Login / Register Modal */}
+      <CustomerAuthModal
+        isOpen={customerAuthModalOpen}
+        onClose={() => setCustomerAuthModalOpen(false)}
+        onSuccess={(loggedCustomer) => {
+          setCustomer(loggedCustomer);
+          setCustomerAuthModalOpen(false);
+        }}
+        onOpenOwnerLogin={() => {
+          setCustomerAuthModalOpen(false);
+          setOwnerAuthModalOpen(true);
+        }}
+        onOpenPartnerDrawer={() => {
+          setCustomerAuthModalOpen(false);
+          setPartnerDrawerOpen(true);
+        }}
       />
     </div>
   );

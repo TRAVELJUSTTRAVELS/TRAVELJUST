@@ -11,6 +11,7 @@ import {
   Search,
   Route,
   Sparkles,
+  Loader2,
 } from 'lucide-react';
 import {
   BookingSearchState,
@@ -22,6 +23,7 @@ import {
 } from '../types';
 import { ServiceSelector } from './ServiceSelector';
 import { LocationAutocompleteInput } from './LocationAutocompleteInput';
+import { CalendarPopover } from './CalendarPopover';
 import { calculateRouteDistance, estimateDrivingDistanceMatrix } from '../services/googleMapsService';
 import { calculateRoundTripDays } from '../utils/fareCalculator';
 import { defaultPricingConfig } from '../config/siteConfig';
@@ -44,6 +46,34 @@ const TIME_OPTIONS = [
   '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM', '05:00 PM', '05:30 PM',
   '06:00 PM', '06:30 PM', '07:00 PM', '07:30 PM', '08:00 PM', '08:30 PM',
   '09:00 PM', '09:30 PM', '10:00 PM', '10:30 PM', '11:00 PM', '11:30 PM'
+];
+
+// Helper to convert date to "10 Sept 2026" display format matching screenshots
+const formatDateToSeptFormat = (isoDate: string): string => {
+  if (!isoDate) return '';
+  const parts = isoDate.split('-');
+  if (parts.length === 3) {
+    const year = parts[0];
+    const monthIndex = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
+    const monthName = months[monthIndex] || parts[1];
+    return `${day} ${monthName} ${year}`;
+  }
+  return isoDate;
+};
+
+// 24-hour time options matching screenshots (e.g. 19:25, 23:25)
+const TIME_OPTIONS_24H = [
+  '00:00', '00:30', '01:00', '01:30', '02:00', '02:30',
+  '03:00', '03:30', '04:00', '04:30', '05:00', '05:30',
+  '06:00', '06:30', '07:00', '07:30', '08:00', '08:30',
+  '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+  '12:00', '12:30', '13:00', '13:30', '14:00', '14:30',
+  '15:00', '15:30', '16:00', '16:30', '17:00', '17:30',
+  '18:00', '18:30', '19:00', '19:25', '19:30', '20:00',
+  '20:30', '21:00', '21:30', '22:00', '22:30', '23:00',
+  '23:25', '23:30'
 ];
 
 // Helper to convert DD-MM-YYYY display from YYYY-MM-DD
@@ -88,16 +118,22 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
   onReset,
   pricingConfig,
 }) => {
-  // Today's date in YYYY-MM-DD
+  // Today's date in local calendar YYYY-MM-DD
   const getTodayDate = () => {
     const today = new Date();
-    return today.toISOString().split('T')[0];
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   const getTomorrowDate = () => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().split('T')[0];
+    const year = tomorrow.getFullYear();
+    const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const day = String(tomorrow.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   const [serviceType, setServiceType] = useState<ServiceType>(
@@ -152,12 +188,12 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
     initialState?.returnDate || initialState?.dropDate || getTomorrowDate()
   );
 
-  // Default pickup time: 7:00 AM
+  // Default pickup time matching screenshots (19:25)
   const [pickupTime, setPickupTime] = useState(
-    initialState?.pickupTime ? formatTo12Hour(initialState.pickupTime) : '07:00 AM'
+    initialState?.pickupTime || '19:25'
   );
   const [returnTime, setReturnTime] = useState(
-    initialState?.returnTime ? formatTo12Hour(initialState.returnTime) : '07:00 PM'
+    initialState?.returnTime || '23:25'
   );
 
   const [durationHours, setDurationHours] = useState<number>(initialState?.durationHours || 8);
@@ -172,6 +208,9 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
   // Refs for HTML date pickers
   const pickupDateInputRef = useRef<HTMLInputElement>(null);
   const dropDateInputRef = useRef<HTMLInputElement>(null);
+  const [activeCalendar, setActiveCalendar] = useState<
+    'rt-departure' | 'rt-return' | 'ow-departure' | 'local-departure' | 'airport-departure' | null
+  >(null);
 
   // Live route calculation state
   const [routeInfo, setRouteInfo] = useState<CalculatedRouteInfo | null>(
@@ -206,11 +245,16 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
 
   // Compute route distance dynamically using Place ID and exact coordinates
   const computeActiveRoute = useCallback(async () => {
-    const origin = pickupLocation.trim();
-    const destination =
-      serviceType === 'local' ? 'Local Mysuru Sightseeing & City' : dropLocation.trim();
+    if (serviceType === 'local') {
+      setRouteInfo(null);
+      setIsCalculatingRoute(false);
+      return;
+    }
 
-    if (!origin || (serviceType !== 'local' && !destination)) {
+    const origin = pickupLocation.trim();
+    const destination = dropLocation.trim();
+
+    if (!origin || !destination) {
       setRouteInfo(null);
       return;
     }
@@ -254,18 +298,25 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
   }, [computeActiveRoute]);
 
   const handleTravelDateChange = (newDate: string) => {
+    registerUserActivity();
     setTravelDate(newDate);
     if (errors.travelDate) setErrors((prev) => ({ ...prev, travelDate: '' }));
-    if (dropDate < newDate) {
+    if (dropDate && dropDate < newDate) {
       setDropDate(newDate);
       setReturnDate(newDate);
+      if (errors.dropDate) setErrors((prev) => ({ ...prev, dropDate: '' }));
     }
   };
 
   const handleDropDateChange = (newDate: string) => {
+    registerUserActivity();
     setDropDate(newDate);
     setReturnDate(newDate);
-    if (errors.dropDate) setErrors((prev) => ({ ...prev, dropDate: '' }));
+    if (newDate < travelDate) {
+      setErrors((prev) => ({ ...prev, dropDate: 'Return date cannot be earlier than departure date.' }));
+    } else if (errors.dropDate) {
+      setErrors((prev) => ({ ...prev, dropDate: '' }));
+    }
   };
 
   const handleSwapLocations = () => {
@@ -304,6 +355,10 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
     registerUserActivity();
     setServiceType(newService);
     setErrors({});
+    if (newService === 'local') {
+      setRouteInfo(null);
+      setViaLocations([]);
+    }
   };
 
   const handleResetForm = useCallback(() => {
@@ -351,8 +406,8 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
     setTravelDate(getTodayDate());
     setDropDate(getTomorrowDate());
     setReturnDate(getTomorrowDate());
-    setPickupTime('07:00 AM');
-    setReturnTime('07:00 PM');
+    setPickupTime('07:00');
+    setReturnTime('19:00');
     setDurationHours(8);
     setFlightNumber('');
     setErrors({});
@@ -398,19 +453,35 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
     const newErrors: Record<string, string> = {};
 
     if (!pickupLocation.trim()) {
-      newErrors.pickupLocation = 'Please enter pickup location';
+      newErrors.pickupLocation = 'Please select a valid pickup location.';
     }
 
-    if (serviceType !== 'local' && !dropLocation.trim()) {
-      newErrors.dropLocation = 'Please enter destination';
+    if (serviceType !== 'local') {
+      if (!dropLocation.trim()) {
+        newErrors.dropLocation = 'Please select a valid destination.';
+      } else if (pickupLocation.trim().toLowerCase() === dropLocation.trim().toLowerCase()) {
+        newErrors.dropLocation = 'Pickup and destination cannot be the same.';
+      }
     }
 
     if (!travelDate) {
-      newErrors.travelDate = 'Please select travel date';
+      newErrors.travelDate = 'Please select a valid pickup date.';
     }
 
-    if (serviceType === 'roundtrip' && !dropDate) {
-      newErrors.dropDate = 'Please select return date';
+    if (!pickupTime) {
+      newErrors.pickupTime = 'Please select pickup time.';
+    }
+
+    if (serviceType === 'roundtrip') {
+      if (!dropDate) {
+        newErrors.dropDate = 'Please select a valid return date.';
+      } else if (dropDate < travelDate) {
+        newErrors.dropDate = 'Return date cannot be earlier than departure date.';
+      }
+    }
+
+    if (serviceType !== 'local' && routeInfo?.validationStatus === 'NO_ROUTE_FOUND') {
+      newErrors.dropLocation = 'Unable to calculate the route. Please select the locations from the suggested Google Maps results.';
     }
 
     setErrors(newErrors);
@@ -420,14 +491,25 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
   const constructSearchPayload = (): BookingSearchState => {
     const validViaStops = viaLocations.filter((v) => v.trim().length > 0);
     const activeRoute =
-      routeInfo ||
-      estimateDrivingDistanceMatrix(
-        pickupLocation,
-        serviceType === 'local' ? 'Local Coverage' : dropLocation,
-        validViaStops,
-        pickupLocationObj?.lat && pickupLocationObj?.lng ? { lat: pickupLocationObj.lat, lng: pickupLocationObj.lng } : undefined,
-        dropLocationObj?.lat && dropLocationObj?.lng ? { lat: dropLocationObj.lat, lng: dropLocationObj.lng } : undefined
-      );
+      serviceType === 'local'
+        ? {
+            distanceKm: (durationHours || 8) * 10,
+            durationMinutes: (durationHours || 8) * 60,
+            durationText: `${durationHours || 8} Hours`,
+            routeSummary: `Mysuru Local Hourly Rental (${durationHours || 8} Hrs / ${(durationHours || 8) * 10} Km Package)`,
+            highwayCorridor: 'Mysuru City & Local Sightseeing Coverage',
+            tollEstimate: 0,
+            recommendedService: 'local' as const,
+            dataSource: 'intelligent_matrix' as const,
+          }
+        : routeInfo ||
+          estimateDrivingDistanceMatrix(
+            pickupLocation,
+            dropLocation,
+            validViaStops,
+            pickupLocationObj?.lat && pickupLocationObj?.lng ? { lat: pickupLocationObj.lat, lng: pickupLocationObj.lng } : undefined,
+            dropLocationObj?.lat && dropLocationObj?.lng ? { lat: dropLocationObj.lat, lng: dropLocationObj.lng } : undefined
+          );
 
     const activeRoundTripDays = calculateRoundTripDays(travelDate, returnDate || dropDate);
 
@@ -463,7 +545,7 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
     if (searchData.serviceType !== 'local' && searchData.routeInfo?.validationStatus === 'NO_ROUTE_FOUND') {
       setErrors((prev) => ({
         ...prev,
-        dropLocation: 'Unable to trace road route between these points. Please pick from suggested places.',
+        dropLocation: 'Unable to calculate the route. Please select the locations from the suggested Google Maps results.',
       }));
       return;
     }
@@ -475,97 +557,67 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
       id="travel-just-booking-widget"
       onKeyDown={registerUserActivity}
       onClick={registerUserActivity}
-      className="bg-white rounded-[26px] shadow-sm border border-slate-200/80 p-5 sm:p-7 md:p-8 lg:px-10 lg:py-8 transition-all relative z-20 w-full"
+      className="rounded-[28px] overflow-hidden shadow-xl border border-slate-200/80 transition-all relative z-20 w-full bg-[#ECFDF5]"
     >
-      <form onSubmit={handleSubmit} className="space-y-6 md:space-y-7">
-        {/* TOP BOOKING TYPE TABS */}
+      {/* Top Banner with HEX ECFDF5 background and centered tab pill */}
+      <div className="pt-6 pb-5 px-4 sm:px-6 md:px-8 flex flex-col items-center justify-center bg-[#ECFDF5]">
         <ServiceSelector
           selectedService={serviceType}
           onSelectService={handleServiceChange}
         />
+      </div>
 
-        {/* AIRPORT TRANSFER DIRECTION SELECTOR (When Airport tab is active) */}
-        {serviceType === 'airport' && (
-          <div className="flex justify-center">
-            <div className="inline-flex rounded-lg border border-slate-300 p-1 bg-slate-50 gap-1 text-xs sm:text-sm font-bold">
-              <button
-                type="button"
-                onClick={() => setAirportTransferType('pickup')}
-                className={`px-4 py-1.5 rounded-md transition-all cursor-pointer ${
-                  airportTransferType === 'pickup'
-                    ? 'bg-[#D0FAE5] text-slate-900 font-bold shadow-xs border border-emerald-300/60'
-                    : 'text-slate-700 hover:bg-slate-200/70'
-                }`}
-              >
-                Pickup from Airport
-              </button>
-              <button
-                type="button"
-                onClick={() => setAirportTransferType('drop')}
-                className={`px-4 py-1.5 rounded-md transition-all cursor-pointer ${
-                  airportTransferType === 'drop'
-                    ? 'bg-[#D0FAE5] text-slate-900 font-bold shadow-xs border border-emerald-300/60'
-                    : 'text-slate-700 hover:bg-slate-200/70'
-                }`}
-              >
-                Drop to Airport
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ONE WAY BOOKING FORM */}
-        {serviceType === 'oneway' && (
-          <div className="w-full">
-            {/* Desktop: single horizontal row; Mobile/Tablet: vertical stacked */}
-            <div className="flex flex-col lg:flex-row lg:items-end gap-5 lg:gap-4 xl:gap-6">
-              {/* 1. FROM Field */}
-              <div className="flex-1 min-w-0">
-                <LocationAutocompleteInput
-                  id="from-location-input"
-                  label="FROM"
-                  variant="underline"
-                  showSearchIconLeft
-                  placeholder="Enter pickup city, hotel, or station"
-                  value={pickupLocation}
-                  selectedPlace={pickupLocationObj}
-                  allowCurrentLocation={true}
-                  onChange={(val, suggestion) => {
-                    setPickupLocation(val);
-                    if (suggestion) setPickupLocationObj(suggestion);
-                    if (errors.pickupLocation) setErrors((prev) => ({ ...prev, pickupLocation: '' }));
-                  }}
-                  error={errors.pickupLocation}
-                  onClear={() => {
-                    setPickupLocation('');
-                    setPickupLocationObj(undefined);
-                  }}
-                />
-              </div>
-
-              {/* 2. SWAP BUTTON */}
-              <div className="flex justify-center items-center lg:self-end lg:mb-1.5">
-                <button
-                  type="button"
-                  id="swap-locations-btn"
-                  onClick={handleSwapLocations}
-                  title="Swap Pickup and Destination"
-                  aria-label="Swap locations"
-                  className="w-11 h-11 md:w-12 md:h-12 rounded-full bg-[#f1f3f5] hover:bg-[#e9ecef] border border-[#dee2e6] flex items-center justify-center transition-all duration-150 cursor-pointer shadow-2xs active:scale-95 group"
-                >
-                  <ArrowLeftRight className="w-5 h-5 text-[#14CD03] group-hover:rotate-180 transition-transform duration-300" />
-                </button>
-              </div>
-
-              {/* 3. TO Field */}
-              <div className="flex-1 min-w-0 relative">
-                <div className="relative">
+      {/* Main white form container */}
+      <div className="bg-white rounded-b-[28px] p-4 sm:p-6 md:p-7 lg:p-8">
+        <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
+          {/* 1. OUTSTATION ROUND-TRIP (6 BOXES) */}
+          {serviceType === 'roundtrip' && (
+            <div className="w-full space-y-4">
+              <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-2.5 xl:gap-3">
+                {/* FROM */}
+                <div className="flex-1 min-w-0">
                   <LocationAutocompleteInput
-                    id="to-location-input"
-                    label="TO"
-                    variant="underline"
-                    showSearchIconLeft
-                    placeholder="Enter destination city, hotel, or station"
+                    id="rt-from-location-input"
+                    label="From"
+                    variant="card-box"
+                    placeholder="From"
+                    value={pickupLocation}
+                    selectedPlace={pickupLocationObj}
+                    allowCurrentLocation={false}
+                    onChange={(val, suggestion) => {
+                      setPickupLocation(val);
+                      if (suggestion) setPickupLocationObj(suggestion);
+                      if (errors.pickupLocation) setErrors((prev) => ({ ...prev, pickupLocation: '' }));
+                    }}
+                    error={errors.pickupLocation}
+                    onClear={() => {
+                      setPickupLocation('');
+                      setPickupLocationObj(undefined);
+                    }}
+                  />
+                </div>
+
+                {/* SWAP BUTTON */}
+                <div className="flex justify-center items-center -my-1 lg:my-0 lg:-mx-4 z-10 shrink-0">
+                  <button
+                    type="button"
+                    id="rt-swap-locations-btn"
+                    onClick={handleSwapLocations}
+                    title="Swap From and To"
+                    aria-label="Swap locations"
+                    className="w-8 h-8 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center hover:bg-slate-50 active:scale-95 transition-all text-slate-700 cursor-pointer"
+                  >
+                    <ArrowLeftRight className="w-3.5 h-3.5 text-slate-700" />
+                  </button>
+                </div>
+
+                {/* TO */}
+                <div className="flex-1 min-w-0 relative">
+                  <LocationAutocompleteInput
+                    id="rt-to-location-input"
+                    label="To"
+                    variant="card-box"
+                    placeholder="To"
                     value={dropLocation}
                     selectedPlace={dropLocationObj}
                     allowCurrentLocation={false}
@@ -581,127 +633,607 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                     }}
                   />
                 </div>
-              </div>
 
-              {/* 4. PICK UP DATE Field */}
-              <div className="w-full lg:w-44 xl:w-48 space-y-1">
-                <label
-                  htmlFor="pickup-date-display"
-                  className="text-[12px] leading-[16px] font-bold uppercase tracking-wide text-[#0f2441] block whitespace-nowrap"
-                >
-                  PICK UP DATE
-                </label>
+                {/* DEPARTURE */}
                 <div
-                  id="pickup-date-display"
+                  id="rt-departure-date-box"
                   onClick={() => {
-                    if (pickupDateInputRef.current?.showPicker) {
-                      pickupDateInputRef.current.showPicker();
-                    } else {
-                      pickupDateInputRef.current?.focus();
+                    registerUserActivity();
+                    setActiveCalendar((prev) => (prev === 'rt-departure' ? null : 'rt-departure'));
+                    try {
+                      pickupDateInputRef.current?.showPicker?.();
+                    } catch {
+                      // Handled by custom CalendarPopover
                     }
                   }}
-                  className="relative cursor-pointer border-b border-gray-300 pb-1.5 flex items-center justify-between hover:border-[#20A8D8] transition-colors"
+                  className={`w-full lg:w-36 xl:w-40 relative border rounded-xl bg-white p-3 sm:py-3 sm:px-3.5 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] cursor-pointer shadow-2xs shrink-0 ${
+                    errors.travelDate
+                      ? 'border-rose-400 ring-1 ring-rose-300'
+                      : activeCalendar === 'rt-departure'
+                      ? 'border-emerald-600 ring-2 ring-emerald-500/30'
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
                 >
-                  <span className="text-base md:text-lg lg:text-[19px] font-bold text-slate-900 select-none">
-                    {formatDateToDDMMYYYY(travelDate)}
-                  </span>
-                  <ChevronDown className="w-5 h-5 text-[#20A8D8] shrink-0 pointer-events-none" />
+                  <div className="flex items-center justify-between text-slate-500 text-xs sm:text-[13px] font-normal leading-none mb-1">
+                    <span className="flex items-center gap-1">
+                      Departure <ChevronDown className="w-3.5 h-3.5 text-indigo-900" />
+                    </span>
+                    {errors.travelDate && (
+                      <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                    )}
+                  </div>
+                  <div className="text-slate-900 font-medium text-sm sm:text-base leading-tight truncate">
+                    {formatDateToSeptFormat(travelDate)}
+                  </div>
+                  {errors.travelDate && (
+                    <span className="text-[10px] text-rose-600 font-medium truncate block leading-tight">
+                      {errors.travelDate}
+                    </span>
+                  )}
+                  <input
+                    ref={pickupDateInputRef}
+                    id="rt-departure-date-input"
+                    type="date"
+                    min={getTodayDate()}
+                    value={travelDate}
+                    onFocus={() => setActiveCalendar('rt-departure')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      registerUserActivity();
+                      setActiveCalendar((prev) => (prev === 'rt-departure' ? null : 'rt-departure'));
+                      try {
+                        (e.currentTarget as HTMLInputElement).showPicker?.();
+                      } catch {
+                        // Handled by custom CalendarPopover
+                      }
+                    }}
+                    onChange={(e) => handleTravelDateChange(e.target.value)}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    aria-label="Select departure date"
+                  />
+
+                  <CalendarPopover
+                    isOpen={activeCalendar === 'rt-departure'}
+                    onClose={() => setActiveCalendar(null)}
+                    selectedDate={travelDate}
+                    minDate={getTodayDate()}
+                    title="Departure Date"
+                    align="left"
+                    onSelectDate={(newDate) => {
+                      handleTravelDateChange(newDate);
+                      setActiveCalendar(null);
+                    }}
+                  />
+                </div>
+
+                {/* RETURN */}
+                <div
+                  id="rt-return-date-box"
+                  onClick={() => {
+                    registerUserActivity();
+                    setActiveCalendar((prev) => (prev === 'rt-return' ? null : 'rt-return'));
+                    try {
+                      dropDateInputRef.current?.showPicker?.();
+                    } catch {
+                      // Handled by custom CalendarPopover
+                    }
+                  }}
+                  className={`w-full lg:w-36 xl:w-40 relative border rounded-xl bg-white p-3 sm:py-3 sm:px-3.5 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] cursor-pointer shadow-2xs shrink-0 ${
+                    errors.dropDate
+                      ? 'border-rose-400 ring-1 ring-rose-300'
+                      : activeCalendar === 'rt-return'
+                      ? 'border-emerald-600 ring-2 ring-emerald-500/30'
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-slate-500 text-xs sm:text-[13px] font-normal leading-none mb-1">
+                    <span className="flex items-center gap-1">Return</span>
+                    {errors.dropDate && (
+                      <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                    )}
+                  </div>
+                  <div className="text-slate-900 font-medium text-sm sm:text-base leading-tight truncate">
+                    {formatDateToSeptFormat(dropDate || returnDate || travelDate)}
+                  </div>
+                  {errors.dropDate && (
+                    <span className="text-[10px] text-rose-600 font-medium truncate block leading-tight">
+                      {errors.dropDate}
+                    </span>
+                  )}
+                  <input
+                    ref={dropDateInputRef}
+                    id="rt-return-date-input"
+                    type="date"
+                    min={travelDate || getTodayDate()}
+                    value={dropDate}
+                    onFocus={() => setActiveCalendar('rt-return')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      registerUserActivity();
+                      setActiveCalendar((prev) => (prev === 'rt-return' ? null : 'rt-return'));
+                      try {
+                        (e.currentTarget as HTMLInputElement).showPicker?.();
+                      } catch {
+                        // Handled by custom CalendarPopover
+                      }
+                    }}
+                    onChange={(e) => handleDropDateChange(e.target.value)}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    aria-label="Select return date"
+                  />
+
+                  <CalendarPopover
+                    isOpen={activeCalendar === 'rt-return'}
+                    onClose={() => setActiveCalendar(null)}
+                    selectedDate={dropDate || returnDate || travelDate}
+                    minDate={travelDate || getTodayDate()}
+                    title="Return Date"
+                    align="right"
+                    onSelectDate={(newDate) => {
+                      handleDropDateChange(newDate);
+                      setActiveCalendar(null);
+                    }}
+                  />
+                </div>
+
+                {/* PICKUP-TIME */}
+                <div className="w-full lg:w-28 xl:w-32 relative border border-slate-200 rounded-xl bg-white p-3 sm:py-3 sm:px-3.5 hover:border-slate-300 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] shadow-2xs shrink-0">
+                  <div className="text-slate-500 text-xs sm:text-[13px] font-normal leading-none mb-1">
+                    Pickup-Time
+                  </div>
+                  <div className="relative flex items-center">
+                    <select
+                      value={pickupTime}
+                      onChange={(e) => setPickupTime(e.target.value)}
+                      className="w-full bg-transparent border-none p-0 text-slate-900 font-medium text-sm sm:text-base focus:outline-none appearance-none cursor-pointer pr-4"
+                      aria-label="Select pickup time"
+                    >
+                      {TIME_OPTIONS_24H.map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-0 pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* DROP-TIME */}
+                <div className="w-full lg:w-28 xl:w-32 relative border border-slate-200 rounded-xl bg-white p-3 sm:py-3 sm:px-3.5 hover:border-slate-300 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] shadow-2xs shrink-0">
+                  <div className="text-slate-500 text-xs sm:text-[13px] font-normal leading-none mb-1">
+                    Drop-Time
+                  </div>
+                  <div className="relative flex items-center">
+                    <select
+                      value={returnTime}
+                      onChange={(e) => setReturnTime(e.target.value)}
+                      className="w-full bg-transparent border-none p-0 text-slate-900 font-medium text-sm sm:text-base focus:outline-none appearance-none cursor-pointer pr-4"
+                      aria-label="Select drop time"
+                    >
+                      {TIME_OPTIONS_24H.map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-0 pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Add Stop option */}
+              <div className="flex items-center justify-end">
+                <button
+                  type="button"
+                  id="rt-add-stop-explicit-btn"
+                  onClick={handleAddStop}
+                  className="inline-flex items-center gap-1 text-xs text-slate-600 hover:text-slate-900 font-medium cursor-pointer transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Add intermediate stop</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 2. OUTSTATION ONE-WAY (4 BOXES) */}
+          {serviceType === 'oneway' && (
+            <div className="w-full">
+              <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-2.5 xl:gap-3">
+                {/* FROM */}
+                <div className="flex-1 min-w-0">
+                  <LocationAutocompleteInput
+                    id="from-location-input"
+                    label="From"
+                    variant="card-box"
+                    placeholder="From"
+                    value={pickupLocation}
+                    selectedPlace={pickupLocationObj}
+                    allowCurrentLocation={false}
+                    onChange={(val, suggestion) => {
+                      setPickupLocation(val);
+                      if (suggestion) setPickupLocationObj(suggestion);
+                      if (errors.pickupLocation) setErrors((prev) => ({ ...prev, pickupLocation: '' }));
+                    }}
+                    error={errors.pickupLocation}
+                    onClear={() => {
+                      setPickupLocation('');
+                      setPickupLocationObj(undefined);
+                    }}
+                  />
+                </div>
+
+                {/* SWAP BUTTON */}
+                <div className="flex justify-center items-center -my-1 lg:my-0 lg:-mx-4 z-10 shrink-0">
+                  <button
+                    type="button"
+                    id="swap-locations-btn"
+                    onClick={handleSwapLocations}
+                    title="Swap From and To"
+                    aria-label="Swap locations"
+                    className="w-8 h-8 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center hover:bg-slate-50 active:scale-95 transition-all text-slate-700 cursor-pointer"
+                  >
+                    <ArrowLeftRight className="w-3.5 h-3.5 text-slate-700" />
+                  </button>
+                </div>
+
+                {/* TO */}
+                <div className="flex-1 min-w-0 relative">
+                  <LocationAutocompleteInput
+                    id="to-location-input"
+                    label="To"
+                    variant="card-box"
+                    placeholder="To"
+                    value={dropLocation}
+                    selectedPlace={dropLocationObj}
+                    allowCurrentLocation={false}
+                    onChange={(val, suggestion) => {
+                      setDropLocation(val);
+                      if (suggestion) setDropLocationObj(suggestion);
+                      if (errors.dropLocation) setErrors((prev) => ({ ...prev, dropLocation: '' }));
+                    }}
+                    error={errors.dropLocation}
+                    onClear={() => {
+                      setDropLocation('');
+                      setDropLocationObj(undefined);
+                    }}
+                  />
+                </div>
+
+                {/* DEPARTURE */}
+                <div
+                  id="oneway-departure-date-box"
+                  onClick={() => {
+                    registerUserActivity();
+                    setActiveCalendar((prev) => (prev === 'ow-departure' ? null : 'ow-departure'));
+                    try {
+                      pickupDateInputRef.current?.showPicker?.();
+                    } catch {
+                      // Handled by custom CalendarPopover
+                    }
+                  }}
+                  className={`w-full lg:w-44 xl:w-48 relative border rounded-xl bg-white p-3 sm:py-3 sm:px-4 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] cursor-pointer shadow-2xs shrink-0 ${
+                    errors.travelDate
+                      ? 'border-rose-400 ring-1 ring-rose-300'
+                      : activeCalendar === 'ow-departure'
+                      ? 'border-emerald-600 ring-2 ring-emerald-500/30'
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-slate-500 text-xs sm:text-[13px] font-normal leading-none mb-1">
+                    <span className="flex items-center gap-1">
+                      Departure <ChevronDown className="w-3.5 h-3.5 text-indigo-900" />
+                    </span>
+                    {errors.travelDate && (
+                      <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                    )}
+                  </div>
+                  <div className="text-slate-900 font-medium text-sm sm:text-base leading-tight truncate">
+                    {formatDateToSeptFormat(travelDate)}
+                  </div>
+                  {errors.travelDate && (
+                    <span className="text-[10px] text-rose-600 font-medium truncate block leading-tight">
+                      {errors.travelDate}
+                    </span>
+                  )}
                   <input
                     ref={pickupDateInputRef}
                     id="pickup-date-native-input"
                     type="date"
                     min={getTodayDate()}
                     value={travelDate}
+                    onFocus={() => setActiveCalendar('ow-departure')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      registerUserActivity();
+                      setActiveCalendar((prev) => (prev === 'ow-departure' ? null : 'ow-departure'));
+                      try {
+                        (e.currentTarget as HTMLInputElement).showPicker?.();
+                      } catch {
+                        // Handled by custom CalendarPopover
+                      }
+                    }}
                     onChange={(e) => handleTravelDateChange(e.target.value)}
                     className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                    aria-label="Select pickup date"
+                    aria-label="Select departure date"
+                  />
+
+                  <CalendarPopover
+                    isOpen={activeCalendar === 'ow-departure'}
+                    onClose={() => setActiveCalendar(null)}
+                    selectedDate={travelDate}
+                    minDate={getTodayDate()}
+                    title="Departure Date"
+                    align="left"
+                    onSelectDate={(newDate) => {
+                      handleTravelDateChange(newDate);
+                      setActiveCalendar(null);
+                    }}
                   />
                 </div>
-                {errors.travelDate && (
-                  <p className="text-xs text-rose-600 font-medium mt-1">{errors.travelDate}</p>
-                )}
-              </div>
 
-              {/* 5. PICK UP TIME Field */}
-              <div className="w-full lg:w-36 xl:w-40 space-y-1">
-                <label
-                  htmlFor="pickup-time-select"
-                  className="text-[12px] leading-[16px] font-bold uppercase tracking-wide text-[#0f2441] block whitespace-nowrap"
-                >
-                  PICK UP TIME
-                </label>
-                <div className="relative border-b border-gray-300 pb-1.5 flex items-center justify-between hover:border-[#20A8D8] transition-colors">
-                  <select
-                    id="pickup-time-select"
-                    value={pickupTime}
-                    onChange={(e) => setPickupTime(e.target.value)}
-                    className="w-full bg-transparent border-none p-0 text-base md:text-lg lg:text-[19px] font-bold text-slate-900 focus:outline-none appearance-none cursor-pointer pr-6"
-                    aria-label="Select pickup time"
-                  >
-                    {TIME_OPTIONS.map((timeOption) => (
-                      <option key={timeOption} value={timeOption} className="text-slate-900 font-medium py-1">
-                        {timeOption}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-5 h-5 text-[#20A8D8] shrink-0 pointer-events-none absolute right-0" />
+                {/* PICKUP-TIME */}
+                <div className="w-full lg:w-36 xl:w-40 relative border border-slate-200 rounded-xl bg-white p-3 sm:py-3 sm:px-4 hover:border-slate-300 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] shadow-2xs shrink-0">
+                  <div className="text-slate-500 text-xs sm:text-[13px] font-normal leading-none mb-1">
+                    Pickup-Time
+                  </div>
+                  <div className="relative flex items-center">
+                    <select
+                      id="pickup-time-select"
+                      value={pickupTime}
+                      onChange={(e) => setPickupTime(e.target.value)}
+                      className="w-full bg-transparent border-none p-0 text-slate-900 font-medium text-sm sm:text-base focus:outline-none appearance-none cursor-pointer pr-4"
+                      aria-label="Select pickup time"
+                    >
+                      {TIME_OPTIONS_24H.map((timeOption) => (
+                        <option key={timeOption} value={timeOption} className="text-slate-900 font-medium py-1">
+                          {timeOption}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-0 pointer-events-none" />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* ROUND TRIP BOOKING FORM */}
-        {serviceType === 'roundtrip' && (
-          <div className="w-full space-y-5">
-            {/* Top Row: FROM <SWAP> TO */}
-            <div className="flex flex-col lg:flex-row lg:items-end gap-5 lg:gap-4 xl:gap-6">
-              {/* FROM */}
-              <div className="flex-1 min-w-0">
-                <LocationAutocompleteInput
-                  id="rt-from-location-input"
-                  label="FROM"
-                  variant="underline"
-                  showSearchIconLeft
-                  placeholder="Enter pickup city, hotel, or station"
-                  value={pickupLocation}
-                  selectedPlace={pickupLocationObj}
-                  allowCurrentLocation={true}
-                  onChange={(val, suggestion) => {
-                    setPickupLocation(val);
-                    if (suggestion) setPickupLocationObj(suggestion);
-                    if (errors.pickupLocation) setErrors((prev) => ({ ...prev, pickupLocation: '' }));
-                  }}
-                  error={errors.pickupLocation}
-                  onClear={() => {
-                    setPickupLocation('');
-                    setPickupLocationObj(undefined);
-                  }}
-                />
-              </div>
-
-              {/* SWAP */}
-              <div className="flex justify-center items-center lg:self-end lg:mb-1.5">
-                <button
-                  type="button"
-                  onClick={handleSwapLocations}
-                  title="Swap Pickup and Destination"
-                  aria-label="Swap locations"
-                  className="w-11 h-11 md:w-12 md:h-12 rounded-full bg-[#f1f3f5] hover:bg-[#e9ecef] border border-[#dee2e6] flex items-center justify-center transition-all cursor-pointer shadow-2xs active:scale-95 group"
-                >
-                  <ArrowLeftRight className="w-5 h-5 text-[#14CD03] group-hover:rotate-180 transition-transform duration-300" />
-                </button>
-              </div>
-
-              {/* TO with explicit "+ ADD STOP" */}
-              <div className="flex-1 min-w-0 relative">
-                <div className="relative">
+          {/* 3. HOURLY RENTAL (4 BOXES) */}
+          {serviceType === 'local' && (
+            <div className="w-full">
+              <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-2.5 xl:gap-3">
+                {/* FROM */}
+                <div className="flex-[2] min-w-0">
                   <LocationAutocompleteInput
-                    id="rt-to-location-input"
-                    label="TO"
-                    variant="underline"
-                    showSearchIconLeft
-                    placeholder="Enter destination city, hotel, or station"
+                    id="local-pickup-location-input"
+                    label="From"
+                    variant="card-box"
+                    placeholder="From (e.g. Mysuru City / Hotel)"
+                    value={pickupLocation}
+                    selectedPlace={pickupLocationObj}
+                    allowCurrentLocation={false}
+                    onChange={(val, suggestion) => {
+                      setPickupLocation(val);
+                      if (suggestion) setPickupLocationObj(suggestion);
+                      if (errors.pickupLocation) setErrors((prev) => ({ ...prev, pickupLocation: '' }));
+                    }}
+                    error={errors.pickupLocation}
+                    onClear={() => {
+                      setPickupLocation('');
+                      setPickupLocationObj(undefined);
+                    }}
+                  />
+                </div>
+
+                {/* DEPARTURE */}
+                <div
+                  id="local-departure-date-box"
+                  onClick={() => {
+                    registerUserActivity();
+                    setActiveCalendar((prev) => (prev === 'local-departure' ? null : 'local-departure'));
+                    try {
+                      pickupDateInputRef.current?.showPicker?.();
+                    } catch {
+                      // Handled by custom CalendarPopover
+                    }
+                  }}
+                  className={`w-full lg:w-44 xl:w-48 relative border rounded-xl bg-white p-3 sm:py-3 sm:px-4 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] cursor-pointer shadow-2xs shrink-0 ${
+                    errors.travelDate
+                      ? 'border-rose-400 ring-1 ring-rose-300'
+                      : activeCalendar === 'local-departure'
+                      ? 'border-emerald-600 ring-2 ring-emerald-500/30'
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-slate-500 text-xs sm:text-[13px] font-normal leading-none mb-1">
+                    <span className="flex items-center gap-1">
+                      Departure <ChevronDown className="w-3.5 h-3.5 text-indigo-900" />
+                    </span>
+                    {errors.travelDate && (
+                      <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                    )}
+                  </div>
+                  <div className="text-slate-900 font-medium text-sm sm:text-base leading-tight truncate">
+                    {formatDateToSeptFormat(travelDate)}
+                  </div>
+                  {errors.travelDate && (
+                    <span className="text-[10px] text-rose-600 font-medium truncate block leading-tight">
+                      {errors.travelDate}
+                    </span>
+                  )}
+                  <input
+                    ref={pickupDateInputRef}
+                    id="local-departure-date-input"
+                    type="date"
+                    min={getTodayDate()}
+                    value={travelDate}
+                    onFocus={() => setActiveCalendar('local-departure')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      registerUserActivity();
+                      setActiveCalendar((prev) => (prev === 'local-departure' ? null : 'local-departure'));
+                      try {
+                        (e.currentTarget as HTMLInputElement).showPicker?.();
+                      } catch {
+                        // Handled by custom CalendarPopover
+                      }
+                    }}
+                    onChange={(e) => handleTravelDateChange(e.target.value)}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    aria-label="Select date"
+                  />
+
+                  <CalendarPopover
+                    isOpen={activeCalendar === 'local-departure'}
+                    onClose={() => setActiveCalendar(null)}
+                    selectedDate={travelDate}
+                    minDate={getTodayDate()}
+                    title="Departure Date"
+                    align="left"
+                    onSelectDate={(newDate) => {
+                      handleTravelDateChange(newDate);
+                      setActiveCalendar(null);
+                    }}
+                  />
+                </div>
+
+                {/* PICKUP-TIME */}
+                <div
+                  id="local-pickup-time-box"
+                  className={`w-full lg:w-36 xl:w-40 relative border rounded-xl bg-white p-3 sm:py-3 sm:px-4 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] shadow-2xs shrink-0 ${
+                    errors.pickupTime
+                      ? 'border-rose-400 ring-1 ring-rose-300'
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-slate-500 text-xs sm:text-[13px] font-normal leading-none mb-1">
+                    <span>Pickup-Time</span>
+                    {errors.pickupTime && (
+                      <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                    )}
+                  </div>
+                  <div className="relative flex items-center">
+                    <select
+                      id="local-pickup-time-select"
+                      value={formatTo24Hour(pickupTime)}
+                      onChange={(e) => {
+                        setPickupTime(e.target.value);
+                        if (errors.pickupTime) setErrors((prev) => ({ ...prev, pickupTime: '' }));
+                      }}
+                      className="w-full bg-transparent border-none p-0 text-slate-900 font-medium text-sm sm:text-base focus:outline-none appearance-none cursor-pointer pr-4"
+                      aria-label="Select start time"
+                    >
+                      {TIME_OPTIONS_24H.map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-0 pointer-events-none" />
+                  </div>
+                  {errors.pickupTime && (
+                    <span className="text-[10px] text-rose-600 font-medium truncate block leading-tight">
+                      {errors.pickupTime}
+                    </span>
+                  )}
+                </div>
+
+                {/* DURATION */}
+                <div
+                  id="local-duration-box"
+                  className="w-full lg:w-48 xl:w-52 relative border border-slate-200 rounded-xl bg-white p-3 sm:py-3 sm:px-4 hover:border-slate-300 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] shadow-2xs shrink-0"
+                >
+                  <div className="text-slate-500 text-xs sm:text-[13px] font-normal leading-none mb-1">
+                    Duration
+                  </div>
+                  <div className="relative flex items-center">
+                    <select
+                      id="local-duration-select"
+                      value={durationHours}
+                      onChange={(e) => setDurationHours(Number(e.target.value))}
+                      className="w-full bg-transparent border-none p-0 text-slate-900 font-medium text-sm sm:text-base focus:outline-none appearance-none cursor-pointer pr-4"
+                      aria-label="Select trip duration"
+                    >
+                      <option value={4}>4 Hours / 40 Km</option>
+                      <option value={8}>8 Hours / 80 Km</option>
+                      <option value={10}>10 Hours / 100 Km</option>
+                      <option value={12}>12 Hours / 120 Km</option>
+                    </select>
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-0 pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 4. AIRPORT (4 BOXES) */}
+          {serviceType === 'airport' && (
+            <div className="w-full space-y-4">
+              <div className="flex items-center justify-center gap-2">
+                <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-50 text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setAirportTransferType('pickup')}
+                    className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+                      airportTransferType === 'pickup'
+                        ? 'bg-[#192A56] text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Airport Pickup
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAirportTransferType('drop')}
+                    className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+                      airportTransferType === 'drop'
+                        ? 'bg-[#192A56] text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Airport Drop
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-2.5 xl:gap-3">
+                {/* FROM */}
+                <div className="flex-1 min-w-0">
+                  <LocationAutocompleteInput
+                    id="airport-pickup-input"
+                    label="From"
+                    variant="card-box"
+                    placeholder={airportTransferType === 'pickup' ? 'From (Airport)' : 'From (City/Hotel)'}
+                    value={pickupLocation}
+                    selectedPlace={pickupLocationObj}
+                    allowCurrentLocation={false}
+                    onChange={(val, suggestion) => {
+                      setPickupLocation(val);
+                      if (suggestion) setPickupLocationObj(suggestion);
+                      if (errors.pickupLocation) setErrors((prev) => ({ ...prev, pickupLocation: '' }));
+                    }}
+                    error={errors.pickupLocation}
+                    onClear={() => {
+                      setPickupLocation('');
+                      setPickupLocationObj(undefined);
+                    }}
+                  />
+                </div>
+
+                {/* SWAP BUTTON */}
+                <div className="flex justify-center items-center -my-1 lg:my-0 lg:-mx-4 z-10 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleSwapLocations}
+                    title="Swap From and To"
+                    aria-label="Swap locations"
+                    className="w-8 h-8 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center hover:bg-slate-50 active:scale-95 transition-all text-slate-700 cursor-pointer"
+                  >
+                    <ArrowLeftRight className="w-3.5 h-3.5 text-slate-700" />
+                  </button>
+                </div>
+
+                {/* TO */}
+                <div className="flex-1 min-w-0 relative">
+                  <LocationAutocompleteInput
+                    id="airport-drop-input"
+                    label="To"
+                    variant="card-box"
+                    placeholder={airportTransferType === 'drop' ? 'To (Airport)' : 'To (City/Hotel)'}
                     value={dropLocation}
                     selectedPlace={dropLocationObj}
                     allowCurrentLocation={false}
@@ -716,369 +1248,122 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                       setDropLocationObj(undefined);
                     }}
                   />
+                </div>
 
-                  {/* Explicit "+ ADD STOP" badge beside TO in Round Trip */}
-                  <div className="absolute right-0 top-0">
-                    <button
-                      type="button"
-                      id="rt-add-stop-explicit-btn"
-                      onClick={handleAddStop}
-                      title="Add enroute stop"
-                      className="inline-flex items-center gap-1 text-[11px] font-bold text-[#14CD03] hover:text-[#0fa302] bg-emerald-50/70 hover:bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-200 cursor-pointer transition-colors shadow-2xs"
-                    >
-                      <Plus className="w-3.5 h-3.5 text-[#14CD03]" />
-                      <span>ADD STOP</span>
-                    </button>
+                {/* DEPARTURE */}
+                <div
+                  id="airport-departure-date-box"
+                  onClick={() => {
+                    registerUserActivity();
+                    setActiveCalendar((prev) => (prev === 'airport-departure' ? null : 'airport-departure'));
+                    try {
+                      pickupDateInputRef.current?.showPicker?.();
+                    } catch {
+                      // Handled by custom CalendarPopover
+                    }
+                  }}
+                  className={`w-full lg:w-44 xl:w-48 relative border rounded-xl bg-white p-3 sm:py-3 sm:px-4 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] cursor-pointer shadow-2xs shrink-0 ${
+                    errors.travelDate
+                      ? 'border-rose-400 ring-1 ring-rose-300'
+                      : activeCalendar === 'airport-departure'
+                      ? 'border-emerald-600 ring-2 ring-emerald-500/30'
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-slate-500 text-xs sm:text-[13px] font-normal leading-none mb-1">
+                    <span className="flex items-center gap-1">
+                      Departure <ChevronDown className="w-3.5 h-3.5 text-indigo-900" />
+                    </span>
+                    {errors.travelDate && (
+                      <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                    )}
                   </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom Row: Pickup Date, Pickup Time, Return Date, Return Time */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6 pt-2">
-              {/* Pickup Date */}
-              <div className="space-y-1">
-                <label className="text-[12px] leading-[16px] font-bold uppercase tracking-wide text-[#0f2441] block whitespace-nowrap">
-                  PICK UP DATE
-                </label>
-                <div
-                  onClick={() => {
-                    if (pickupDateInputRef.current?.showPicker) {
-                      pickupDateInputRef.current.showPicker();
-                    } else {
-                      pickupDateInputRef.current?.focus();
-                    }
-                  }}
-                  className="relative cursor-pointer border-b border-gray-300 pb-1.5 flex items-center justify-between hover:border-[#20A8D8] transition-colors"
-                >
-                  <span className="text-base md:text-lg lg:text-[19px] font-bold text-slate-900 select-none">
-                    {formatDateToDDMMYYYY(travelDate)}
-                  </span>
-                  <ChevronDown className="w-5 h-5 text-[#20A8D8] shrink-0 pointer-events-none" />
+                  <div className="text-slate-900 font-medium text-sm sm:text-base leading-tight truncate">
+                    {formatDateToSeptFormat(travelDate)}
+                  </div>
+                  {errors.travelDate && (
+                    <span className="text-[10px] text-rose-600 font-medium truncate block leading-tight">
+                      {errors.travelDate}
+                    </span>
+                  )}
                   <input
                     ref={pickupDateInputRef}
+                    id="airport-departure-date-input"
                     type="date"
                     min={getTodayDate()}
                     value={travelDate}
-                    onChange={(e) => handleTravelDateChange(e.target.value)}
-                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                    aria-label="Select pickup date"
-                  />
-                </div>
-              </div>
-
-              {/* Pickup Time */}
-              <div className="space-y-1">
-                <label className="text-[12px] leading-[16px] font-bold uppercase tracking-wide text-[#0f2441] block whitespace-nowrap">
-                  PICK UP TIME
-                </label>
-                <div className="relative border-b border-gray-300 pb-1.5 flex items-center justify-between hover:border-[#20A8D8] transition-colors">
-                  <select
-                    value={pickupTime}
-                    onChange={(e) => setPickupTime(e.target.value)}
-                    className="w-full bg-transparent border-none p-0 text-base md:text-lg lg:text-[19px] font-bold text-slate-900 focus:outline-none appearance-none cursor-pointer pr-6"
-                    aria-label="Select pickup time"
-                  >
-                    {TIME_OPTIONS.map((t) => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-5 h-5 text-[#20A8D8] shrink-0 pointer-events-none absolute right-0" />
-                </div>
-              </div>
-
-              {/* Return Date */}
-              <div className="space-y-1">
-                <label className="text-[12px] leading-[16px] font-bold uppercase tracking-wide text-[#0f2441] block whitespace-nowrap">
-                  RETURN DATE
-                </label>
-                <div
-                  onClick={() => {
-                    if (dropDateInputRef.current?.showPicker) {
-                      dropDateInputRef.current.showPicker();
-                    } else {
-                      dropDateInputRef.current?.focus();
-                    }
-                  }}
-                  className="relative cursor-pointer border-b border-gray-300 pb-1.5 flex items-center justify-between hover:border-[#20A8D8] transition-colors"
-                >
-                  <span className="text-base md:text-lg lg:text-[19px] font-bold text-slate-900 select-none">
-                    {formatDateToDDMMYYYY(dropDate)}
-                  </span>
-                  <ChevronDown className="w-5 h-5 text-[#20A8D8] shrink-0 pointer-events-none" />
-                  <input
-                    ref={dropDateInputRef}
-                    type="date"
-                    min={travelDate || getTodayDate()}
-                    value={dropDate}
-                    onChange={(e) => handleDropDateChange(e.target.value)}
-                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                    aria-label="Select return date"
-                  />
-                </div>
-                {errors.dropDate && (
-                  <p className="text-xs text-rose-600 font-medium mt-1">{errors.dropDate}</p>
-                )}
-              </div>
-
-              {/* Return Time */}
-              <div className="space-y-1">
-                <label className="text-[12px] leading-[16px] font-bold uppercase tracking-wide text-[#0f2441] block whitespace-nowrap">
-                  RETURN TIME
-                </label>
-                <div className="relative border-b border-gray-300 pb-1.5 flex items-center justify-between hover:border-[#20A8D8] transition-colors">
-                  <select
-                    value={returnTime}
-                    onChange={(e) => setReturnTime(e.target.value)}
-                    className="w-full bg-transparent border-none p-0 text-base md:text-lg lg:text-[19px] font-bold text-slate-900 focus:outline-none appearance-none cursor-pointer pr-6"
-                    aria-label="Select return time"
-                  >
-                    {TIME_OPTIONS.map((t) => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-5 h-5 text-[#20A8D8] shrink-0 pointer-events-none absolute right-0" />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* LOCAL BOOKING FORM */}
-        {serviceType === 'local' && (
-          <div className="w-full">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6 items-end">
-              {/* 1. PICKUP LOCATION */}
-              <div className="min-w-0">
-                <LocationAutocompleteInput
-                  id="local-pickup-location-input"
-                  label="PICKUP LOCATION"
-                  variant="underline"
-                  showSearchIconLeft
-                  placeholder="Enter pickup address, hotel, or landmark"
-                  value={pickupLocation}
-                  selectedPlace={pickupLocationObj}
-                  allowCurrentLocation={true}
-                  onChange={(val, suggestion) => {
-                    setPickupLocation(val);
-                    if (suggestion) setPickupLocationObj(suggestion);
-                    if (errors.pickupLocation) setErrors((prev) => ({ ...prev, pickupLocation: '' }));
-                  }}
-                  error={errors.pickupLocation}
-                  onClear={() => {
-                    setPickupLocation('');
-                    setPickupLocationObj(undefined);
-                  }}
-                />
-              </div>
-
-              {/* 2. DATE */}
-              <div className="space-y-1">
-                <label className="text-[12px] leading-[16px] font-bold uppercase tracking-wide text-[#0f2441] block whitespace-nowrap">
-                  DATE
-                </label>
-                <div
-                  onClick={() => {
-                    if (pickupDateInputRef.current?.showPicker) {
-                      pickupDateInputRef.current.showPicker();
-                    } else {
-                      pickupDateInputRef.current?.focus();
-                    }
-                  }}
-                  className="relative cursor-pointer border-b border-gray-300 pb-1.5 flex items-center justify-between hover:border-[#20A8D8] transition-colors"
-                >
-                  <span className="text-base md:text-lg lg:text-[19px] font-bold text-slate-900 select-none">
-                    {formatDateToDDMMYYYY(travelDate)}
-                  </span>
-                  <ChevronDown className="w-5 h-5 text-[#20A8D8] shrink-0 pointer-events-none" />
-                  <input
-                    ref={pickupDateInputRef}
-                    type="date"
-                    min={getTodayDate()}
-                    value={travelDate}
-                    onChange={(e) => handleTravelDateChange(e.target.value)}
-                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                    aria-label="Select date"
-                  />
-                </div>
-              </div>
-
-              {/* 3. START TIME */}
-              <div className="space-y-1">
-                <label className="text-[12px] leading-[16px] font-bold uppercase tracking-wide text-[#0f2441] block whitespace-nowrap">
-                  START TIME
-                </label>
-                <div className="relative border-b border-gray-300 pb-1.5 flex items-center justify-between hover:border-[#20A8D8] transition-colors">
-                  <select
-                    value={pickupTime}
-                    onChange={(e) => setPickupTime(e.target.value)}
-                    className="w-full bg-transparent border-none p-0 text-base md:text-lg lg:text-[19px] font-bold text-slate-900 focus:outline-none appearance-none cursor-pointer pr-6"
-                    aria-label="Select start time"
-                  >
-                    {TIME_OPTIONS.map((t) => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-5 h-5 text-[#20A8D8] shrink-0 pointer-events-none absolute right-0" />
-                </div>
-              </div>
-
-              {/* 4. DURATION / PACKAGE */}
-              <div className="space-y-1">
-                <label className="text-[12px] leading-[16px] font-bold uppercase tracking-wide text-[#0f2441] block whitespace-nowrap">
-                  DURATION / PACKAGE
-                </label>
-                <div className="relative border-b border-gray-300 pb-1.5 flex items-center justify-between hover:border-[#20A8D8] transition-colors">
-                  <select
-                    value={durationHours}
-                    onChange={(e) => setDurationHours(Number(e.target.value))}
-                    className="w-full bg-transparent border-none p-0 text-base md:text-lg lg:text-[18px] font-bold text-slate-900 focus:outline-none appearance-none cursor-pointer pr-6"
-                    aria-label="Select package duration"
-                  >
-                    <option value={4}>4 Hours / 40 Km</option>
-                    <option value={8}>8 Hours / 80 Km</option>
-                    <option value={12}>12 Hours / 120 Km</option>
-                  </select>
-                  <ChevronDown className="w-5 h-5 text-[#20A8D8] shrink-0 pointer-events-none absolute right-0" />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* AIRPORT BOOKING FORM */}
-        {serviceType === 'airport' && (
-          <div className="w-full space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6 items-end">
-              {/* AIRPORT / PICKUP LOCATION */}
-              <div className="min-w-0">
-                <LocationAutocompleteInput
-                  id="airport-pickup-input"
-                  label={airportTransferType === 'pickup' ? 'AIRPORT LOCATION' : 'PICKUP LOCATION'}
-                  variant="underline"
-                  showSearchIconLeft
-                  placeholder={
-                    airportTransferType === 'pickup'
-                      ? 'e.g. KIAL Bengaluru or Mysuru Airport'
-                      : 'Enter your pickup address'
-                  }
-                  value={pickupLocation}
-                  selectedPlace={pickupLocationObj}
-                  allowCurrentLocation={airportTransferType !== 'pickup'}
-                  onChange={(val, suggestion) => {
-                    setPickupLocation(val);
-                    if (suggestion) setPickupLocationObj(suggestion);
-                    if (errors.pickupLocation) setErrors((prev) => ({ ...prev, pickupLocation: '' }));
-                  }}
-                  error={errors.pickupLocation}
-                  onClear={() => {
-                    setPickupLocation('');
-                    setPickupLocationObj(undefined);
-                  }}
-                />
-              </div>
-
-              {/* DROP LOCATION */}
-              <div className="min-w-0">
-                <LocationAutocompleteInput
-                  id="airport-drop-input"
-                  label={airportTransferType === 'drop' ? 'AIRPORT LOCATION' : 'DROP LOCATION'}
-                  variant="underline"
-                  showSearchIconLeft
-                  placeholder={
-                    airportTransferType === 'drop'
-                      ? 'e.g. KIAL Bengaluru Terminal 1/2'
-                      : 'Enter your drop address'
-                  }
-                  value={dropLocation}
-                  selectedPlace={dropLocationObj}
-                  allowCurrentLocation={false}
-                  onChange={(val, suggestion) => {
-                    setDropLocation(val);
-                    if (suggestion) setDropLocationObj(suggestion);
-                    if (errors.dropLocation) setErrors((prev) => ({ ...prev, dropLocation: '' }));
-                  }}
-                  error={errors.dropLocation}
-                  onClear={() => {
-                    setDropLocation('');
-                    setDropLocationObj(undefined);
-                  }}
-                />
-              </div>
-
-              {/* DATE */}
-              <div className="space-y-1">
-                <label className="text-[12px] leading-[16px] font-bold uppercase tracking-wide text-[#0f2441] block whitespace-nowrap">
-                  DATE
-                </label>
-                <div
-                  onClick={() => {
-                    if (pickupDateInputRef.current?.showPicker) {
-                      pickupDateInputRef.current.showPicker();
-                    } else {
-                      pickupDateInputRef.current?.focus();
-                    }
-                  }}
-                  className="relative cursor-pointer border-b border-gray-300 pb-1.5 flex items-center justify-between hover:border-[#20A8D8] transition-colors"
-                >
-                  <span className="text-base md:text-lg lg:text-[19px] font-bold text-slate-900 select-none">
-                    {formatDateToDDMMYYYY(travelDate)}
-                  </span>
-                  <ChevronDown className="w-5 h-5 text-[#20A8D8] shrink-0 pointer-events-none" />
-                  <input
-                    ref={pickupDateInputRef}
-                    type="date"
-                    min={getTodayDate()}
-                    value={travelDate}
+                    onFocus={() => setActiveCalendar('airport-departure')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      registerUserActivity();
+                      setActiveCalendar((prev) => (prev === 'airport-departure' ? null : 'airport-departure'));
+                      try {
+                        (e.currentTarget as HTMLInputElement).showPicker?.();
+                      } catch {
+                        // Handled by custom CalendarPopover
+                      }
+                    }}
                     onChange={(e) => handleTravelDateChange(e.target.value)}
                     className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                     aria-label="Select airport date"
                   />
+
+                  <CalendarPopover
+                    isOpen={activeCalendar === 'airport-departure'}
+                    onClose={() => setActiveCalendar(null)}
+                    selectedDate={travelDate}
+                    minDate={getTodayDate()}
+                    title="Departure Date"
+                    align="left"
+                    onSelectDate={(newDate) => {
+                      handleTravelDateChange(newDate);
+                      setActiveCalendar(null);
+                    }}
+                  />
+                </div>
+
+                {/* PICKUP-TIME */}
+                <div className="w-full lg:w-36 xl:w-40 relative border border-slate-200 rounded-xl bg-white p-3 sm:py-3 sm:px-4 hover:border-slate-300 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] shadow-2xs shrink-0">
+                  <div className="text-slate-500 text-xs sm:text-[13px] font-normal leading-none mb-1">
+                    Pickup-Time
+                  </div>
+                  <div className="relative flex items-center">
+                    <select
+                      value={pickupTime}
+                      onChange={(e) => setPickupTime(e.target.value)}
+                      className="w-full bg-transparent border-none p-0 text-slate-900 font-medium text-sm sm:text-base focus:outline-none appearance-none cursor-pointer pr-4"
+                      aria-label="Select airport time"
+                    >
+                      {TIME_OPTIONS_24H.map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-0 pointer-events-none" />
+                  </div>
                 </div>
               </div>
 
-              {/* TIME */}
-              <div className="space-y-1">
-                <label className="text-[12px] leading-[16px] font-bold uppercase tracking-wide text-[#0f2441] block whitespace-nowrap">
-                  TIME
+              {/* Optional Flight Number */}
+              <div className="max-w-md pt-1">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 block mb-1">
+                  Flight Number (Optional)
                 </label>
-                <div className="relative border-b border-gray-300 pb-1.5 flex items-center justify-between hover:border-[#20A8D8] transition-colors">
-                  <select
-                    value={pickupTime}
-                    onChange={(e) => setPickupTime(e.target.value)}
-                    className="w-full bg-transparent border-none p-0 text-base md:text-lg lg:text-[19px] font-bold text-slate-900 focus:outline-none appearance-none cursor-pointer pr-6"
-                    aria-label="Select airport time"
-                  >
-                    {TIME_OPTIONS.map((t) => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-5 h-5 text-[#20A8D8] shrink-0 pointer-events-none absolute right-0" />
+                <div className="border border-slate-200 rounded-xl px-3 py-2 flex items-center gap-2 focus-within:border-slate-400 bg-white transition-colors">
+                  <Plane className="w-4 h-4 text-slate-400 shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="e.g. 6E 543 or AI 802"
+                    value={flightNumber}
+                    onChange={(e) => setFlightNumber(e.target.value)}
+                    className="w-full bg-transparent border-none p-0 text-sm font-semibold text-slate-900 focus:outline-none uppercase placeholder:normal-case placeholder:font-normal placeholder:text-slate-400"
+                  />
                 </div>
               </div>
             </div>
-
-            {/* Optional Flight Number */}
-            <div className="max-w-md pt-1">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1">
-                Flight Number (Optional)
-              </label>
-              <div className="border-b border-gray-300 pb-1.5 flex items-center gap-2 focus-within:border-[#20A8D8] transition-colors">
-                <Plane className="w-4 h-4 text-slate-400 shrink-0" />
-                <input
-                  type="text"
-                  placeholder="e.g. 6E 543 or AI 802"
-                  value={flightNumber}
-                  onChange={(e) => setFlightNumber(e.target.value)}
-                  className="w-full bg-transparent border-none p-0 text-sm font-semibold text-slate-900 focus:outline-none uppercase placeholder:normal-case placeholder:font-normal placeholder:text-slate-400"
-                />
-              </div>
-            </div>
-          </div>
-        )}
+          )}
 
         {/* DYNAMIC ADDITIONAL ENROUTE STOPS (When added via '+' button) */}
-        {viaLocations.length > 0 && (
+        {serviceType !== 'local' && viaLocations.length > 0 && (
           <div className="bg-sky-50/50 p-4 rounded-xl border border-sky-100 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-[#0f2441] flex items-center gap-1.5">
@@ -1126,7 +1411,7 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
         )}
 
         {/* LIVE GOOGLE MAPS ROUTE & ACCURATE ROAD DISTANCE STRIP */}
-        {routeInfo && routeInfo.distanceKm > 0 && (
+        {serviceType !== 'local' && routeInfo && routeInfo.distanceKm > 0 && (
           <div
             id="google-maps-route-info-card"
             className="bg-slate-50/90 border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3.5 transition-all"
@@ -1211,7 +1496,7 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
         )}
 
         {/* Route Validation Warning Banner */}
-        {routeInfo && (routeInfo.validationStatus === 'NO_ROUTE_FOUND' || routeInfo.validationStatus === 'SANITY_CHECK_FAILED') && (
+        {serviceType !== 'local' && routeInfo && (routeInfo.validationStatus === 'NO_ROUTE_FOUND' || routeInfo.validationStatus === 'SANITY_CHECK_FAILED') && (
           <div
             id="route-validation-warning-card"
             className="bg-amber-50 border border-amber-300 rounded-2xl p-4 text-xs text-amber-900 flex items-start gap-3 shadow-2xs"
@@ -1228,12 +1513,23 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
           </div>
         )}
 
+        {/* Loading State: Route Calculation */}
+        {serviceType !== 'local' && isCalculatingRoute && (
+          <div
+            id="route-calculating-indicator"
+            className="flex items-center justify-center gap-2.5 py-2.5 px-4 bg-sky-50/90 border border-sky-200 rounded-xl text-sky-800 text-xs font-semibold animate-pulse"
+          >
+            <Loader2 className="w-4 h-4 animate-spin text-[#20A8D8]" />
+            <span>Calculating route...</span>
+          </div>
+        )}
+
         {/* PRIMARY CTA BUTTON: EXPLORE CABS */}
         <div className="flex flex-col items-center justify-center pt-2 sm:pt-3">
           <button
             type="submit"
             id="explore-cabs-primary-btn"
-            className="w-full max-w-[280px] h-[48px] sm:h-[50px] bg-[#A4F4CF] hover:bg-[#8ee8be] text-slate-900 font-extrabold text-base sm:text-lg uppercase tracking-wide rounded-lg shadow-sm hover:shadow transition-all duration-150 active:scale-[0.99] flex items-center justify-center cursor-pointer select-none"
+            className="w-full max-w-[280px] h-[48px] sm:h-[50px] bg-[#ECFDF5] hover:bg-[#d1fae5] text-slate-900 border border-emerald-300 font-extrabold text-base sm:text-lg uppercase tracking-wide rounded-lg shadow-sm hover:shadow transition-all duration-150 active:scale-[0.99] flex items-center justify-center cursor-pointer select-none"
           >
             EXPLORE CABS
           </button>
@@ -1261,7 +1557,8 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
             </button>
           </div>
         </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 };
