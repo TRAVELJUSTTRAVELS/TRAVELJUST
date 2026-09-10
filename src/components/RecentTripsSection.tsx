@@ -34,12 +34,14 @@ import {
   FileSpreadsheet,
   Lock,
   Unlock,
+  MessageSquare,
 } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { BookingSearchState, Vehicle, BookingRequest } from '../types';
 import { vehiclesData } from '../data/vehicles';
 import { generateTripInvoicePdf } from '../utils/generateInvoicePdf';
 import { VERIFIED_CHAUFFEURS, VerifiedChauffeur, getInitialSeedTrips } from '../data/seedTrips';
+import { CustomerLoginAlertsModal } from './CustomerLoginAlertsModal';
 
 export interface RecentTripsSectionProps {
   onRebookTrip?: (searchState: Partial<BookingSearchState>, vehicleId?: string) => void;
@@ -111,6 +113,7 @@ export const RecentTripsSection: React.FC<RecentTripsSectionProps> = ({
   const [deleteReason, setDeleteReason] = useState<string>('Duplicate or test booking inquiry');
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const [deleteNotice, setDeleteNotice] = useState<string | null>(null);
+  const [showLoginAlertsModal, setShowLoginAlertsModal] = useState<boolean>(false);
   
   // Driver assignment modal & status modal state
   const [assigningTrip, setAssigningTrip] = useState<DbBookingRecord | null>(null);
@@ -893,15 +896,28 @@ For immediate cab arrangements, custom outstation packages, or urgent dispatches
         {/* Action Controls: Refresh, Export & Add Ride */}
         <div className="flex items-center flex-wrap gap-2">
           {isOwner && (
-            <button
-              type="button"
-              onClick={handleExportCsv}
-              className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs active:scale-95"
-              title="Export filtered dispatches as CSV spreadsheet"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
-              <span>Export CSV</span>
-            </button>
+            <>
+              <button
+                id="fleet-manager-customer-logins-btn"
+                type="button"
+                onClick={() => setShowLoginAlertsModal(true)}
+                className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs active:scale-95 cursor-pointer"
+                title="View Customer Login WhatsApp Notifications sent strictly to Fleet Manager"
+              >
+                <MessageSquare className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Customer Logins (WhatsApp)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExportCsv}
+                className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs active:scale-95"
+                title="Export filtered dispatches as CSV spreadsheet"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Export CSV</span>
+              </button>
+            </>
           )}
 
           <button
@@ -2146,6 +2162,12 @@ For immediate cab arrangements, custom outstation packages, or urgent dispatches
           <span>{deleteNotice}</span>
         </div>
       )}
+
+      {/* Fleet Manager Customer Login Alerts Modal */}
+      <CustomerLoginAlertsModal
+        isOpen={showLoginAlertsModal}
+        onClose={() => setShowLoginAlertsModal(false)}
+      />
     </section>
   );
 };

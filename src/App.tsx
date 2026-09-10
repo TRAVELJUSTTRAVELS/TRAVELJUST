@@ -28,6 +28,7 @@ import { AdminFareManagementModal } from './components/AdminFareManagementModal'
 import { DriverPartnerDrawer } from './components/DriverPartnerDrawer';
 import { DownloadAppModal } from './components/DownloadAppModal';
 import { CustomerAuthModal } from './components/CustomerAuthModal';
+import { TravelExpertPopupModal } from './components/TravelExpertPopupModal';
 import { calculateRouteDistance } from './services/googleMapsService';
 import { getStoredCustomer, clearCustomerSession, saveCustomerSession } from './services/customerAuthService';
 import {
@@ -88,6 +89,37 @@ export default function App() {
   const [partnerDrawerOpen, setPartnerDrawerOpen] = useState(false);
   const [downloadAppModalOpen, setDownloadAppModalOpen] = useState(false);
   const [customerAuthModalOpen, setCustomerAuthModalOpen] = useState(false);
+  const [travelExpertModalOpen, setTravelExpertModalOpen] = useState(false);
+
+  // Trigger 24x7 Travel Expert popup after 30 seconds of website opening
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem('tj_travel_expert_dismissed') === 'true') {
+        return;
+      }
+    } catch (e) {
+      console.warn('Session storage inaccessible', e);
+    }
+
+    const timer = setTimeout(() => {
+      // Show only if not in owner portal mode
+      const isOwnerActive = localStorage.getItem('tj_is_owner') === 'true';
+      if (!isOwnerActive) {
+        setTravelExpertModalOpen(true);
+      }
+    }, 30000); // 30 seconds
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleCloseTravelExpertModal = () => {
+    setTravelExpertModalOpen(false);
+    try {
+      sessionStorage.setItem('tj_travel_expert_dismissed', 'true');
+    } catch (e) {
+      console.warn('Could not store dismissal flag', e);
+    }
+  };
 
   const handleOwnerLoginSuccess = () => {
     setIsOwner(true);
@@ -488,6 +520,13 @@ export default function App() {
           setCustomerAuthModalOpen(false);
           setPartnerDrawerOpen(true);
         }}
+      />
+
+      {/* 24x7 Travel Expert Popup Modal (opens after 30 seconds) */}
+      <TravelExpertPopupModal
+        isOpen={travelExpertModalOpen}
+        onClose={handleCloseTravelExpertModal}
+        phoneNumber="97407 54400"
       />
     </div>
   );

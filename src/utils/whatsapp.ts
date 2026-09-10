@@ -419,7 +419,7 @@ export function formatBookingConfirmationMessage(payload: BookingWhatsAppPayload
 }
 
 /**
- * Builds a formatted WhatsApp message for customer login / registration alert sent to the owner
+ * Builds a formatted WhatsApp message for customer login / registration alert sent strictly to Fleet Manager
  */
 export function formatCustomerLoginNotificationMessage(
   customer: CustomerUser,
@@ -440,17 +440,20 @@ export function formatCustomerLoginNotificationMessage(
   const formattedPhone = rawPhone.length === 10 ? `+91 ${rawPhone.slice(0, 5)} ${rawPhone.slice(5)}` : customer.mobileNumber;
 
   return (
-`🚕 *TRAVEL JUST - CUSTOMER ${isNew ? 'REGISTRATION' : 'LOGIN'} ALERT* 🔔
+`🚕 *TRAVEL JUST - FLEET MANAGER ALERT* 🔔
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+📢 *CUSTOMER LOGIN NOTIFICATION*
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 👤 *Customer Name:* ${customer.fullName}
 📱 *Mobile Number:* ${formattedPhone}
 ✉️ *Email Address:* ${customer.email || 'Not provided'}
+🔐 *Customer Type:* ${isNew ? '✨ NEW CUSTOMER REGISTRATION' : '🔑 EXISTING CUSTOMER LOGIN'}
 ⏰ *Login Timestamp:* ${timeStr}
 🆔 *Customer Ref ID:* ${customer.id}
 📊 *Completed/Saved Trips:* ${customer.totalTripsCount || 0} trip(s)
-🔐 *Auth Event:* ${isNew ? '✨ New Account Created' : '🔑 Active Customer Sign-in'}
+🌐 *Platform:* TRAVEL JUST Web Portal (Online)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
-_Notification dispatched automatically to TRAVEL JUST Owner Desk (${siteConfig.contact.phone})._`
+_Automated dispatch notification sent strictly to Fleet Manager WhatsApp (${siteConfig.contact.whatsapp})._`
   );
 }
 

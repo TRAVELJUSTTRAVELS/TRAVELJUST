@@ -76,15 +76,15 @@ export function registerOrLoginCustomer(
     saveCustomerSession(customerResult);
   }
 
-  // Automatically trigger Owner WhatsApp login notification unless explicitly disabled
+  // Strictly trigger Fleet Manager WhatsApp login notification for both new and existing customers
   if (options?.notifyOwner !== false) {
     try {
       notifyOwnerOnCustomerLogin(customerResult, {
         isNewRegistration: isNew,
-        autoOpenWhatsApp: options?.autoOpenWhatsApp,
+        autoOpenWhatsApp: options?.autoOpenWhatsApp !== undefined ? options.autoOpenWhatsApp : true,
       });
     } catch (e) {
-      console.warn('Customer login owner notification warning:', e);
+      console.warn('Customer login Fleet Manager WhatsApp notification warning:', e);
     }
   }
 
