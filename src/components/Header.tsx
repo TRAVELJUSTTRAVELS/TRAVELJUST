@@ -166,22 +166,47 @@ export const Header: React.FC<HeaderProps> = ({
               <span>Download App</span>
             </button>
 
-            {/* Login or Create Account Button (Vibrant Blue with Dropdown Arrow) */}
+            {/* Customer Login Button with Circular Avatar Icon */}
             <div className="relative" ref={accountDropdownRef}>
               <button
                 id="desktop-login-account-btn"
                 type="button"
-                onClick={() => setAccountDropdownOpen((prev) => !prev)}
-                className="flex items-center gap-2 px-4 py-2 bg-[#4D8BF5] hover:bg-[#3b7be8] active:bg-[#2f6cd6] text-white rounded-xl text-sm font-medium shadow-xs hover:shadow transition-all duration-150 active:scale-[0.98] cursor-pointer select-none"
-                title={customer ? `Signed in as ${customer.fullName}` : 'Login or Create Account'}
+                onClick={() => {
+                  if (customer) {
+                    setAccountDropdownOpen((prev) => !prev);
+                  } else {
+                    onOpenCustomerAuth?.();
+                  }
+                }}
+                className="flex items-center gap-2 pl-1.5 pr-3 py-1 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-800 border border-slate-200/90 hover:border-slate-300 rounded-full text-sm font-semibold shadow-2xs hover:shadow-xs transition-all duration-150 active:scale-[0.98] cursor-pointer select-none"
+                title={customer ? `Signed in as ${customer.fullName}` : 'Customer Login'}
                 aria-expanded={accountDropdownOpen}
                 aria-haspopup="true"
               >
-                <span className="truncate max-w-[140px]">
-                  {customer ? customer.fullName : 'Login or Create Account'}
+                {/* Circular Avatar Icon matching reference design */}
+                <div className="w-8 h-8 rounded-full bg-[#EEEEEE] border border-slate-200/80 flex items-center justify-center shrink-0 overflow-hidden text-[#757575]">
+                  {customer ? (
+                    <span className="font-bold text-xs text-slate-800">
+                      {customer.fullName.slice(0, 2).toUpperCase() || 'TJ'}
+                    </span>
+                  ) : (
+                    <svg
+                      viewBox="0 0 32 32"
+                      className="w-5 h-5 fill-current"
+                      aria-hidden="true"
+                    >
+                      <circle cx="16" cy="10.5" r="4.5" />
+                      <path d="M7.5 25.5c0-4.2 3.8-7.5 8.5-7.5s8.5 3.3 8.5 7.5c0 1.4-1.1 2.5-2.5 2.5h-12c-1.4 0-2.5-1.1-2.5-2.5z" />
+                    </svg>
+                  )}
+                </div>
+
+                <span className="truncate max-w-[130px] text-slate-900 font-bold text-xs sm:text-sm">
+                  {customer ? customer.fullName : 'Customer Login'}
                 </span>
+
                 <ChevronDown
-                  className={`w-4 h-4 text-white shrink-0 transition-transform duration-200 ${
+                  className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform duration-200 ${
                     accountDropdownOpen ? 'rotate-180' : ''
                   }`}
                 />
@@ -504,13 +529,24 @@ export const Header: React.FC<HeaderProps> = ({
                     onOpenCustomerAuth?.();
                   }
                 }}
-                className="w-full flex items-center justify-between px-3.5 py-2.5 bg-[#4D8BF5] hover:bg-[#3b7be8] text-white rounded-xl font-bold text-sm cursor-pointer shadow-xs"
+                className="w-full flex items-center justify-between px-3 py-2 bg-white hover:bg-slate-50 text-slate-900 border border-slate-200/90 rounded-full font-bold text-sm cursor-pointer shadow-2xs"
               >
                 <div className="flex items-center gap-2.5">
-                  <User className="w-4 h-4" />
-                  <span>{customer ? customer.fullName : 'Login or Create Account'}</span>
+                  <div className="w-7 h-7 rounded-full bg-[#EEEEEE] border border-slate-200/80 flex items-center justify-center shrink-0 text-[#757575]">
+                    {customer ? (
+                      <span className="font-bold text-xs text-slate-800">
+                        {customer.fullName.slice(0, 2).toUpperCase() || 'TJ'}
+                      </span>
+                    ) : (
+                      <svg viewBox="0 0 32 32" className="w-4.5 h-4.5 fill-current" aria-hidden="true">
+                        <circle cx="16" cy="10.5" r="4.5" />
+                        <path d="M7.5 25.5c0-4.2 3.8-7.5 8.5-7.5s8.5 3.3 8.5 7.5c0 1.4-1.1 2.5-2.5 2.5h-12c-1.4 0-2.5-1.1-2.5-2.5z" />
+                      </svg>
+                    )}
+                  </div>
+                  <span>{customer ? customer.fullName : 'Customer Login'}</span>
                 </div>
-                <ChevronRight className="w-4 h-4 text-white/80" />
+                <ChevronRight className="w-4 h-4 text-slate-400" />
               </button>
             </div>
           )}

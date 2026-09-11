@@ -101,11 +101,6 @@ export const Footer: React.FC<FooterProps> = ({
                 </a>
               </li>
               <li>
-                <a href="#contact" onClick={(e) => handleNavClick(e, '#contact')} className="hover:text-emerald-400 transition-colors">
-                  Contact & Support
-                </a>
-              </li>
-              <li>
                 <a href="#about" onClick={(e) => handleNavClick(e, '#about')} className="hover:text-emerald-400 transition-colors">
                   About Us
                 </a>
