@@ -566,7 +566,7 @@ export const DriverPartnerDrawer: React.FC<DriverPartnerDrawerProps> = ({
                       <input
                         type="tel"
                         required
-                        placeholder="98450 12345"
+                        placeholder="97407 54400"
                         maxLength={10}
                         value={mobileNumber}
                         onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, ''))}

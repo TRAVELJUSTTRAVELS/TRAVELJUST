@@ -14,8 +14,8 @@ import { BookingSearch } from './components/BookingSearch';
 import { SearchResults } from './components/SearchResults';
 import { ServicesSection } from './components/ServicesSection';
 import { FleetSection } from './components/FleetSection';
+import { TopRoutesDirectorySection } from './components/TopRoutesDirectorySection';
 import { WhyChooseUs } from './components/WhyChooseUs';
-import { AboutSection } from './components/AboutSection';
 import { FAQSection } from './components/FAQSection';
 import { RecentTripsSection } from './components/RecentTripsSection';
 import { Footer } from './components/Footer';
@@ -372,6 +372,9 @@ export default function App() {
         {/* Fleet Section */}
         <FleetSection onSelectVehicleForBooking={handleSelectVehicleFromFleet} />
 
+        {/* Top Outstation & Airport Taxi Routes Directory Section */}
+        <TopRoutesDirectorySection />
+
         {/* Live Dispatch & Bookings Registry Section - EXCLUSIVELY VISIBLE FOR FLEET MANAGER & OWNER PORTAL ONLY */}
         {isOwner && (
           <RecentTripsSection
@@ -384,9 +387,6 @@ export default function App() {
 
         {/* Why Choose Us Section */}
         <WhyChooseUs onOpenPartnerDrawer={() => setPartnerDrawerOpen(true)} />
-
-        {/* About Section */}
-        <AboutSection />
 
         {/* FAQ Section */}
         <FAQSection />

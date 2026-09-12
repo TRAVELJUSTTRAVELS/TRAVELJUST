@@ -474,7 +474,7 @@ export const RecentTripsSection: React.FC<RecentTripsSectionProps> = ({
     // Preset with first chauffeur or existing
     if (trip.driver_name) {
       setCustomDriverName(trip.driver_name);
-      setCustomDriverPhone(trip.driver_phone || '+91 98450 12345');
+      setCustomDriverPhone(trip.driver_phone || '+91 97407 54400');
       setCustomDriverPlate(trip.driver_vehicle_plate || 'KA 09 MJ 4492');
     } else {
       const defaultChauffeur = VERIFIED_CHAUFFEURS[0];
@@ -649,13 +649,14 @@ For immediate cab arrangements, custom outstation packages, or urgent dispatches
       plate: trip.driver_vehicle_plate || customDriverPlate,
     }
   ) => {
-    const cleanPhone = driver.phone.replace(/[^0-9]/g, '');
-    const targetPhone = cleanPhone.startsWith('91') ? cleanPhone : `91${cleanPhone}`;
+    // For all WhatsApp communications regarding chauffeur assignment & cab allocation, use +919740754400 only
+    const targetPhone = '919740754400';
     const text = encodeURIComponent(
       `🚖 *TRAVEL JUST MYSURU - DRIVER TRIP DISPATCH*\n` +
       `----------------------------------------\n` +
       `*Booking Ref:* #${trip.reference_id}\n` +
       `*Assigned Driver:* ${driver.name}\n` +
+      `*Driver Phone:* ${driver.phone || '+91 97407 54400'}\n` +
       `*Cab Plate:* ${driver.plate}\n` +
       `*Vehicle:* ${trip.vehicle_name || 'Designated Cab'}\n` +
       `*Passenger Name:* ${trip.full_name}\n` +
@@ -668,6 +669,7 @@ For immediate cab arrangements, custom outstation packages, or urgent dispatches
       `*Total Fare:* ₹${Number(trip.total_estimated_fare).toLocaleString('en-IN')}\n` +
       (trip.special_instructions ? `*Special Notes:* ${trip.special_instructions}\n` : '') +
       `----------------------------------------\n` +
+      `*24/7 Instant Dispatch Assistance:* +91 97407 54400\n` +
       `*Pickup Navigation Link:*\nhttps://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
         trip.pickup_location
       )}\n\n` +
@@ -678,8 +680,8 @@ For immediate cab arrangements, custom outstation packages, or urgent dispatches
 
   const handleNotifyCustomerWhatsApp = (trip: DbBookingRecord, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    const cleanPhone = trip.mobile_number.replace(/[^0-9]/g, '');
-    const targetPhone = cleanPhone.startsWith('91') ? cleanPhone : `91${cleanPhone}`;
+    // For all WhatsApp communication, use +919740754400 only
+    const targetPhone = '919740754400';
     const text = encodeURIComponent(
       `🚖 *TRAVEL JUST MYSURU - BOOKING CONFIRMATION*\n` +
       `----------------------------------------\n` +
@@ -690,11 +692,11 @@ For immediate cab arrangements, custom outstation packages, or urgent dispatches
       (trip.drop_location ? `• *Destination:* ${trip.drop_location}\n` : '') +
       `• *Date & Time:* ${trip.travel_date} at ${trip.pickup_time}\n` +
       `• *Vehicle:* ${trip.vehicle_name || 'Assigned Cab'}\n` +
-      (trip.driver_name ? `• *Assigned Chauffeur:* ${trip.driver_name} (${trip.driver_phone || ''})\n` : '') +
+      (trip.driver_name ? `• *Assigned Chauffeur:* ${trip.driver_name} (${trip.driver_phone || '+91 97407 54400'})\n` : '') +
       (trip.driver_vehicle_plate ? `• *Cab License Plate:* ${trip.driver_vehicle_plate}\n` : '') +
       `• *Total Estimated Fare:* ₹${Number(trip.total_estimated_fare).toLocaleString('en-IN')}\n` +
       `----------------------------------------\n` +
-      `For 24/7 instant dispatch assistance: +91 98451 23456.\n` +
+      `For 24/7 instant dispatch assistance: +91 97407 54400.\n` +
       `Thank you for traveling with Travel Just Mysuru!`
     );
     window.open(`https://wa.me/${targetPhone}?text=${text}`, '_blank');
@@ -1655,7 +1657,7 @@ For immediate cab arrangements, custom outstation packages, or urgent dispatches
                       value={customDriverPhone}
                       onChange={(e) => setCustomDriverPhone(e.target.value)}
                       className="w-full px-3 py-2 rounded-xl border border-slate-300 text-slate-900 text-xs focus:ring-2 focus:ring-indigo-500/20"
-                      placeholder="+91 98450 12345"
+                      placeholder="+91 97407 54400"
                     />
                   </div>
                 </div>

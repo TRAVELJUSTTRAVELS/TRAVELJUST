@@ -53,10 +53,18 @@ export const WhyChooseUs: React.FC<WhyChooseUsProps> = () => {
   ];
 
   return (
-    <section className="py-16 md:py-24 bg-emerald-950 text-white relative overflow-hidden">
-      {/* Decorative background grid pattern */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff08_1px,transparent_1px),linear-gradient(to_bottom,#ffffff08_1px,transparent_1px)] bg-[size:3rem_3rem] pointer-events-none" />
-
+    <section
+      id="why-choose-us-section"
+      className="py-16 md:py-24 text-white relative overflow-hidden"
+      style={{
+        backgroundColor: '#032014',
+        backgroundImage: `
+          linear-gradient(to right, rgba(16, 185, 129, 0.08) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(16, 185, 129, 0.08) 1px, transparent 1px)
+        `,
+        backgroundSize: '48px 48px',
+      }}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <span className="text-xs font-bold uppercase tracking-widest text-emerald-300 bg-emerald-900/80 px-3 py-1 rounded-full border border-emerald-800">

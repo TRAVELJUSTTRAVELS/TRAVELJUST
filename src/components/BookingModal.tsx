@@ -47,6 +47,29 @@ interface BookingModalProps {
   customer?: CustomerUser | null;
 }
 
+const to24Hour = (timeStr: string): string => {
+  if (!timeStr) return '09:00';
+  if (!timeStr.includes('AM') && !timeStr.includes('PM')) return timeStr;
+  const [time, modifier] = timeStr.split(' ');
+  const [hStr, mStr] = time.split(':');
+  let h = parseInt(hStr, 10);
+  if (modifier === 'PM' && h < 12) h += 12;
+  if (modifier === 'AM' && h === 12) h = 0;
+  return `${h.toString().padStart(2, '0')}:${mStr || '00'}`;
+};
+
+const to12Hour = (timeStr: string): string => {
+  if (!timeStr) return '09:00 AM';
+  if (timeStr.includes('AM') || timeStr.includes('PM')) return timeStr;
+  const [hStr, mStr] = timeStr.split(':');
+  let hour = parseInt(hStr, 10);
+  const minute = mStr || '00';
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  hour = hour % 12;
+  if (hour === 0) hour = 12;
+  return `${hour.toString().padStart(2, '0')}:${minute} ${ampm}`;
+};
+
 export const BookingModal: React.FC<BookingModalProps> = ({
   isOpen,
   onClose,
@@ -82,7 +105,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     searchDetails.pickupDate || searchDetails.travelDate || new Date().toISOString().split('T')[0]
   );
   const [pickupTime, setPickupTime] = useState<string>(
-    searchDetails.pickupTime || '09:00'
+    to24Hour(searchDetails.pickupTime || '09:00')
   );
   const [dropDate, setDropDate] = useState<string>(
     searchDetails.dropDate || searchDetails.returnDate || searchDetails.pickupDate || searchDetails.travelDate || new Date().toISOString().split('T')[0]
@@ -100,7 +123,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     ...searchDetails,
     travelDate: pickupDate,
     pickupDate: pickupDate,
-    pickupTime: pickupTime,
+    pickupTime: to12Hour(pickupTime),
     dropDate: dropDate,
     returnDate: dropDate,
   };
@@ -528,7 +551,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     <span className="font-semibold text-slate-500 block">Pickup Date & Time</span>
                     <span className="font-bold text-slate-800 flex items-center gap-1 mt-0.5">
                       <Calendar className="w-3.5 h-3.5 text-emerald-800 shrink-0" />
-                      {pickupDate} at {pickupTime}
+                      {pickupDate} at {to12Hour(pickupTime)}
                     </span>
                   </div>
 

@@ -188,12 +188,12 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
     initialState?.returnDate || initialState?.dropDate || getTomorrowDate()
   );
 
-  // Default pickup time matching screenshots (19:25)
+  // Default pickup time in 12-hour AM/PM format
   const [pickupTime, setPickupTime] = useState(
-    initialState?.pickupTime || '19:25'
+    initialState?.pickupTime ? formatTo12Hour(initialState.pickupTime) : '07:00 PM'
   );
   const [returnTime, setReturnTime] = useState(
-    initialState?.returnTime || '23:25'
+    initialState?.returnTime ? formatTo12Hour(initialState.returnTime) : '11:00 PM'
   );
 
   const [durationHours, setDurationHours] = useState<number>(initialState?.durationHours || 8);
@@ -525,9 +525,9 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
       dropDate: serviceType === 'roundtrip' ? dropDate : travelDate,
       returnDate: serviceType === 'roundtrip' ? returnDate || dropDate : travelDate,
       roundTripDays: serviceType === 'roundtrip' ? activeRoundTripDays : undefined,
-      pickupTime: formatTo24Hour(pickupTime),
-      dropTime: serviceType === 'roundtrip' ? formatTo24Hour(returnTime) : undefined,
-      returnTime: serviceType === 'roundtrip' ? formatTo24Hour(returnTime) : undefined,
+      pickupTime: formatTo12Hour(pickupTime),
+      dropTime: serviceType === 'roundtrip' ? formatTo12Hour(returnTime) : undefined,
+      returnTime: serviceType === 'roundtrip' ? formatTo12Hour(returnTime) : undefined,
       durationHours: serviceType === 'local' ? durationHours : 8,
       airportTransferType,
       passengers,
@@ -777,19 +777,19 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                 </div>
 
                 {/* PICKUP-TIME */}
-                <div className="w-full lg:w-28 xl:w-32 relative border border-slate-200 rounded-xl bg-white p-3 sm:py-3 sm:px-3.5 hover:border-slate-300 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] shadow-2xs shrink-0">
+                <div className="w-full lg:w-32 xl:w-36 relative border border-slate-200 rounded-xl bg-white p-3 sm:py-3 sm:px-3 hover:border-slate-300 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] shadow-2xs shrink-0">
                   <div className="text-slate-500 text-xs sm:text-[13px] font-normal leading-none mb-1">
                     Pickup-Time
                   </div>
                   <div className="relative flex items-center">
                     <select
-                      value={pickupTime}
+                      value={formatTo12Hour(pickupTime)}
                       onChange={(e) => setPickupTime(e.target.value)}
-                      className="w-full bg-transparent border-none p-0 text-slate-900 font-medium text-sm sm:text-base focus:outline-none appearance-none cursor-pointer pr-4"
+                      className="w-full bg-transparent border-none p-0 text-slate-900 font-semibold text-xs sm:text-sm focus:outline-none appearance-none cursor-pointer pr-4"
                       aria-label="Select pickup time"
                     >
-                      {TIME_OPTIONS_24H.map((t) => (
-                        <option key={t} value={t}>{t}</option>
+                      {TIME_OPTIONS.map((t) => (
+                        <option key={t} value={t} className="text-slate-900 font-medium py-1">{t}</option>
                       ))}
                     </select>
                     <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-0 pointer-events-none" />
@@ -797,19 +797,19 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                 </div>
 
                 {/* DROP-TIME */}
-                <div className="w-full lg:w-28 xl:w-32 relative border border-slate-200 rounded-xl bg-white p-3 sm:py-3 sm:px-3.5 hover:border-slate-300 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] shadow-2xs shrink-0">
+                <div className="w-full lg:w-32 xl:w-36 relative border border-slate-200 rounded-xl bg-white p-3 sm:py-3 sm:px-3 hover:border-slate-300 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] shadow-2xs shrink-0">
                   <div className="text-slate-500 text-xs sm:text-[13px] font-normal leading-none mb-1">
                     Drop-Time
                   </div>
                   <div className="relative flex items-center">
                     <select
-                      value={returnTime}
+                      value={formatTo12Hour(returnTime)}
                       onChange={(e) => setReturnTime(e.target.value)}
-                      className="w-full bg-transparent border-none p-0 text-slate-900 font-medium text-sm sm:text-base focus:outline-none appearance-none cursor-pointer pr-4"
+                      className="w-full bg-transparent border-none p-0 text-slate-900 font-semibold text-xs sm:text-sm focus:outline-none appearance-none cursor-pointer pr-4"
                       aria-label="Select drop time"
                     >
-                      {TIME_OPTIONS_24H.map((t) => (
-                        <option key={t} value={t}>{t}</option>
+                      {TIME_OPTIONS.map((t) => (
+                        <option key={t} value={t} className="text-slate-900 font-medium py-1">{t}</option>
                       ))}
                     </select>
                     <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-0 pointer-events-none" />
@@ -969,25 +969,25 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                 </div>
 
                 {/* PICKUP-TIME */}
-                <div className="w-full lg:w-36 xl:w-40 relative border border-slate-200 rounded-xl bg-white p-3 sm:py-3 sm:px-4 hover:border-slate-300 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] shadow-2xs shrink-0">
+                <div className="w-full lg:w-38 xl:w-44 relative border border-slate-200 rounded-xl bg-white p-3 sm:py-3 sm:px-4 hover:border-slate-300 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] shadow-2xs shrink-0">
                   <div className="text-slate-500 text-xs sm:text-[13px] font-normal leading-none mb-1">
                     Pickup-Time
                   </div>
                   <div className="relative flex items-center">
                     <select
                       id="pickup-time-select"
-                      value={pickupTime}
+                      value={formatTo12Hour(pickupTime)}
                       onChange={(e) => setPickupTime(e.target.value)}
-                      className="w-full bg-transparent border-none p-0 text-slate-900 font-medium text-sm sm:text-base focus:outline-none appearance-none cursor-pointer pr-4"
+                      className="w-full bg-transparent border-none p-0 text-slate-900 font-semibold text-sm sm:text-base focus:outline-none appearance-none cursor-pointer pr-5 tracking-tight"
                       aria-label="Select pickup time"
                     >
-                      {TIME_OPTIONS_24H.map((timeOption) => (
+                      {TIME_OPTIONS.map((timeOption) => (
                         <option key={timeOption} value={timeOption} className="text-slate-900 font-medium py-1">
                           {timeOption}
                         </option>
                       ))}
                     </select>
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-0 pointer-events-none" />
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-0 pointer-events-none" />
                   </div>
                 </div>
               </div>
@@ -1111,16 +1111,16 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                   <div className="relative flex items-center">
                     <select
                       id="local-pickup-time-select"
-                      value={formatTo24Hour(pickupTime)}
+                      value={formatTo12Hour(pickupTime)}
                       onChange={(e) => {
                         setPickupTime(e.target.value);
                         if (errors.pickupTime) setErrors((prev) => ({ ...prev, pickupTime: '' }));
                       }}
-                      className="w-full bg-transparent border-none p-0 text-slate-900 font-medium text-sm sm:text-base focus:outline-none appearance-none cursor-pointer pr-4"
+                      className="w-full bg-transparent border-none p-0 text-slate-900 font-semibold text-sm sm:text-base focus:outline-none appearance-none cursor-pointer pr-4"
                       aria-label="Select start time"
                     >
-                      {TIME_OPTIONS_24H.map((t) => (
-                        <option key={t} value={t}>{t}</option>
+                      {TIME_OPTIONS.map((t) => (
+                        <option key={t} value={t} className="text-slate-900 font-medium py-1">{t}</option>
                       ))}
                     </select>
                     <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-0 pointer-events-none" />
@@ -1323,19 +1323,19 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                 </div>
 
                 {/* PICKUP-TIME */}
-                <div className="w-full lg:w-36 xl:w-40 relative border border-slate-200 rounded-xl bg-white p-3 sm:py-3 sm:px-4 hover:border-slate-300 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] shadow-2xs shrink-0">
+                <div className="w-full lg:w-38 xl:w-44 relative border border-slate-200 rounded-xl bg-white p-3 sm:py-3 sm:px-4 hover:border-slate-300 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] shadow-2xs shrink-0">
                   <div className="text-slate-500 text-xs sm:text-[13px] font-normal leading-none mb-1">
                     Pickup-Time
                   </div>
                   <div className="relative flex items-center">
                     <select
-                      value={pickupTime}
+                      value={formatTo12Hour(pickupTime)}
                       onChange={(e) => setPickupTime(e.target.value)}
-                      className="w-full bg-transparent border-none p-0 text-slate-900 font-medium text-sm sm:text-base focus:outline-none appearance-none cursor-pointer pr-4"
+                      className="w-full bg-transparent border-none p-0 text-slate-900 font-semibold text-sm sm:text-base focus:outline-none appearance-none cursor-pointer pr-4"
                       aria-label="Select airport time"
                     >
-                      {TIME_OPTIONS_24H.map((t) => (
-                        <option key={t} value={t}>{t}</option>
+                      {TIME_OPTIONS.map((t) => (
+                        <option key={t} value={t} className="text-slate-900 font-medium py-1">{t}</option>
                       ))}
                     </select>
                     <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-0 pointer-events-none" />

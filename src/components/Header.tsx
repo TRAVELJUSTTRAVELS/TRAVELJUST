@@ -162,7 +162,7 @@ export const Header: React.FC<HeaderProps> = ({
               className="flex items-center gap-2 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-900 border border-slate-200/90 hover:border-slate-300 rounded-xl font-bold text-sm shadow-2xs hover:shadow-xs transition-all duration-150 cursor-pointer select-none"
               title="Download TRAVEL JUST Mobile App"
             >
-              <Smartphone className="w-4 h-4 text-[#0ea5e9] shrink-0" />
+              <Smartphone className="w-4 h-4 text-[#14CD03] shrink-0" />
               <span>Download App</span>
             </button>
 
@@ -184,7 +184,7 @@ export const Header: React.FC<HeaderProps> = ({
                 aria-haspopup="true"
               >
                 {/* Circular Avatar Icon matching reference design */}
-                <div className="w-8 h-8 rounded-full bg-[#EEEEEE] border border-slate-200/80 flex items-center justify-center shrink-0 overflow-hidden text-[#757575]">
+                <div className="w-8 h-8 rounded-full bg-[#EEEEEE] border border-slate-200/80 flex items-center justify-center shrink-0 overflow-hidden text-[#14CD03]">
                   {customer ? (
                     <span className="font-bold text-xs text-slate-800">
                       {customer.fullName.slice(0, 2).toUpperCase() || 'TJ'}
