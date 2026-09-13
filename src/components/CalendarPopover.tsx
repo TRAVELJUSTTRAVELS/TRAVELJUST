@@ -45,17 +45,40 @@ export const CalendarPopover: React.FC<CalendarPopoverProps> = ({
     }
   }, [isOpen, selectedDate]);
 
-  // Click outside to close
+  // Click outside to close (without breaking the toggle on the trigger box)
   useEffect(() => {
     if (!isOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!popoverRef.current || !target) return;
+      
+      // Click was inside popover
+      if (popoverRef.current.contains(target)) return;
+
+      // If click was inside the parent trigger box, allow the trigger box's own onClick to handle toggle
+      const triggerBox = popoverRef.current.parentElement;
+      if (triggerBox && triggerBox.contains(target)) {
+        return;
+      }
+
+      onClose();
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
         onClose();
       }
     };
-    document.addEventListener('mousedown', handleClickOutside, true);
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside, true);
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen, onClose]);
 
@@ -122,7 +145,7 @@ export const CalendarPopover: React.FC<CalendarPopoverProps> = ({
       role="dialog"
       aria-modal="true"
       aria-label={title}
-      className={`absolute z-50 top-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-200/90 p-3.5 sm:p-4 w-[290px] sm:w-[310px] transition-all animate-in fade-in-0 zoom-in-95 duration-150 ${
+      className={`absolute z-[80] top-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-200/90 p-3.5 sm:p-4 w-[290px] sm:w-[310px] max-w-[calc(100vw-2rem)] transition-all animate-in fade-in-0 zoom-in-95 duration-150 ${
         align === 'right' ? 'right-0' : 'left-0'
       }`}
       onClick={(e) => e.stopPropagation()}

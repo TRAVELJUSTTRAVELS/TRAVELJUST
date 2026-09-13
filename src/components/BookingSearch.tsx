@@ -187,9 +187,9 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
   // Refs for HTML date pickers
   const pickupDateInputRef = useRef<HTMLInputElement>(null);
   const dropDateInputRef = useRef<HTMLInputElement>(null);
-  const [activeCalendar, setActiveCalendar] = useState<
-    'rt-departure' | 'rt-return' | 'ow-departure' | 'local-departure' | 'airport-departure' | null
-  >(null);
+  type ActiveCalendarKey = 'rt-departure' | 'rt-return' | 'ow-departure' | 'local-departure' | 'airport-departure';
+
+  const [activeCalendar, setActiveCalendar] = useState<ActiveCalendarKey | null>(null);
 
   // Live route calculation state
   const [routeInfo, setRouteInfo] = useState<CalculatedRouteInfo | null>(
@@ -283,6 +283,12 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
     } else if (errors.dropDate) {
       setErrors((prev) => ({ ...prev, dropDate: '' }));
     }
+  };
+
+  const toggleCalendar = (calKey: ActiveCalendarKey, e?: React.SyntheticEvent) => {
+    e?.stopPropagation();
+    registerUserActivity();
+    setActiveCalendar((prev) => (prev === calKey ? null : calKey));
   };
 
   const handleSwapLocations = () => {
@@ -489,10 +495,10 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
       id="travel-just-booking-widget"
       onKeyDown={registerUserActivity}
       onClick={registerUserActivity}
-      className="rounded-[28px] overflow-hidden shadow-xl border border-slate-200/80 transition-all relative z-20 w-full bg-[#ECFDF5]"
+      className="rounded-[28px] shadow-xl border border-slate-200/80 transition-all relative z-20 w-full bg-[#ECFDF5]"
     >
       {/* Top Banner with HEX ECFDF5 background and centered tab pill */}
-      <div className="pt-6 pb-5 px-4 sm:px-6 md:px-8 flex flex-col items-center justify-center bg-[#ECFDF5]">
+      <div className="pt-6 pb-5 px-4 sm:px-6 md:px-8 flex flex-col items-center justify-center bg-[#ECFDF5] rounded-t-[28px]">
         <ServiceSelector
           selectedService={serviceType}
           onSelectService={handleServiceChange}
@@ -569,16 +575,19 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                 {/* DEPARTURE */}
                 <div
                   id="rt-departure-date-box"
-                  onClick={() => {
-                    registerUserActivity();
-                    setActiveCalendar((prev) => (prev === 'rt-departure' ? null : 'rt-departure'));
-                    try {
-                      pickupDateInputRef.current?.showPicker?.();
-                    } catch {
-                      // Handled by custom CalendarPopover
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Select departure date"
+                  aria-haspopup="dialog"
+                  aria-expanded={activeCalendar === 'rt-departure'}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      toggleCalendar('rt-departure', e);
                     }
                   }}
-                  className={`w-full lg:w-36 xl:w-40 relative border rounded-xl bg-white p-3 sm:py-3 sm:px-3.5 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] cursor-pointer shadow-2xs shrink-0 ${
+                  onClick={(e) => toggleCalendar('rt-departure', e)}
+                  className={`w-full lg:w-36 xl:w-40 relative border rounded-xl bg-white p-3 sm:py-3 sm:px-3.5 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] cursor-pointer shadow-2xs shrink-0 select-none ${
                     errors.travelDate
                       ? 'border-rose-400 ring-1 ring-rose-300'
                       : activeCalendar === 'rt-departure'
@@ -586,19 +595,19 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                       : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
-                  <div className="flex items-center justify-between text-slate-500 text-xs sm:text-[13px] font-normal leading-none mb-1">
+                  <div className="flex items-center justify-between text-slate-500 text-xs sm:text-[13px] font-normal leading-none mb-1 pointer-events-none">
                     <span className="flex items-center gap-1">
-                      Departure <ChevronDown className="w-3.5 h-3.5 text-indigo-900" />
+                      Departure <ChevronDown className={`w-3.5 h-3.5 text-indigo-900 transition-transform ${activeCalendar === 'rt-departure' ? 'rotate-180' : ''}`} />
                     </span>
                     {errors.travelDate && (
                       <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                     )}
                   </div>
-                  <div className="text-slate-900 font-medium text-sm sm:text-base leading-tight truncate">
+                  <div className="text-slate-900 font-medium text-sm sm:text-base leading-tight truncate pointer-events-none">
                     {formatDateToSeptFormat(travelDate)}
                   </div>
                   {errors.travelDate && (
-                    <span className="text-[10px] text-rose-600 font-medium truncate block leading-tight">
+                    <span className="text-[10px] text-rose-600 font-medium truncate block leading-tight pointer-events-none">
                       {errors.travelDate}
                     </span>
                   )}
@@ -608,19 +617,11 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                     type="date"
                     min={getTodayDate()}
                     value={travelDate}
-                    onFocus={() => setActiveCalendar('rt-departure')}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      registerUserActivity();
-                      setActiveCalendar((prev) => (prev === 'rt-departure' ? null : 'rt-departure'));
-                      try {
-                        (e.currentTarget as HTMLInputElement).showPicker?.();
-                      } catch {
-                        // Handled by custom CalendarPopover
-                      }
-                    }}
+                    tabIndex={-1}
+                    aria-hidden="true"
                     onChange={(e) => handleTravelDateChange(e.target.value)}
-                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    onClick={(e) => toggleCalendar('rt-departure', e)}
+                    className="sr-only"
                     aria-label="Select departure date"
                   />
 
@@ -641,16 +642,19 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                 {/* RETURN */}
                 <div
                   id="rt-return-date-box"
-                  onClick={() => {
-                    registerUserActivity();
-                    setActiveCalendar((prev) => (prev === 'rt-return' ? null : 'rt-return'));
-                    try {
-                      dropDateInputRef.current?.showPicker?.();
-                    } catch {
-                      // Handled by custom CalendarPopover
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Select return date"
+                  aria-haspopup="dialog"
+                  aria-expanded={activeCalendar === 'rt-return'}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      toggleCalendar('rt-return', e);
                     }
                   }}
-                  className={`w-full lg:w-36 xl:w-40 relative border rounded-xl bg-white p-3 sm:py-3 sm:px-3.5 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] cursor-pointer shadow-2xs shrink-0 ${
+                  onClick={(e) => toggleCalendar('rt-return', e)}
+                  className={`w-full lg:w-36 xl:w-40 relative border rounded-xl bg-white p-3 sm:py-3 sm:px-3.5 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] cursor-pointer shadow-2xs shrink-0 select-none ${
                     errors.dropDate
                       ? 'border-rose-400 ring-1 ring-rose-300'
                       : activeCalendar === 'rt-return'
@@ -658,17 +662,19 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                       : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
-                  <div className="flex items-center justify-between text-slate-500 text-xs sm:text-[13px] font-normal leading-none mb-1">
-                    <span className="flex items-center gap-1">Return</span>
+                  <div className="flex items-center justify-between text-slate-500 text-xs sm:text-[13px] font-normal leading-none mb-1 pointer-events-none">
+                    <span className="flex items-center gap-1">
+                      Return <ChevronDown className={`w-3.5 h-3.5 text-indigo-900 transition-transform ${activeCalendar === 'rt-return' ? 'rotate-180' : ''}`} />
+                    </span>
                     {errors.dropDate && (
                       <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                     )}
                   </div>
-                  <div className="text-slate-900 font-medium text-sm sm:text-base leading-tight truncate">
+                  <div className="text-slate-900 font-medium text-sm sm:text-base leading-tight truncate pointer-events-none">
                     {formatDateToSeptFormat(dropDate || returnDate || travelDate)}
                   </div>
                   {errors.dropDate && (
-                    <span className="text-[10px] text-rose-600 font-medium truncate block leading-tight">
+                    <span className="text-[10px] text-rose-600 font-medium truncate block leading-tight pointer-events-none">
                       {errors.dropDate}
                     </span>
                   )}
@@ -678,19 +684,11 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                     type="date"
                     min={travelDate || getTodayDate()}
                     value={dropDate}
-                    onFocus={() => setActiveCalendar('rt-return')}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      registerUserActivity();
-                      setActiveCalendar((prev) => (prev === 'rt-return' ? null : 'rt-return'));
-                      try {
-                        (e.currentTarget as HTMLInputElement).showPicker?.();
-                      } catch {
-                        // Handled by custom CalendarPopover
-                      }
-                    }}
+                    tabIndex={-1}
+                    aria-hidden="true"
                     onChange={(e) => handleDropDateChange(e.target.value)}
-                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    onClick={(e) => toggleCalendar('rt-return', e)}
+                    className="sr-only"
                     aria-label="Select return date"
                   />
 
@@ -831,16 +829,19 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                 {/* DEPARTURE */}
                 <div
                   id="oneway-departure-date-box"
-                  onClick={() => {
-                    registerUserActivity();
-                    setActiveCalendar((prev) => (prev === 'ow-departure' ? null : 'ow-departure'));
-                    try {
-                      pickupDateInputRef.current?.showPicker?.();
-                    } catch {
-                      // Handled by custom CalendarPopover
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Select departure date"
+                  aria-haspopup="dialog"
+                  aria-expanded={activeCalendar === 'ow-departure'}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      toggleCalendar('ow-departure', e);
                     }
                   }}
-                  className={`w-full lg:w-44 xl:w-48 relative border rounded-xl bg-white p-3 sm:py-3 sm:px-4 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] cursor-pointer shadow-2xs shrink-0 ${
+                  onClick={(e) => toggleCalendar('ow-departure', e)}
+                  className={`w-full lg:w-44 xl:w-48 relative border rounded-xl bg-white p-3 sm:py-3 sm:px-4 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] cursor-pointer shadow-2xs shrink-0 select-none ${
                     errors.travelDate
                       ? 'border-rose-400 ring-1 ring-rose-300'
                       : activeCalendar === 'ow-departure'
@@ -848,19 +849,19 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                       : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
-                  <div className="flex items-center justify-between text-slate-500 text-xs sm:text-[13px] font-normal leading-none mb-1">
+                  <div className="flex items-center justify-between text-slate-500 text-xs sm:text-[13px] font-normal leading-none mb-1 pointer-events-none">
                     <span className="flex items-center gap-1">
-                      Departure <ChevronDown className="w-3.5 h-3.5 text-indigo-900" />
+                      Departure <ChevronDown className={`w-3.5 h-3.5 text-indigo-900 transition-transform ${activeCalendar === 'ow-departure' ? 'rotate-180' : ''}`} />
                     </span>
                     {errors.travelDate && (
                       <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                     )}
                   </div>
-                  <div className="text-slate-900 font-medium text-sm sm:text-base leading-tight truncate">
+                  <div className="text-slate-900 font-medium text-sm sm:text-base leading-tight truncate pointer-events-none">
                     {formatDateToSeptFormat(travelDate)}
                   </div>
                   {errors.travelDate && (
-                    <span className="text-[10px] text-rose-600 font-medium truncate block leading-tight">
+                    <span className="text-[10px] text-rose-600 font-medium truncate block leading-tight pointer-events-none">
                       {errors.travelDate}
                     </span>
                   )}
@@ -870,19 +871,11 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                     type="date"
                     min={getTodayDate()}
                     value={travelDate}
-                    onFocus={() => setActiveCalendar('ow-departure')}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      registerUserActivity();
-                      setActiveCalendar((prev) => (prev === 'ow-departure' ? null : 'ow-departure'));
-                      try {
-                        (e.currentTarget as HTMLInputElement).showPicker?.();
-                      } catch {
-                        // Handled by custom CalendarPopover
-                      }
-                    }}
+                    tabIndex={-1}
+                    aria-hidden="true"
                     onChange={(e) => handleTravelDateChange(e.target.value)}
-                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    onClick={(e) => toggleCalendar('ow-departure', e)}
+                    className="sr-only"
                     aria-label="Select departure date"
                   />
 
@@ -956,16 +949,19 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                 {/* DEPARTURE */}
                 <div
                   id="local-departure-date-box"
-                  onClick={() => {
-                    registerUserActivity();
-                    setActiveCalendar((prev) => (prev === 'local-departure' ? null : 'local-departure'));
-                    try {
-                      pickupDateInputRef.current?.showPicker?.();
-                    } catch {
-                      // Handled by custom CalendarPopover
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Select departure date"
+                  aria-haspopup="dialog"
+                  aria-expanded={activeCalendar === 'local-departure'}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      toggleCalendar('local-departure', e);
                     }
                   }}
-                  className={`w-full lg:w-44 xl:w-48 relative border rounded-xl bg-white p-3 sm:py-3 sm:px-4 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] cursor-pointer shadow-2xs shrink-0 ${
+                  onClick={(e) => toggleCalendar('local-departure', e)}
+                  className={`w-full lg:w-44 xl:w-48 relative border rounded-xl bg-white p-3 sm:py-3 sm:px-4 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] cursor-pointer shadow-2xs shrink-0 select-none ${
                     errors.travelDate
                       ? 'border-rose-400 ring-1 ring-rose-300'
                       : activeCalendar === 'local-departure'
@@ -973,19 +969,19 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                       : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
-                  <div className="flex items-center justify-between text-slate-500 text-xs sm:text-[13px] font-normal leading-none mb-1">
+                  <div className="flex items-center justify-between text-slate-500 text-xs sm:text-[13px] font-normal leading-none mb-1 pointer-events-none">
                     <span className="flex items-center gap-1">
-                      Departure <ChevronDown className="w-3.5 h-3.5 text-indigo-900" />
+                      Departure <ChevronDown className={`w-3.5 h-3.5 text-indigo-900 transition-transform ${activeCalendar === 'local-departure' ? 'rotate-180' : ''}`} />
                     </span>
                     {errors.travelDate && (
                       <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                     )}
                   </div>
-                  <div className="text-slate-900 font-medium text-sm sm:text-base leading-tight truncate">
+                  <div className="text-slate-900 font-medium text-sm sm:text-base leading-tight truncate pointer-events-none">
                     {formatDateToSeptFormat(travelDate)}
                   </div>
                   {errors.travelDate && (
-                    <span className="text-[10px] text-rose-600 font-medium truncate block leading-tight">
+                    <span className="text-[10px] text-rose-600 font-medium truncate block leading-tight pointer-events-none">
                       {errors.travelDate}
                     </span>
                   )}
@@ -995,19 +991,11 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                     type="date"
                     min={getTodayDate()}
                     value={travelDate}
-                    onFocus={() => setActiveCalendar('local-departure')}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      registerUserActivity();
-                      setActiveCalendar((prev) => (prev === 'local-departure' ? null : 'local-departure'));
-                      try {
-                        (e.currentTarget as HTMLInputElement).showPicker?.();
-                      } catch {
-                        // Handled by custom CalendarPopover
-                      }
-                    }}
+                    tabIndex={-1}
+                    aria-hidden="true"
                     onChange={(e) => handleTravelDateChange(e.target.value)}
-                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    onClick={(e) => toggleCalendar('local-departure', e)}
+                    className="sr-only"
                     aria-label="Select date"
                   />
 
@@ -1189,16 +1177,19 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                 {/* DEPARTURE */}
                 <div
                   id="airport-departure-date-box"
-                  onClick={() => {
-                    registerUserActivity();
-                    setActiveCalendar((prev) => (prev === 'airport-departure' ? null : 'airport-departure'));
-                    try {
-                      pickupDateInputRef.current?.showPicker?.();
-                    } catch {
-                      // Handled by custom CalendarPopover
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Select departure date"
+                  aria-haspopup="dialog"
+                  aria-expanded={activeCalendar === 'airport-departure'}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      toggleCalendar('airport-departure', e);
                     }
                   }}
-                  className={`w-full lg:w-44 xl:w-48 relative border rounded-xl bg-white p-3 sm:py-3 sm:px-4 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] cursor-pointer shadow-2xs shrink-0 ${
+                  onClick={(e) => toggleCalendar('airport-departure', e)}
+                  className={`w-full lg:w-44 xl:w-48 relative border rounded-xl bg-white p-3 sm:py-3 sm:px-4 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] cursor-pointer shadow-2xs shrink-0 select-none ${
                     errors.travelDate
                       ? 'border-rose-400 ring-1 ring-rose-300'
                       : activeCalendar === 'airport-departure'
@@ -1206,19 +1197,19 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                       : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
-                  <div className="flex items-center justify-between text-slate-500 text-xs sm:text-[13px] font-normal leading-none mb-1">
+                  <div className="flex items-center justify-between text-slate-500 text-xs sm:text-[13px] font-normal leading-none mb-1 pointer-events-none">
                     <span className="flex items-center gap-1">
-                      Departure <ChevronDown className="w-3.5 h-3.5 text-indigo-900" />
+                      Departure <ChevronDown className={`w-3.5 h-3.5 text-indigo-900 transition-transform ${activeCalendar === 'airport-departure' ? 'rotate-180' : ''}`} />
                     </span>
                     {errors.travelDate && (
                       <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                     )}
                   </div>
-                  <div className="text-slate-900 font-medium text-sm sm:text-base leading-tight truncate">
+                  <div className="text-slate-900 font-medium text-sm sm:text-base leading-tight truncate pointer-events-none">
                     {formatDateToSeptFormat(travelDate)}
                   </div>
                   {errors.travelDate && (
-                    <span className="text-[10px] text-rose-600 font-medium truncate block leading-tight">
+                    <span className="text-[10px] text-rose-600 font-medium truncate block leading-tight pointer-events-none">
                       {errors.travelDate}
                     </span>
                   )}
@@ -1228,19 +1219,11 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                     type="date"
                     min={getTodayDate()}
                     value={travelDate}
-                    onFocus={() => setActiveCalendar('airport-departure')}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      registerUserActivity();
-                      setActiveCalendar((prev) => (prev === 'airport-departure' ? null : 'airport-departure'));
-                      try {
-                        (e.currentTarget as HTMLInputElement).showPicker?.();
-                      } catch {
-                        // Handled by custom CalendarPopover
-                      }
-                    }}
+                    tabIndex={-1}
+                    aria-hidden="true"
                     onChange={(e) => handleTravelDateChange(e.target.value)}
-                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    onClick={(e) => toggleCalendar('airport-departure', e)}
+                    className="sr-only"
                     aria-label="Select airport date"
                   />
 
