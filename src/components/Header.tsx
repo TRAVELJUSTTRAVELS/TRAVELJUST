@@ -346,7 +346,21 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Mobile Hamburger & Controls */}
-          <div className="flex items-center gap-2 md:hidden">
+          <div className="flex items-center gap-1.5 md:hidden">
+            {/* Quick Mobile App Install / Download Icon Button */}
+            {!isOwner && (
+              <button
+                type="button"
+                id="mobile-quick-download-btn"
+                onClick={onOpenDownloadApp}
+                className="flex items-center gap-1 px-2.5 py-1.5 bg-[#032014] text-[#14CD03] border border-emerald-800 rounded-xl text-xs font-extrabold shadow-2xs active:scale-95 transition-all"
+                title="Download / Install Mobile App"
+              >
+                <Smartphone className="w-3.5 h-3.5 text-[#14CD03]" />
+                <span className="text-[11px] text-white">App</span>
+              </button>
+            )}
+
             {/* Customer Profile Quick Icon on Mobile if logged in */}
             {customer && (
               <button
@@ -509,10 +523,10 @@ export const Header: React.FC<HeaderProps> = ({
                 className="w-full flex items-center justify-between px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-900 border border-slate-200 rounded-xl font-bold text-sm cursor-pointer"
               >
                 <div className="flex items-center gap-2.5">
-                  <Smartphone className="w-4 h-4 text-[#0ea5e9]" />
+                  <Smartphone className="w-4 h-4 text-[#14CD03]" />
                   <span>Download App</span>
                 </div>
-                <span className="text-[10px] uppercase font-bold bg-sky-100 text-sky-800 px-2 py-0.5 rounded">
+                <span className="text-[10px] uppercase font-bold bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded">
                   Android & iOS
                 </span>
               </button>

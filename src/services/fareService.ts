@@ -24,6 +24,12 @@ class FareService {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed && typeof parsed === 'object') {
+          if (parsed['toyota-etios']?.pricingByBookingType?.LOCAL?.extraPerKmRate === 12) {
+            parsed['toyota-etios'].pricingByBookingType.LOCAL.extraPerKmRate = 13;
+          }
+          if (parsed['swift-desire']?.pricingByBookingType?.LOCAL?.extraPerKmRate === 12) {
+            parsed['swift-desire'].pricingByBookingType.LOCAL.extraPerKmRate = 13;
+          }
           return { ...DEFAULT_VEHICLE_CONFIGS, ...parsed };
         }
       }

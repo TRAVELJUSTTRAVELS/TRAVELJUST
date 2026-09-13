@@ -140,39 +140,18 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
     initialState?.serviceType || 'oneway'
   );
 
-  // Default locations: "Mysuru Palace, Mysuru" and "Kempegowda International Airport, Bengaluru"
+  // Default locations: blank for customer input before typing
   const [pickupLocation, setPickupLocation] = useState(
-    initialState?.pickupLocation || 'Mysuru Palace, Mysuru'
+    initialState?.pickupLocation || ''
   );
   const [pickupLocationObj, setPickupLocationObj] = useState<PlaceSuggestion | undefined>(
-    initialState?.pickupLocationObj || {
-      placeId: 'loc_mys_palace',
-      placeName: 'Mysuru Palace, Mysuru (Amba Vilas Palace & Heritage Grounds)',
-      areaLocality: 'Sayyaji Rao Rd, Agrahara',
-      city: 'Mysuru, Karnataka',
-      formattedAddress: 'Mysuru Palace, Sayyaji Rao Rd, Agrahara, Chamrajpura, Mysuru, Karnataka 570001',
-      lat: 12.3051,
-      lng: 76.6551,
-      category: 'mysuru_local',
-      types: ['tourist_attraction', 'locality'],
-    }
+    initialState?.pickupLocationObj || undefined
   );
   const [dropLocation, setDropLocation] = useState(
-    initialState?.dropLocation || 'Kempegowda International Airport, Bengaluru'
+    initialState?.dropLocation || ''
   );
   const [dropLocationObj, setDropLocationObj] = useState<PlaceSuggestion | undefined>(
-    initialState?.dropLocationObj || {
-      placeId: 'loc_kial_t1',
-      placeName: 'Kempegowda International Airport Terminal 1 (BLR T1 / KIAL)',
-      areaLocality: 'Devanahalli, North Bengaluru',
-      city: 'Bengaluru, Karnataka',
-      formattedAddress: 'Terminal 1, KIAL Rd, Devanahalli, Bengaluru, Karnataka 560300',
-      lat: 13.1986,
-      lng: 77.7066,
-      isAirport: true,
-      category: 'airports',
-      types: ['airport', 'transit_station'],
-    }
+    initialState?.dropLocationObj || undefined
   );
 
   // Default travel date: today's date dynamically
@@ -214,20 +193,7 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
 
   // Live route calculation state
   const [routeInfo, setRouteInfo] = useState<CalculatedRouteInfo | null>(
-    initialState?.routeInfo || {
-      distanceKm: 170.0,
-      durationMinutes: 210,
-      durationText: '3 hr 30 min',
-      routeSummary: 'Mysuru Palace to Kempegowda International Airport via NH 275 Bengaluru-Mysuru Expressway',
-      highwayCorridor: 'NH 275 Bengaluru-Mysuru Expressway + NH 44 Airport Corridor',
-      tollEstimate: 320,
-      recommendedService: 'airport',
-      dataSource: 'google_maps',
-      originCoords: { lat: 12.3051, lng: 76.6551 },
-      destCoords: { lat: 13.1986, lng: 77.7066 },
-      originPlaceId: 'loc_mys_palace',
-      destPlaceId: 'loc_kial_t1',
-    }
+    initialState?.routeInfo || null
   );
   const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
 
@@ -363,45 +329,11 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
 
   const handleResetForm = useCallback(() => {
     setIsResetting(true);
-    setPickupLocation('Mysuru Palace, Mysuru');
-    setPickupLocationObj({
-      placeId: 'loc_mys_palace',
-      placeName: 'Mysuru Palace, Mysuru (Amba Vilas Palace & Heritage Grounds)',
-      areaLocality: 'Sayyaji Rao Rd, Agrahara',
-      city: 'Mysuru, Karnataka',
-      formattedAddress: 'Mysuru Palace, Sayyaji Rao Rd, Agrahara, Chamrajpura, Mysuru, Karnataka 570001',
-      lat: 12.3051,
-      lng: 76.6551,
-      category: 'mysuru_local',
-      types: ['tourist_attraction', 'locality'],
-    });
-    setDropLocation('Kempegowda International Airport, Bengaluru');
-    setDropLocationObj({
-      placeId: 'loc_kial_t1',
-      placeName: 'Kempegowda International Airport Terminal 1 (BLR T1 / KIAL)',
-      areaLocality: 'Devanahalli, North Bengaluru',
-      city: 'Bengaluru, Karnataka',
-      formattedAddress: 'Terminal 1, KIAL Rd, Devanahalli, Bengaluru, Karnataka 560300',
-      lat: 13.1986,
-      lng: 77.7066,
-      isAirport: true,
-      category: 'airports',
-      types: ['airport', 'transit_station'],
-    });
-    setRouteInfo({
-      distanceKm: 170.0,
-      durationMinutes: 210,
-      durationText: '3 hr 30 min',
-      routeSummary: 'Mysuru Palace to Kempegowda International Airport via NH 275 Bengaluru-Mysuru Expressway',
-      highwayCorridor: 'NH 275 Bengaluru-Mysuru Expressway + NH 44 Airport Corridor',
-      tollEstimate: 320,
-      recommendedService: 'airport',
-      dataSource: 'google_maps',
-      originCoords: { lat: 12.3051, lng: 76.6551 },
-      destCoords: { lat: 13.1986, lng: 77.7066 },
-      originPlaceId: 'loc_mys_palace',
-      destPlaceId: 'loc_kial_t1',
-    });
+    setPickupLocation('');
+    setPickupLocationObj(undefined);
+    setDropLocation('');
+    setDropLocationObj(undefined);
+    setRouteInfo(null);
     setViaLocations([]);
     setTravelDate(getTodayDate());
     setDropDate(getTomorrowDate());
@@ -580,7 +512,7 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                     id="rt-from-location-input"
                     label="From"
                     variant="card-box"
-                    placeholder="From"
+                    placeholder="Enter pickup city or landmark"
                     value={pickupLocation}
                     selectedPlace={pickupLocationObj}
                     allowCurrentLocation={false}
@@ -617,7 +549,7 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                     id="rt-to-location-input"
                     label="To"
                     variant="card-box"
-                    placeholder="To"
+                    placeholder="Enter destination city or landmark"
                     value={dropLocation}
                     selectedPlace={dropLocationObj}
                     allowCurrentLocation={false}
@@ -842,7 +774,7 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                     id="from-location-input"
                     label="From"
                     variant="card-box"
-                    placeholder="From"
+                    placeholder="Enter pickup city or landmark"
                     value={pickupLocation}
                     selectedPlace={pickupLocationObj}
                     allowCurrentLocation={false}
@@ -879,7 +811,7 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                     id="to-location-input"
                     label="To"
                     variant="card-box"
-                    placeholder="To"
+                    placeholder="Enter destination city or landmark"
                     value={dropLocation}
                     selectedPlace={dropLocationObj}
                     allowCurrentLocation={false}
@@ -1004,7 +936,7 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                     id="local-pickup-location-input"
                     label="From"
                     variant="card-box"
-                    placeholder="From (e.g. Mysuru City / Hotel)"
+                    placeholder="Enter pickup location (e.g. Mysuru City / Hotel)"
                     value={pickupLocation}
                     selectedPlace={pickupLocationObj}
                     allowCurrentLocation={false}
@@ -1137,8 +1069,13 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                   id="local-duration-box"
                   className="w-full lg:w-48 xl:w-52 relative border border-slate-200 rounded-xl bg-white p-3 sm:py-3 sm:px-4 hover:border-slate-300 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] shadow-2xs shrink-0"
                 >
-                  <div className="text-slate-500 text-xs sm:text-[13px] font-normal leading-none mb-1">
-                    Duration
+                  <div className="flex items-center justify-between text-slate-500 text-xs sm:text-[13px] font-normal leading-none mb-1">
+                    <span>Duration</span>
+                    {durationHours === 12 && (
+                      <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 rounded leading-none">
+                        15% OFF
+                      </span>
+                    )}
                   </div>
                   <div className="relative flex items-center">
                     <select
@@ -1150,7 +1087,6 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                     >
                       <option value={4}>4 Hours / 40 Km</option>
                       <option value={8}>8 Hours / 80 Km</option>
-                      <option value={10}>10 Hours / 100 Km</option>
                       <option value={12}>12 Hours / 120 Km</option>
                     </select>
                     <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-0 pointer-events-none" />
@@ -1197,7 +1133,7 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                     id="airport-pickup-input"
                     label="From"
                     variant="card-box"
-                    placeholder={airportTransferType === 'pickup' ? 'From (Airport)' : 'From (City/Hotel)'}
+                    placeholder={airportTransferType === 'pickup' ? 'Enter airport (e.g. BLR Airport)' : 'Enter pickup city or hotel'}
                     value={pickupLocation}
                     selectedPlace={pickupLocationObj}
                     allowCurrentLocation={false}
@@ -1233,7 +1169,7 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                     id="airport-drop-input"
                     label="To"
                     variant="card-box"
-                    placeholder={airportTransferType === 'drop' ? 'To (Airport)' : 'To (City/Hotel)'}
+                    placeholder={airportTransferType === 'drop' ? 'Enter airport (e.g. BLR Airport)' : 'Enter destination city or hotel'}
                     value={dropLocation}
                     selectedPlace={dropLocationObj}
                     allowCurrentLocation={false}
@@ -1452,7 +1388,7 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
               </div>
             </div>
 
-            {/* ROUTE Highway Description, Tolls & Interstate Badges */}
+            {/* ROUTE Highway Description */}
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-1 border-t border-slate-200/60">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[10px] font-extrabold uppercase tracking-wider bg-slate-200 text-slate-700 px-2 py-0.5 rounded">
@@ -1463,23 +1399,6 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                   <span>Actual road route:</span>
                   <span className="text-slate-900 font-bold">{routeInfo.highwayCorridor || 'NH 275 Bengaluru-Mysuru Expressway + NH 44 Airport Corridor'}</span>
                 </span>
-              </div>
-
-              <div className="flex items-center gap-2 flex-wrap">
-                {routeInfo.isInterstate && (
-                  <div className="flex items-center gap-1 text-purple-800 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-lg font-bold text-[11px]">
-                    <span>Interstate ({routeInfo.interstateStates?.fromState || 'KA'} → {routeInfo.interstateStates?.toState || 'Outstation'})</span>
-                    {routeInfo.interstateTaxEstimate ? (
-                      <span className="font-normal text-purple-600">· Permit ~₹{routeInfo.interstateTaxEstimate}</span>
-                    ) : null}
-                  </div>
-                )}
-
-                {typeof routeInfo.tollEstimate === 'number' && routeInfo.tollEstimate > 0 && (
-                  <div className="flex items-center gap-1 text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-lg font-bold text-[11px]">
-                    <span>Fastag Tolls: ₹{routeInfo.tollEstimate}</span>
-                  </div>
-                )}
               </div>
             </div>
 

@@ -1,6 +1,18 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script>
+      // Suppress benign Vite websocket connection errors in AI Studio iframe environment where HMR is disabled
+      (function() {
+        const origError = console.error;
+        console.error = function(...args) {
+          if (args[0] && typeof args[0] === 'string' && (args[0].includes('[vite] failed to connect to websocket') || args[0].startsWith('[vite]'))) {
+            return;
+          }
+          origError.apply(console, args);
+        };
+      })();
+    </script>
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-N5CVX3DY50"></script>
     <script>
@@ -11,7 +23,14 @@
       gtag('config', 'G-N5CVX3DY50');
     </script>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+    <meta name="theme-color" content="#032014" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="TRAVEL JUST" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <title>TRAVEL JUST</title>
     <meta name="description" content="Travel agency & taxi booking service in Mysore. One way taxi, round trip cabs, airport transfer to Bengaluru KIAL Airport, Coorg, Ooty & Wayanad." />
     <meta name="keywords" content="travel agency in Mysore, taxi service Mysore, cab booking Mysore, car rental Mysore, outstation taxi Mysore, Mysore to Bengaluru taxi, Mysore to Coorg taxi, Mysore to Ooty taxi, Mysore to Wayanad taxi, Bengaluru airport taxi from Mysore, airport transfer Mysore, one way taxi Mysore" />

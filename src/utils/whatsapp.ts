@@ -311,7 +311,7 @@ export interface BookingWhatsAppPayload {
  * Builds a formatted WhatsApp message for booking confirmations and dispatch communication
  */
 export function formatBookingConfirmationMessage(payload: BookingWhatsAppPayload): string {
-  const { searchDetails, selectedVehicle, passengerDetails, estimatedFare } = payload;
+  const { referenceId, searchDetails, selectedVehicle, passengerDetails, estimatedFare } = payload;
 
   let tripTypeFormatted = 'ONE WAY';
   if (searchDetails.serviceType === 'roundtrip') {
@@ -356,63 +356,52 @@ export function formatBookingConfirmationMessage(payload: BookingWhatsAppPayload
   const fareStr = estimatedFare?.totalEstimatedFare
     ? `${Number(estimatedFare.totalEstimatedFare).toLocaleString('en-IN')}`
     : '0';
+  const fareDiscountNote = (estimatedFare?.discountPercentage && estimatedFare?.originalFare)
+    ? ` (${estimatedFare.discountPercentage}% OFF applied, was ₹${Number(estimatedFare.originalFare).toLocaleString('en-IN')})`
+    : '';
 
-  const specialRequest = passengerDetails.specialInstructions?.trim() || 'None';
+  const custName = passengerDetails?.fullName?.trim() || 'Guest Customer';
+  const custMobile = passengerDetails?.mobileNumber?.trim() || 'Direct WhatsApp';
+  const specialRequest = passengerDetails?.specialInstructions?.trim() || 'None';
 
   const lines = [
-    'TRAVEL JUST BOOKING REQUEST',
-    '',
-    'Customer Name:',
-    passengerDetails.fullName,
-    '',
-    'Mobile:',
-    passengerDetails.mobileNumber,
-    '',
-    'Trip Type:',
-    tripTypeFormatted,
-    '',
-    'FROM:',
-    fromLocation,
-    '',
-    'TO:',
-    toLocation,
-    '',
-    'STOPS:',
-    stopsText,
-    '',
-    'PICK UP DATE:',
-    pickupDate,
-    '',
-    'PICK UP TIME:',
-    pickupTime,
+    '🚕 *TRAVEL JUST - BOOKING CONFIRMATION* 🔔',
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    '1. *Booking Request Received*',
+    `2. *Booking Reference ID:* ${referenceId}`,
+    '3. *Booking Details:*',
+    `   • *Trip Type:* ${tripTypeFormatted}`,
+    `   • *Pickup:* ${fromLocation}`,
+    `   • *Drop:* ${toLocation}`,
   ];
 
-  if (returnDate !== undefined) {
-    lines.push('', 'RETURN DATE:', returnDate);
-  }
-  if (returnTime !== undefined) {
-    lines.push('', 'RETURN TIME:', returnTime);
+  if (stopsText && stopsText !== 'None') {
+    lines.push(`   • *Via Stops:* ${stopsText}`);
   }
 
   lines.push(
+    `   • *Pickup Date:* ${pickupDate}`,
+    `   • *Pickup Time:* ${pickupTime}`
+  );
+
+  if (returnDate !== undefined) {
+    lines.push(`   • *Return Date:* ${returnDate}`);
+  }
+  if (returnTime !== undefined) {
+    lines.push(`   • *Return Time:* ${returnTime}`);
+  }
+
+  lines.push(
+    `   • *Vehicle:* ${selectedVehicle.name} (${selectedVehicle.category})`,
+    `   • *Est. Distance:* ${distanceStr}`,
+    `   • *Est. Duration:* ${durationStr}`,
+    `   • *Estimated Fare:* ₹${fareStr}${fareDiscountNote}`,
+    '4. *You receive Chauffeur Details & Cab details on WhatsApp.*',
+    '5. *Cab arrives at your pickup point at scheduled time.*',
     '',
-    'DISTANCE:',
-    distanceStr,
-    '',
-    'ESTIMATED DURATION:',
-    durationStr,
-    '',
-    'VEHICLE:',
-    `${selectedVehicle.name} (${selectedVehicle.category})`,
-    '',
-    'CALCULATED FARE:',
-    `₹${fareStr}`,
-    '',
-    'SPECIAL REQUEST:',
-    specialRequest,
-    '',
-    'Website:',
-    'WWW.TRAVELJUST.IN'
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    '📞 *Call Fleet Desk: +919740754400*',
+    '🌐 *Website: https://www.traveljust.in*'
   );
 
   return lines.join('\n');

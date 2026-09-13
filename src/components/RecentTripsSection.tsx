@@ -108,10 +108,8 @@ export const RecentTripsSection: React.FC<RecentTripsSectionProps> = ({
   const [realtimeNotification, setRealtimeNotification] = useState<string | null>(null);
   const [downloadingInvoiceRef, setDownloadingInvoiceRef] = useState<string | null>(null);
 
-  // Dedicated Delete / Remove booking state
-  const [tripToDelete, setTripToDelete] = useState<DbBookingRecord | null>(null);
-  const [deleteReason, setDeleteReason] = useState<string>('Duplicate or test booking inquiry');
-  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  // Direct Delete / Remove booking state
+  const [isDeletingTripRef, setIsDeletingTripRef] = useState<string | null>(null);
   const [deleteNotice, setDeleteNotice] = useState<string | null>(null);
   const [showLoginAlertsModal, setShowLoginAlertsModal] = useState<boolean>(false);
   
@@ -338,16 +336,16 @@ export const RecentTripsSection: React.FC<RecentTripsSectionProps> = ({
       return (
         <span
           id={`status-driver-assigned-${trip?.reference_id || 'badge'}`}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200 shadow-2xs animate-pulse"
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200 shadow-2xs animate-pulse"
         >
-          <Car className="w-3.5 h-3.5 text-indigo-600 animate-bounce" />
+          <Car className="w-3 h-3 text-indigo-600 animate-bounce" />
           <span>Driver Assigned</span>
         </span>
       );
     }
     if (status === 'Confirmed') {
       return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300/60">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300/60">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
           Confirmed
         </span>
@@ -355,7 +353,7 @@ export const RecentTripsSection: React.FC<RecentTripsSectionProps> = ({
     }
     if (status === 'Completed') {
       return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-300/60">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-300/60">
           <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
           Completed
         </span>
@@ -363,14 +361,14 @@ export const RecentTripsSection: React.FC<RecentTripsSectionProps> = ({
     }
     if (status === 'Cancelled') {
       return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-300/60">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300/60">
           <span className="w-1.5 h-1.5 rounded-full bg-rose-600" />
           Cancelled
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300/60">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300/60">
         <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
         Pending Confirmation
       </span>
@@ -563,49 +561,16 @@ export const RecentTripsSection: React.FC<RecentTripsSectionProps> = ({
     } catch {}
   };
 
-  const handleOpenDeleteModal = (trip: DbBookingRecord, e?: React.MouseEvent) => {
+  const handleDirectDeleteTrip = async (trip: DbBookingRecord, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    setTripToDelete(trip);
-    setDeleteReason(
-      trip.status === 'Pending Confirmation'
-        ? 'Duplicate or test booking inquiry'
-        : 'Inquiry cancelled by fleet manager'
-    );
-  };
-
-  const handleDeleteTrip = (trip: DbBookingRecord, e?: React.MouseEvent) => {
-    handleOpenDeleteModal(trip, e);
-  };
-
-  const executeDeleteTrip = async (
-    trip: DbBookingRecord,
-    notifyWhatsApp: boolean = false,
-    reason: string = 'Booking inquiry cancelled'
-  ) => {
-    setIsDeleting(true);
+    setIsDeletingTripRef(trip.reference_id);
     try {
-      if (notifyWhatsApp && trip.mobile_number) {
-        const cleanPhone = trip.mobile_number.replace(/[^0-9]/g, '');
-        const targetPhone = cleanPhone.startsWith('91') ? cleanPhone : `91${cleanPhone}`;
-        const msg = `*TRAVEL JUST MYSURU - BOOKING UPDATE*
-Booking Ref: #${trip.reference_id}
-Passenger: ${trip.full_name}
-Route: ${trip.pickup_location} ➔ ${trip.drop_location || 'Local Mysuru'}
-Travel Date: ${trip.travel_date} at ${trip.pickup_time}
-
-Your booking request has been cancelled/removed from the dispatch registry (${reason}). We apologize for any inconvenience caused.
-
-For immediate cab arrangements, custom outstation packages, or urgent dispatches, please call Travel Just 24/7 Mysuru Desk at +91 97407 54400.`;
-        window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(msg)}`, '_blank');
-      }
-
       const filtered = trips.filter((t) => t.reference_id !== trip.reference_id);
       setTrips(filtered);
 
       if (selectedTripDetails?.reference_id === trip.reference_id) {
         setSelectedTripDetails(null);
       }
-      setTripToDelete(null);
 
       // 1. Local storage sync
       try {
@@ -629,15 +594,15 @@ For immediate cab arrangements, custom outstation packages, or urgent dispatches
       }
 
       setDeleteNotice(
-        `Booking #${trip.reference_id} (${trip.full_name}) successfully removed from registry.`
+        `Booking #${trip.reference_id} (${trip.full_name}) deleted directly from registry.`
       );
       setTimeout(() => {
         setDeleteNotice(null);
-      }, 4500);
+      }, 4000);
     } catch (err) {
       console.error('Error removing booking:', err);
     } finally {
-      setIsDeleting(false);
+      setIsDeletingTripRef(null);
     }
   };
 
@@ -1250,7 +1215,7 @@ For immediate cab arrangements, custom outstation packages, or urgent dispatches
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {filteredTrips.map((trip) => {
             const isCopied = copiedId === trip.reference_id;
             const isSearchedMatch =
@@ -1261,7 +1226,7 @@ For immediate cab arrangements, custom outstation packages, or urgent dispatches
             return (
               <div
                 key={trip.reference_id}
-                className={`bg-white rounded-2xl border transition-all duration-200 hover:shadow-md p-5 flex flex-col justify-between relative overflow-hidden ${
+                className={`bg-white rounded-xl border transition-all duration-200 hover:shadow-md p-3 sm:p-3.5 flex flex-col justify-between relative overflow-hidden ${
                   isSearchedMatch
                     ? 'border-emerald-500 ring-2 ring-emerald-500/20'
                     : 'border-slate-200 hover:border-slate-300'
@@ -1269,43 +1234,43 @@ For immediate cab arrangements, custom outstation packages, or urgent dispatches
               >
                 {/* Search Match Highlight Tag */}
                 {isSearchedMatch && (
-                  <div className="absolute top-0 right-0 bg-emerald-700 text-white text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-bl-lg shadow-xs">
+                  <div className="absolute top-0 right-0 bg-emerald-700 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-bl-lg shadow-xs">
                     Match Found
                   </div>
                 )}
 
-                <div>
+                <div className="space-y-2">
                   {/* Top Bar: Reference ID & Status */}
-                  <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="flex items-center justify-between gap-1.5 mb-1.5">
                     <button
                       type="button"
                       onClick={(e) => handleCopyRef(trip.reference_id, e)}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-emerald-50 text-slate-800 hover:text-emerald-900 text-xs font-mono font-bold transition-colors"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 hover:bg-emerald-50 text-slate-800 hover:text-emerald-900 text-[11px] font-mono font-bold transition-colors"
                       title="Click to copy Reference ID"
                     >
                       <span>{trip.reference_id}</span>
                       {isCopied ? (
-                        <Check className="w-3 h-3 text-emerald-600" />
+                        <Check className="w-2.5 h-2.5 text-emerald-600" />
                       ) : (
-                        <Copy className="w-3 h-3 text-slate-400" />
+                        <Copy className="w-2.5 h-2.5 text-slate-400" />
                       )}
                     </button>
                     <div>{getStatusBadge(trip.status, trip)}</div>
                   </div>
 
                   {/* Service Badge & Route */}
-                  <div className="mb-3.5">
-                    <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block mb-1">
+                  <div className="mb-2">
+                    <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block mb-0.5">
                       {getServiceLabel(trip.service_type)}
                     </span>
-                    <div className="space-y-1 text-sm font-semibold text-slate-900">
-                      <div className="flex items-start gap-2">
-                        <MapPin className="w-4 h-4 text-emerald-800 shrink-0 mt-0.5" />
+                    <div className="space-y-0.5 text-xs sm:text-[13px] font-semibold text-slate-900 leading-snug">
+                      <div className="flex items-start gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-emerald-800 shrink-0 mt-0.5" />
                         <span className="line-clamp-1">{trip.pickup_location}</span>
                       </div>
                       {trip.drop_location && (
-                        <div className="flex items-start gap-2 text-slate-700 pl-0.5">
-                          <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-1" />
+                        <div className="flex items-start gap-1.5 text-slate-700 pl-0.5">
+                          <ArrowRight className="w-3 h-3 text-slate-400 shrink-0 mt-0.5" />
                           <span className="line-clamp-1">{trip.drop_location}</span>
                         </div>
                       )}
@@ -1316,17 +1281,17 @@ For immediate cab arrangements, custom outstation packages, or urgent dispatches
                   {trip.status === 'Driver Assigned' && (
                     <div
                       id={`driver-assigned-box-${trip.reference_id}`}
-                      className="mb-3.5 p-2.5 rounded-xl bg-indigo-50 border border-indigo-200/80 text-xs text-indigo-950 flex items-center justify-between gap-2 shadow-2xs"
+                      className="mb-2 p-2 rounded-lg bg-indigo-50 border border-indigo-200/80 text-[11px] text-indigo-950 flex items-center justify-between gap-1.5 shadow-2xs"
                     >
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
-                          <User className="w-3.5 h-3.5" />
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-6 h-6 rounded-md bg-indigo-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0 shadow-xs">
+                          <User className="w-3 h-3" />
                         </div>
                         <div>
-                          <span className="font-bold text-[11px] text-indigo-900 block leading-tight">
+                          <span className="font-bold text-[10px] text-indigo-900 block leading-tight">
                             {trip.driver_name || 'Assigned Chauffeur'}
                           </span>
-                          <span className="text-[10px] text-indigo-600 font-mono font-medium">
+                          <span className="text-[9px] text-indigo-600 font-mono font-medium">
                             {trip.driver_vehicle_plate || 'KA 09 Assigned'}
                           </span>
                         </div>
@@ -1337,10 +1302,10 @@ For immediate cab arrangements, custom outstation packages, or urgent dispatches
                           <a
                             href={`tel:${trip.driver_phone}`}
                             onClick={(e) => e.stopPropagation()}
-                            className="px-2 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] flex items-center gap-1 shadow-2xs transition-colors"
+                            className="px-1.5 py-0.5 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[9px] flex items-center gap-1 shadow-2xs transition-colors"
                             title="Call Chauffeur"
                           >
-                            <Phone className="w-3 h-3" />
+                            <Phone className="w-2.5 h-2.5" />
                             <span>Call</span>
                           </a>
                         )}
@@ -1348,7 +1313,7 @@ For immediate cab arrangements, custom outstation packages, or urgent dispatches
                           <button
                             type="button"
                             onClick={(e) => handleOpenAssignModal(trip, e)}
-                            className="px-2 py-1 rounded-lg bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-100 font-bold text-[10px]"
+                            className="px-1.5 py-0.5 rounded-md bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-100 font-bold text-[9px]"
                             title="Re-assign Chauffeur"
                           >
                             Change
@@ -1359,21 +1324,21 @@ For immediate cab arrangements, custom outstation packages, or urgent dispatches
                   )}
 
                   {/* Date, Time & Passenger Details */}
-                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl mb-3.5 border border-slate-100">
+                  <div className="grid grid-cols-2 gap-1.5 text-[11px] text-slate-600 bg-slate-50 p-2 rounded-lg mb-2 border border-slate-100">
                     <div className="flex items-center gap-1.5 truncate">
-                      <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
                       <span className="truncate">{trip.travel_date}</span>
                     </div>
                     <div className="flex items-center gap-1.5 truncate">
-                      <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <Clock className="w-3 h-3 text-slate-400 shrink-0" />
                       <span className="truncate">{trip.pickup_time}</span>
                     </div>
                     <div className="flex items-center gap-1.5 truncate">
-                      <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <User className="w-3 h-3 text-slate-400 shrink-0" />
                       <span className="truncate font-medium">{trip.full_name}</span>
                     </div>
                     <div className="flex items-center gap-1.5 truncate">
-                      <Car className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <Car className="w-3 h-3 text-slate-400 shrink-0" />
                       <span className="truncate font-medium">{trip.vehicle_name || 'Selected Cab'}</span>
                     </div>
                   </div>
@@ -1386,20 +1351,20 @@ For immediate cab arrangements, custom outstation packages, or urgent dispatches
                     return (
                       <div
                         id={`ride-progress-${trip.reference_id}`}
-                        className="mb-3.5 p-2.5 rounded-xl bg-slate-900 text-white border border-slate-800 shadow-2xs"
+                        className="mb-2 p-2 rounded-lg bg-slate-900 text-white border border-slate-800 shadow-2xs"
                       >
-                        <div className="flex items-center justify-between text-[11px] font-semibold mb-1.5">
+                        <div className="flex items-center justify-between text-[10px] font-semibold mb-1">
                           <span className="text-emerald-400 flex items-center gap-1">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
                             {trip.status === 'Completed' ? 'Ride Completed' : 'Ride in Progress'}
                           </span>
-                          <span className="text-slate-300 font-mono text-[10px]">
+                          <span className="text-slate-300 font-mono text-[9px]">
                             {trip.status === 'Completed' ? '100%' : rideProgress.remainingText}
                           </span>
                         </div>
 
                         {/* Progress track */}
-                        <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden relative">
+                        <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden relative">
                           <div
                             className={`h-full rounded-full transition-all duration-500 ${
                               trip.status === 'Completed'
@@ -1412,7 +1377,7 @@ For immediate cab arrangements, custom outstation packages, or urgent dispatches
                           />
                         </div>
 
-                        <div className="flex justify-between items-center text-[10px] text-slate-400 mt-1">
+                        <div className="flex justify-between items-center text-[9px] text-slate-400 mt-1">
                           <span>Pickup</span>
                           <span className="font-medium text-slate-300">
                             {trip.status === 'Completed' ? 'Arrived' : `${rideProgress.progressPercent}% elapsed`}
@@ -1425,17 +1390,17 @@ For immediate cab arrangements, custom outstation packages, or urgent dispatches
 
                   {/* Owner Controls Bar (Visible exclusively to logged-in Fleet Manager) */}
                   {isOwner && (
-                    <div className="mb-3.5 p-2.5 rounded-xl bg-slate-100 border border-slate-200 text-xs space-y-2">
-                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                    <div className="mb-2 p-2 rounded-lg bg-slate-100 border border-slate-200 text-[11px] space-y-1.5">
+                      <div className="flex items-center justify-between text-[10px] font-bold text-slate-700">
                         <span className="flex items-center gap-1">
-                          <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+                          <ShieldCheck className="w-3 h-3 text-indigo-600" />
                           Fleet Manager Actions
                         </span>
                         <div className="flex items-center gap-1">
                           <button
                             type="button"
                             onClick={(e) => handleNotifyCustomerWhatsApp(trip, e)}
-                            className="px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] flex items-center gap-1 transition-colors"
+                            className="px-1.5 py-0.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[9px] flex items-center gap-1 transition-colors"
                             title="Send WhatsApp update to passenger"
                           >
                             <Send className="w-2.5 h-2.5" />
@@ -1445,14 +1410,14 @@ For immediate cab arrangements, custom outstation packages, or urgent dispatches
                       </div>
 
                       {/* Quick Status & Assign Buttons */}
-                      <div className="flex items-center gap-1.5 flex-wrap">
+                      <div className="flex items-center gap-1 flex-wrap">
                         {trip.status !== 'Driver Assigned' && (
                           <button
                             type="button"
                             onClick={(e) => handleOpenAssignModal(trip, e)}
-                            className="px-2.5 py-1 rounded-lg bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-[11px] flex items-center gap-1 shadow-2xs"
+                            className="px-2 py-0.5 rounded-md bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-[10px] flex items-center gap-1 shadow-2xs"
                           >
-                            <Car className="w-3 h-3" />
+                            <Car className="w-2.5 h-2.5" />
                             <span>Assign Chauffeur</span>
                           </button>
                         )}
@@ -1460,7 +1425,7 @@ For immediate cab arrangements, custom outstation packages, or urgent dispatches
                         <select
                           value={trip.status}
                           onChange={(e) => handleQuickStatusChange(trip, e.target.value)}
-                          className="px-2 py-1 rounded-lg border border-slate-300 bg-white font-bold text-[11px] text-slate-800 focus:outline-none"
+                          className="px-1.5 py-0.5 rounded-md border border-slate-300 bg-white font-bold text-[10px] text-slate-800 focus:outline-none"
                         >
                           <option value="Pending Confirmation">Pending</option>
                           <option value="Confirmed">Confirmed</option>
@@ -1469,76 +1434,70 @@ For immediate cab arrangements, custom outstation packages, or urgent dispatches
                           <option value="Cancelled">Cancelled</option>
                         </select>
 
-                        {trip.status === 'Pending Confirmation' ? (
-                          <button
-                            type="button"
-                            onClick={(e) => handleOpenDeleteModal(trip, e)}
-                            className="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-[11px] flex items-center gap-1 transition-colors ml-auto shadow-2xs"
-                            title="Delete or remove this pending confirmation booking inquiry"
-                          >
-                            <Trash2 className="w-3 h-3 text-rose-600" />
-                            <span>Remove Pending</span>
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={(e) => handleOpenDeleteModal(trip, e)}
-                            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors ml-auto"
-                            title="Delete / Archive from registry"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => handleDirectDeleteTrip(trip, e)}
+                          disabled={isDeletingTripRef === trip.reference_id}
+                          className="px-2 py-0.5 rounded-md bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 hover:border-rose-600 font-bold text-[10px] flex items-center gap-1 transition-colors ml-auto shadow-2xs cursor-pointer active:scale-95 disabled:opacity-50"
+                          title={`Directly Delete/Remove booking #${trip.reference_id}`}
+                        >
+                          {isDeletingTripRef === trip.reference_id ? (
+                            <RefreshCw className="w-2.5 h-2.5 animate-spin text-rose-600" />
+                          ) : (
+                            <Trash2 className="w-2.5 h-2.5" />
+                          )}
+                          <span>Delete</span>
+                        </button>
                       </div>
                     </div>
                   )}
                 </div>
 
                 {/* Bottom Bar: Estimated Fare & Action Buttons */}
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                  <div>
-                    <span className="text-[10px] text-slate-400 block font-medium">Estimated Fare</span>
-                    <span className="font-black text-base text-slate-900 tracking-tight">
+                <div className="pt-1 mt-0.5 border-t border-slate-100/80 flex items-center justify-between gap-1">
+                  <div className="flex items-baseline gap-1 leading-none">
+                    <span className="text-[8px] text-slate-400 font-semibold tracking-tight uppercase">Est:</span>
+                    <span className="font-extrabold text-[11px] sm:text-xs text-slate-900 tracking-tight">
                       ₹{Number(trip.total_estimated_fare || 0).toLocaleString('en-IN')}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-0.5">
                     <button
                       type="button"
                       onClick={(e) => handleDownloadInvoice(trip, e)}
                       disabled={downloadingInvoiceRef === trip.reference_id}
-                      className="px-2.5 py-1.5 text-slate-700 hover:text-emerald-900 hover:bg-emerald-50 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors border border-slate-200 hover:border-emerald-300 active:scale-95"
+                      className="h-5 px-1.5 text-slate-600 hover:text-emerald-800 hover:bg-emerald-50 rounded text-[9px] font-semibold flex items-center gap-1 transition-colors border border-slate-200/80 hover:border-emerald-300 active:scale-95"
                       title="Download PDF Booking Invoice & Summary"
                       aria-label={`Download PDF invoice for booking ${trip.reference_id}`}
                     >
                       {downloadingInvoiceRef === trip.reference_id ? (
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-700" />
+                        <RefreshCw className="w-2 h-2 animate-spin text-emerald-700" />
                       ) : (
-                        <FileDown className="w-3.5 h-3.5 text-emerald-700" />
+                        <FileDown className="w-2 h-2 text-emerald-700" />
                       )}
-                      <span className="hidden sm:inline">Invoice</span>
+                      <span>Invoice</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => setSelectedTripDetails(trip)}
-                      className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors"
+                      className="h-5 px-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded text-[9px] font-semibold flex items-center gap-0.5 transition-colors"
                       title="View full trip breakdown"
                     >
-                      <Eye className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">Details</span>
+                      <Eye className="w-2 h-2" />
+                      <span>Details</span>
                     </button>
 
                     {onRebookTrip && (
                       <button
                         type="button"
                         onClick={(e) => handleRebook(trip, e)}
-                        className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-2xs transition-all active:scale-95"
+                        className="h-5 px-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded text-[9px] font-bold flex items-center gap-0.5 shadow-2xs transition-all active:scale-95"
                         title="Prefill search form with this route"
                       >
-                        Rebook
-                        <ArrowRight className="w-3 h-3" />
+                        <span>Rebook</span>
+                        <ArrowRight className="w-1.5 h-1.5" />
                       </button>
                     )}
                   </div>
@@ -1957,16 +1916,17 @@ For immediate cab arrangements, custom outstation packages, or urgent dispatches
                 {isOwner && (
                   <button
                     type="button"
-                    onClick={(e) => handleOpenDeleteModal(selectedTripDetails, e)}
-                    className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors shadow-2xs"
-                    title="Delete or remove this booking from registry"
+                    onClick={(e) => handleDirectDeleteTrip(selectedTripDetails, e)}
+                    disabled={isDeletingTripRef === selectedTripDetails.reference_id}
+                    className="px-3.5 py-2 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 hover:border-rose-600 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors shadow-2xs active:scale-95 disabled:opacity-50 cursor-pointer"
+                    title="Directly delete/remove this booking from registry"
                   >
-                    <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                    <span>
-                      {selectedTripDetails.status === 'Pending Confirmation'
-                        ? 'Remove Pending Booking'
-                        : 'Delete Booking'}
-                    </span>
+                    {isDeletingTripRef === selectedTripDetails.reference_id ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-3.5 h-3.5" />
+                    )}
+                    <span>Delete Booking</span>
                   </button>
                 )}
               </div>
@@ -1993,165 +1953,6 @@ For immediate cab arrangements, custom outstation packages, or urgent dispatches
                   </button>
                 )}
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Dedicated Delete / Remove Booking Confirmation Modal */}
-      {tripToDelete && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200"
-          onClick={() => !isDeleting && setTripToDelete(null)}
-        >
-          <div
-            className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-rose-50/70">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-rose-100 border border-rose-200 text-rose-700 flex items-center justify-center shrink-0">
-                  <Trash2 className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-extrabold text-base text-slate-900 leading-tight">
-                    {tripToDelete.status === 'Pending Confirmation'
-                      ? 'Remove Pending Booking Inquiry'
-                      : 'Remove Booking from Registry'}
-                  </h3>
-                  <p className="text-xs text-rose-800 font-medium">
-                    Fleet Manager & Owner Portal Control
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setTripToDelete(null)}
-                disabled={isDeleting}
-                className="p-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-white transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-5 space-y-4">
-              {/* Trip Summary Card */}
-              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-black text-slate-900">
-                    Booking #{tripToDelete.reference_id}
-                  </span>
-                  <span
-                    className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
-                      tripToDelete.status === 'Pending Confirmation'
-                        ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                        : 'bg-slate-200 text-slate-700'
-                    }`}
-                  >
-                    {tripToDelete.status}
-                  </span>
-                </div>
-
-                <div className="text-slate-700 font-medium space-y-1 pt-1 border-t border-slate-200/60">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Passenger:</span>
-                    <span className="font-bold text-slate-900">{tripToDelete.full_name}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Phone:</span>
-                    <span className="font-mono text-slate-900">{tripToDelete.mobile_number}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Route:</span>
-                    <span className="font-bold text-slate-800 text-right truncate max-w-[240px]">
-                      {tripToDelete.pickup_location} ➔ {tripToDelete.drop_location || 'Local Mysuru'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Date & Time:</span>
-                    <span className="text-slate-800">
-                      {tripToDelete.travel_date} at {tripToDelete.pickup_time}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Vehicle / Fare:</span>
-                    <span className="font-bold text-emerald-800">
-                      {tripToDelete.vehicle_name} (₹{tripToDelete.total_estimated_fare})
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Removal Reason Selector */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Reason for Deletion / Removal:
-                </label>
-                <select
-                  value={deleteReason}
-                  onChange={(e) => setDeleteReason(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-400"
-                >
-                  <option value="Duplicate or test booking inquiry">
-                    Duplicate or test booking inquiry
-                  </option>
-                  <option value="Customer requested cancellation / changed plans">
-                    Customer requested cancellation / changed plans
-                  </option>
-                  <option value="No cabs available for requested date/time slot">
-                    No cabs available for requested date/time slot
-                  </option>
-                  <option value="Unreachable contact or invalid phone number">
-                    Unreachable contact or invalid phone number
-                  </option>
-                  <option value="Fare negotiation not agreed / customized package expired">
-                    Fare negotiation not agreed / customized package expired
-                  </option>
-                  <option value="Other fleet operational reason">
-                    Other fleet operational reason
-                  </option>
-                </select>
-              </div>
-
-              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900 leading-relaxed">
-                <strong>Fleet Manager Notice:</strong> Deleting will remove this booking record from the live dispatch buffer and local registry. You can choose to notify the customer on WhatsApp prior to removal.
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setTripToDelete(null)}
-                disabled={isDeleting}
-                className="w-full sm:w-auto px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold text-xs transition-colors"
-              >
-                Keep Booking
-              </button>
-
-              <button
-                type="button"
-                onClick={() => executeDeleteTrip(tripToDelete, true, deleteReason)}
-                disabled={isDeleting}
-                className="w-full sm:w-auto px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow transition-colors"
-                title="Send cancellation note via WhatsApp and remove"
-              >
-                <Send className="w-3.5 h-3.5" />
-                <span>WhatsApp & Remove</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => executeDeleteTrip(tripToDelete, false, deleteReason)}
-                disabled={isDeleting}
-                className="w-full sm:w-auto px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow transition-colors"
-                title="Remove immediately without WhatsApp notification"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>{isDeleting ? 'Removing...' : 'Delete Permanently'}</span>
-              </button>
             </div>
           </div>
         </div>

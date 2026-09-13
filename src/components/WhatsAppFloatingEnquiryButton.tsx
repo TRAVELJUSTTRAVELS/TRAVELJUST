@@ -264,7 +264,7 @@ export const WhatsAppFloatingEnquiryButton: React.FC<WhatsAppFloatingEnquiryButt
       {/* 1. FLOATING WHATSAPP BUTTON (Fixed Bottom-Right, Circular, Desktop 48x48px / Mobile 44-46px) */}
       <div
         id="whatsapp-floating-enquiry-container"
-        className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-40 select-none flex flex-col items-end pointer-events-auto"
+        className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40 select-none flex flex-col items-end pointer-events-auto"
       >
         {/* Hover Tooltip: WhatsApp TRAVEL JUST */}
         {showTooltip && !isSummaryOpen && (
@@ -502,12 +502,26 @@ export const WhatsAppFloatingEnquiryButton: React.FC<WhatsAppFloatingEnquiryButt
 
                 {/* Estimated Fare (Calculated strictly by TRAVEL JUST Live Fare Engine) */}
                 <div className="flex justify-between items-baseline pt-2 border-t border-slate-200">
-                  <span className="text-slate-700 font-bold">Estimated Fare:</span>
-                  <span className="text-base font-extrabold text-emerald-800">
-                    {currentFareEstimate && currentFareEstimate.totalEstimatedFare > 0
-                      ? `₹${currentFareEstimate.totalEstimatedFare.toLocaleString('en-IN')}`
-                      : 'To be confirmed'}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-700 font-bold">Estimated Fare:</span>
+                    {currentFareEstimate?.discountPercentage && (
+                      <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 rounded leading-none">
+                        {currentFareEstimate.discountPercentage}% OFF
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <span className="text-base font-extrabold text-emerald-800">
+                      {currentFareEstimate && currentFareEstimate.totalEstimatedFare > 0
+                        ? `₹${currentFareEstimate.totalEstimatedFare.toLocaleString('en-IN')}`
+                        : 'To be confirmed'}
+                    </span>
+                    {currentFareEstimate?.originalFare && (
+                      <span className="text-xs text-slate-400 line-through block font-medium">
+                        ₹{currentFareEstimate.originalFare.toLocaleString('en-IN')}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 

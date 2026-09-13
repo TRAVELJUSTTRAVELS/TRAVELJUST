@@ -82,6 +82,7 @@ export interface BookingSearchState {
   dropLocation: string;
   dropLocationObj?: PlaceSuggestion;
   viaLocations?: string[];
+  stops?: Array<{ location: string } | string>;
   travelDate: string; // Primary Pickup Date (YYYY-MM-DD)
   pickupDate?: string; // Explicit Pickup Date
   dropDate?: string; // Explicit Drop Date (YYYY-MM-DD)
@@ -167,6 +168,10 @@ export interface FareEstimate {
   passengerSurchargeAmount: number;
   airportSurchargeAmount: number;
   totalEstimatedFare: number;
+  originalFare?: number;
+  discountPercentage?: number;
+  discountAmount?: number;
+  discountLabel?: string;
   roundTripDays?: number;
   includedMinKm?: number;
   isValid?: boolean;
@@ -181,7 +186,7 @@ export interface PassengerDetails {
   fullName: string;
   mobileNumber: string;
   email: string;
-  passengersCount: number;
+  passengersCount?: number;
   specialInstructions: string;
 }
 

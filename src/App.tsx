@@ -28,14 +28,20 @@ import { DriverPartnerDrawer } from './components/DriverPartnerDrawer';
 import { DownloadAppModal } from './components/DownloadAppModal';
 import { CustomerAuthModal } from './components/CustomerAuthModal';
 import { TravelExpertPopupModal } from './components/TravelExpertPopupModal';
+import { MobileInstallBanner } from './components/MobileInstallBanner';
 import { calculateRouteDistance } from './services/googleMapsService';
 import { getStoredCustomer, clearCustomerSession, saveCustomerSession } from './services/customerAuthService';
+import { calculateFare } from './utils/fareCalculator';
+import { saveBookingToSupabase } from './services/supabaseService';
+import { formatBookingConfirmationMessage, openWhatsAppChat } from './utils/whatsapp';
+import { siteConfig } from './config/siteConfig';
 import {
   BookingSearchState,
   Vehicle,
   PricingConfig,
   ServiceType,
   BookingRequest,
+  PassengerDetails,
   PlaceSuggestion,
   CustomerUser,
 } from './types';
@@ -49,7 +55,20 @@ export default function App() {
       const saved = localStorage.getItem('tj_pricing_config');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && parsed.vehiclePricing) return parsed;
+        if (parsed && parsed.vehiclePricing) {
+          if (parsed.vehiclePricing['toyota-etios']?.localPerKmRate === 12) {
+            parsed.vehiclePricing['toyota-etios'].localPerKmRate = 13.0;
+            parsed.vehiclePricing['toyota-etios'].perKmFare = 13.0;
+          }
+          if (parsed.vehiclePricing['swift-desire']?.localPerKmRate === 12) {
+            parsed.vehiclePricing['swift-desire'].localPerKmRate = 13.0;
+            parsed.vehiclePricing['swift-desire'].perKmFare = 13.0;
+          }
+          if (parsed.perKmFare === 12) {
+            parsed.perKmFare = 13.0;
+          }
+          return parsed;
+        }
       }
     } catch (e) {
       console.warn('Could not load saved pricing config:', e);
@@ -171,14 +190,98 @@ export default function App() {
     }, 100);
   }, []);
 
-  const handleInstantConfirmBooking = useCallback((state: BookingSearchState, preferredVehicleId?: string) => {
-    setSearchState(state);
-    const vehicle = preferredVehicleId
-      ? vehiclesData.find((v) => v.id === preferredVehicleId) || vehiclesData[0]
-      : vehiclesData[0];
-    setSelectedVehicle(vehicle);
-    setBookingModalOpen(true);
-  }, []);
+  const handleCompleteBooking = useCallback((booking: BookingRequest) => {
+    // If customer is logged in, link booking to customer account
+    if (customer) {
+      const updatedCustomer = {
+        ...customer,
+        totalTripsCount: (customer.totalTripsCount || 0) + 1,
+      };
+      setCustomer(updatedCustomer);
+      saveCustomerSession(updatedCustomer);
+    }
+  }, [customer]);
+
+  const handleDirectConfirmBooking = useCallback(
+    (customSearch?: BookingSearchState, customVehicle?: Vehicle) => {
+      const activeSearch = customSearch || searchState;
+      const activeVehicle = customVehicle || selectedVehicle || vehiclesData[0];
+      if (!activeSearch || !activeVehicle) return;
+
+      const randomNum = Math.floor(10000 + Math.random() * 90000);
+      const refId = `TJ-${randomNum}`;
+
+      const fareEstimate = calculateFare(activeSearch, activeVehicle, pricingConfig);
+
+      const passengerDetails: PassengerDetails = {
+        fullName: customer?.fullName || 'Customer',
+        mobileNumber: customer?.mobileNumber || '',
+        email: customer?.email || '',
+        specialInstructions: '',
+      };
+
+      const newBooking: BookingRequest = {
+        referenceId: refId,
+        searchDetails: activeSearch,
+        selectedVehicle: activeVehicle,
+        passengerDetails,
+        estimatedFare: fareEstimate,
+        createdAt: new Date().toISOString(),
+        status: 'Pending Confirmation',
+        fare_snapshot: fareEstimate.fareSnapshot,
+        pricing_version: fareEstimate.pricingVersion,
+      };
+
+      // Save to Supabase and remote registry
+      saveBookingToSupabase(newBooking)
+        .then((res) => console.log('Booking recorded in database:', res))
+        .catch((err) => console.warn('Booking save error:', err));
+
+      handleCompleteBooking(newBooking);
+
+      // Build message with exact 5 points and Call Fleet Desk
+      const message = formatBookingConfirmationMessage({
+        referenceId: refId,
+        searchDetails: activeSearch,
+        selectedVehicle: activeVehicle,
+        passengerDetails,
+        estimatedFare: fareEstimate,
+      });
+
+      // Send directly to customer on WhatsApp
+      const targetPhone =
+        customer?.mobileNumber && customer.mobileNumber.trim().length >= 10
+          ? customer.mobileNumber
+          : siteConfig.contact.whatsapp;
+      openWhatsAppChat(message, targetPhone);
+
+      // End booking session, dont open selected component
+      setBookingModalOpen(false);
+      setSearchState(null);
+      setSelectedVehicle(null);
+
+      // Scroll smoothly back to booking search widget
+      setTimeout(() => {
+        const widget = document.getElementById('travel-just-booking-widget');
+        if (widget) {
+          widget.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      }, 100);
+    },
+    [searchState, selectedVehicle, pricingConfig, customer, handleCompleteBooking]
+  );
+
+  const handleInstantConfirmBooking = useCallback(
+    (state: BookingSearchState, preferredVehicleId?: string) => {
+      const vehicle = preferredVehicleId
+        ? vehiclesData.find((v) => v.id === preferredVehicleId) || vehiclesData[0]
+        : vehiclesData[0];
+      handleDirectConfirmBooking(state, vehicle);
+    },
+    [handleDirectConfirmBooking]
+  );
 
   const handleResetSearch = useCallback(() => {
     setSearchState(null);
@@ -243,18 +346,6 @@ export default function App() {
     const searchElem = document.getElementById('booking-search-section');
     if (searchElem) {
       searchElem.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
-  const handleCompleteBooking = (booking: BookingRequest) => {
-    // If customer is logged in, link booking to customer account
-    if (customer) {
-      const updatedCustomer = {
-        ...customer,
-        totalTripsCount: (customer.totalTripsCount || 0) + 1,
-      };
-      setCustomer(updatedCustomer);
-      saveCustomerSession(updatedCustomer);
     }
   };
 
@@ -359,7 +450,7 @@ export default function App() {
                   const searchElem = document.getElementById('booking-search-section');
                   if (searchElem) searchElem.scrollIntoView({ behavior: 'smooth' });
                 }}
-                onProceedToBooking={() => setBookingModalOpen(true)}
+                onProceedToBooking={() => handleDirectConfirmBooking()}
                 onClearSearch={handleResetSearch}
               />
             </section>
@@ -482,6 +573,11 @@ export default function App() {
         isOpen={travelExpertModalOpen}
         onClose={handleCloseTravelExpertModal}
         phoneNumber="97407 54400"
+      />
+
+      {/* Floating 1-Tap Mobile App Install Banner */}
+      <MobileInstallBanner
+        onOpenDetailedModal={() => setDownloadAppModalOpen(true)}
       />
     </div>
   );

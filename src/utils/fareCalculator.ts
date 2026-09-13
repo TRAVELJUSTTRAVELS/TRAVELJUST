@@ -139,6 +139,28 @@ export function calculateFare(
     customPricingConfig: dynamicConfig,
   });
 
+  // Special 15% discount for Local Booking 12 Hours / 120 Km package across all vehicles
+  const isLocal12Hours = search.serviceType === 'local' && Number(search.durationHours) === 12;
+  const originalFare = result.totalFare;
+  const discountPercentage = isLocal12Hours ? 15 : undefined;
+  const discountAmount = isLocal12Hours ? Math.round(originalFare * 0.15) : undefined;
+  const finalTotalFare = isLocal12Hours && discountAmount ? originalFare - discountAmount : originalFare;
+
+  const breakdownList = result.fareBreakdown.map((item) => ({ label: item.label, amount: item.amount }));
+  if (isLocal12Hours && discountAmount) {
+    breakdownList.push({
+      label: 'Special 15% Discount (12 Hrs / 120 Km Package)',
+      amount: -discountAmount,
+    });
+  }
+
+  const snapshot = result.fareSnapshot
+    ? {
+        ...result.fareSnapshot,
+        totalFare: finalTotalFare,
+      }
+    : undefined;
+
   return {
     estimatedDistanceKm: Math.round(result.distanceKm),
     exactDistanceKm: result.distanceKm,
@@ -152,12 +174,16 @@ export function calculateFare(
     nightChargeAmount: result.nightCharge,
     passengerSurchargeAmount: 0,
     airportSurchargeAmount: bookingType === 'AIRPORT_TRANSFER' ? result.baseFare : 0,
-    totalEstimatedFare: result.totalFare,
+    totalEstimatedFare: finalTotalFare,
+    originalFare: isLocal12Hours ? originalFare : undefined,
+    discountPercentage,
+    discountAmount,
+    discountLabel: isLocal12Hours ? '15% Off (12 Hrs / 120 Km)' : undefined,
     roundTripDays: bookingType === 'ROUND_TRIP' ? days : undefined,
     includedMinKm: result.includedKm || undefined,
     isValid: true,
-    breakdown: result.fareBreakdown.map((item) => ({ label: item.label, amount: item.amount })),
-    fareSnapshot: result.fareSnapshot,
+    breakdown: breakdownList,
+    fareSnapshot: snapshot,
     pricingVersion: result.pricingVersion,
     pricingModel: result.pricingModel,
   };

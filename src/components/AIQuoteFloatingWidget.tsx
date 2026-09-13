@@ -183,12 +183,6 @@ export const AIQuoteFloatingWidget: React.FC<AIQuoteFloatingWidgetProps> = ({
     onClose();
   };
 
-  const handleWhatsAppBooking = () => {
-    const msg = `Hello Travel Just Mysuru! I would like to book a cab:\n📍 Route: ${pickup} to ${drop}\n👥 Passengers: ${passengers}\n🚗 Vehicle: ${quoteResult?.recommendedVehicle || 'Cab'}\n💰 Estimated Fare: ₹${quoteResult?.estimatedFareMin || 2200} - ₹${quoteResult?.estimatedFareMax || 2800}`;
-    const url = `https://wa.me/919740754400?text=${encodeURIComponent(msg)}`;
-    window.open(url, '_blank');
-  };
-
   return (
     <>
       {/* Floating Action Button (Always Visible when Widget Drawer is Closed) */}
@@ -416,21 +410,13 @@ export const AIQuoteFloatingWidget: React.FC<AIQuoteFloatingWidgetProps> = ({
                   )}
 
                   {/* Action Buttons */}
-                  <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                  <div className="pt-1">
                     <button
                       onClick={handleApplyQuoteToForm}
-                      className="flex-1 bg-emerald-800 hover:bg-emerald-900 text-white font-bold py-2 px-3 rounded-lg text-xs flex items-center justify-center gap-1.5 shadow-2xs transition-all active:scale-[0.99]"
+                      className="w-full bg-emerald-800 hover:bg-emerald-900 text-white font-bold py-2.5 px-3 rounded-lg text-xs flex items-center justify-center gap-1.5 shadow-2xs transition-all active:scale-[0.99]"
                     >
                       <span>Apply to Search Form</span>
                       <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-
-                    <button
-                      onClick={handleWhatsAppBooking}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-3 rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all active:scale-[0.99]"
-                    >
-                      <Phone className="w-3.5 h-3.5" />
-                      <span>Book via WhatsApp</span>
                     </button>
                   </div>
                 </div>

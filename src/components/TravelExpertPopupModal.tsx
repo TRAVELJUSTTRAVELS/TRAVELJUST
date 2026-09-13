@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { X, Phone } from 'lucide-react';
+import { X, Phone, MessageSquare } from 'lucide-react';
+import { siteConfig } from '../config/siteConfig';
 
 interface TravelExpertPopupModalProps {
   isOpen: boolean;
@@ -87,8 +88,8 @@ export const TravelExpertPopupModal: React.FC<TravelExpertPopupModalProps> = ({
             </p>
           </div>
 
-          {/* Right Action Call Pill & Label */}
-          <div className="flex flex-col items-center shrink-0 w-full md:w-auto">
+          {/* Right Action Call Pill & WhatsApp Options */}
+          <div className="flex flex-col sm:flex-row md:flex-col items-center gap-3 shrink-0 w-full md:w-auto">
             <a
               id="travel-expert-phone-call-btn"
               href={dialUrl}
@@ -101,11 +102,14 @@ export const TravelExpertPopupModal: React.FC<TravelExpertPopupModalProps> = ({
             </a>
 
             <a
-              id="travel-expert-talk-to-us-link"
-              href={dialUrl}
-              className="text-[#ab8748] hover:text-[#947237] font-bold text-xs sm:text-sm tracking-[0.22em] uppercase text-center mt-2.5 transition-colors cursor-pointer"
+              id="travel-expert-whatsapp-btn"
+              href={`https://wa.me/${siteConfig.contact.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent('Hello TRAVEL JUST, I would like to speak to a 24x7 travel expert for planning my ride.')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full sm:w-auto bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-full px-5 py-2.5 shadow-md flex items-center justify-center gap-2 font-bold text-xs sm:text-sm tracking-wide uppercase transition-all duration-200 cursor-pointer"
             >
-              TALK TO US
+              <MessageSquare className="w-4 h-4 fill-white" />
+              <span>Chat on WhatsApp</span>
             </a>
           </div>
         </div>

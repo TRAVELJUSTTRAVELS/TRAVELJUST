@@ -46,9 +46,16 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
       <div>
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-xl font-bold text-slate-900">
-              Select Your Preferred Vehicle
-            </h3>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-xl font-bold text-slate-900">
+                Select Your Preferred Vehicle
+              </h3>
+              {searchDetails.serviceType === 'local' && searchDetails.durationHours === 12 && (
+                <span className="text-xs font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
+                  <span>🎉</span> 15% OFF on 12 Hours / 120 Km
+                </span>
+              )}
+            </div>
             <p className="text-xs text-slate-500">
               Showing {availableVehicles.length} available vehicle options matching your criteria
             </p>
@@ -110,13 +117,10 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                 Estimated Fare: {pricingConfig.currencySymbol}
                 {calculateFare(searchDetails, selectedVehicle, pricingConfig).totalEstimatedFare}
               </span>
-              <span className="text-xs text-slate-400">
-                ({pricingConfig.currencyCode})
-              </span>
             </div>
             <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
               <Info className="w-3 h-3 text-emerald-400 shrink-0" />
-              <span>* <strong className="text-[#F54900] font-bold">NOTE:</strong> final fare may vary based on actual route, Extra KM, Parking, Toll, state tax.</span>
+              <span>* <strong className="text-[#F54900] font-bold">NOTE:</strong> Final fare may vary based on actual route, Extra KM, Parking, Toll, state tax.</span>
             </p>
           </div>
 

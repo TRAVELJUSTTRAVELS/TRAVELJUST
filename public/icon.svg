@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#052c1c" />
+      <stop offset="50%" stop-color="#032014" />
+      <stop offset="100%" stop-color="#02150d" />
+    </linearGradient>
+    <linearGradient id="carGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#14CD03" />
+      <stop offset="100%" stop-color="#0ef10e" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#14CD03" flood-opacity="0.35" />
+    </filter>
+  </defs>
+
+  <!-- Background rounded squircle -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+
+  <!-- Inner subtle border -->
+  <rect x="12" y="12" width="488" height="488" rx="100" fill="none" stroke="#10b981" stroke-opacity="0.2" stroke-width="4" />
+
+  <!-- Car Emblem / Taxi Graphic -->
+  <g filter="url(#glow)">
+    <!-- Cab Top Sign / Light bar -->
+    <rect x="216" y="98" width="80" height="26" rx="8" fill="#F54900" />
+    <text x="256" y="116" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="1">TAXI</text>
+
+    <!-- Car Body Shape -->
+    <path d="M128 238 L170 148 C178 132 195 122 214 122 L298 122 C317 122 334 132 342 148 L384 238 C402 244 416 260 416 280 L416 350 C416 364 405 375 391 375 L384 375 L384 400 C384 413 373 424 360 424 L340 424 C327 424 316 413 316 400 L316 375 L196 375 L196 400 C196 413 185 424 172 424 L152 424 C139 424 128 413 128 400 L128 375 L121 375 C107 375 96 364 96 350 L96 280 C96 260 110 244 128 238 Z" fill="url(#carGrad)" />
+
+    <!-- Windshield -->
+    <path d="M178 226 L206 156 C209 150 215 146 222 146 L290 146 C297 146 303 150 306 156 L334 226 Z" fill="#032014" fill-opacity="0.92" />
+
+    <!-- Headlights -->
+    <ellipse cx="146" cy="276" rx="20" ry="14" fill="#FFFFFF" />
+    <ellipse cx="366" cy="276" rx="20" ry="14" fill="#FFFFFF" />
+    <ellipse cx="146" cy="276" rx="12" ry="8" fill="#FEE08B" />
+    <ellipse cx="366" cy="276" rx="12" ry="8" fill="#FEE08B" />
+
+    <!-- Front Grille -->
+    <rect x="206" y="278" width="100" height="24" rx="6" fill="#02150d" />
+    <line x1="214" y1="286" x2="298" y2="286" stroke="#10b981" stroke-width="2" stroke-linecap="round" />
+    <line x1="214" y1="294" x2="298" y2="294" stroke="#10b981" stroke-width="2" stroke-linecap="round" />
+
+    <!-- Bumper Plate -->
+    <rect x="216" y="322" width="80" height="22" rx="4" fill="#FFFFFF" />
+    <text x="256" y="338" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="900" fill="#032014" text-anchor="middle" letter-spacing="1.5">TRAVEL</text>
+  </g>
+
+  <!-- Tagline underneath inside icon safe zone -->
+  <text x="256" y="468" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="28" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="3">TRAVEL <tspan fill="#F54900">JUST</tspan></text>
+</svg>
