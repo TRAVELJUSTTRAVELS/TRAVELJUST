@@ -75,7 +75,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onSelectServic
                 onClick={() => onSelectService(service.type)}
                 className="w-full bg-white hover:bg-emerald-800 text-slate-800 hover:text-white border border-slate-300 hover:border-emerald-800 font-bold text-xs py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 group-hover:shadow-xs"
               >
-                <span>Book {service.title}</span>
+                <span>{service.buttonText || `Book ${service.title}`}</span>
                 <ArrowRight className="w-4 h-4 text-emerald-800 group-hover:text-white transition-colors" />
               </button>
             </div>

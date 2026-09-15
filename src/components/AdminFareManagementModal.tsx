@@ -43,11 +43,9 @@ interface AdminFareManagementModalProps {
 }
 
 const VEHICLE_TABS: Array<{ id: string; name: string; category: string; defaultCapacity: string }> = [
-  { id: 'toyota-etios', name: 'TOYOTA ETIOS (4+1)', category: 'Sedan', defaultCapacity: '4+1 Seater' },
-  { id: 'swift-desire', name: 'SWIFT DESIRE (4+1)', category: 'Sedan', defaultCapacity: '4+1 Seater' },
+  { id: 'sedan-4-1', name: 'SEDAN (4+1)', category: 'Sedan', defaultCapacity: '4+1 Seater' },
   { id: 'ertiga', name: 'ERTIGA (6+1)', category: 'MUV / SUV', defaultCapacity: '6+1 Seater' },
-  { id: 'innova-6-1', name: 'INNOVA 6+1', category: 'Innova', defaultCapacity: '6+1 Seater' },
-  { id: 'innova-7-1', name: 'INNOVA 7+1', category: 'Innova', defaultCapacity: '7+1 Seater' },
+  { id: 'innova', name: 'INNOVA', category: 'Innova', defaultCapacity: '6+1 / 7+1 Seater' },
   { id: 'innova-crysta', name: 'INNOVA CRYSTA', category: 'Innova Crysta', defaultCapacity: '6+1 Premium' },
   { id: 'tempo-traveller-12-1', name: 'TEMPO TRAVELLER (12+1)', category: 'Tempo', defaultCapacity: '12+1 Seater' },
 ];
@@ -65,9 +63,9 @@ export const AdminFareManagementModal: React.FC<AdminFareManagementModalProps> =
   onClose,
   onPricingUpdated,
 }) => {
-  const [activeVehicleId, setActiveVehicleId] = useState<string>('toyota-etios');
+  const [activeVehicleId, setActiveVehicleId] = useState<string>('sedan-4-1');
   const [activeBookingType, setActiveBookingType] = useState<BookingTypeCategory>('ONE_WAY');
-  const [mode, setMode] = useState<'MODERATE' | 'ADVANCED'>('MODERATE');
+  const mode = 'ADVANCED';
   
   // All configs indexed by vehicleId
   const [configs, setConfigs] = useState<Record<string, VehicleDynamicPricingConfig>>({});
@@ -117,11 +115,14 @@ export const AdminFareManagementModal: React.FC<AdminFareManagementModalProps> =
   if (!isOpen) return null;
 
   const currentConfig: VehicleDynamicPricingConfig =
-    configs[activeVehicleId] || DEFAULT_VEHICLE_CONFIGS[activeVehicleId] || DEFAULT_VEHICLE_CONFIGS['toyota-etios'];
+    configs[activeVehicleId] ||
+    DEFAULT_VEHICLE_CONFIGS[activeVehicleId] ||
+    DEFAULT_VEHICLE_CONFIGS['sedan-4-1'] ||
+    DEFAULT_VEHICLE_CONFIGS['toyota-etios'];
 
   const currentPricing: VehicleBookingPricing =
     currentConfig.pricingByBookingType?.[activeBookingType] ||
-    DEFAULT_VEHICLE_CONFIGS['toyota-etios'].pricingByBookingType.ONE_WAY;
+    (DEFAULT_VEHICLE_CONFIGS['sedan-4-1'] || DEFAULT_VEHICLE_CONFIGS['toyota-etios']).pricingByBookingType.ONE_WAY;
 
   // Handle updates to current vehicle pricing values
   const handlePricingFieldChange = <K extends keyof VehicleBookingPricing>(
@@ -322,33 +323,13 @@ export const AdminFareManagementModal: React.FC<AdminFareManagementModalProps> =
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Mode Toggle: Moderate vs Advanced */}
-            <div className="inline-flex rounded-lg border border-slate-300 bg-white p-0.5 shadow-2xs">
-              <button
-                type="button"
-                id="btn-fare-mode-moderate"
-                onClick={() => setMode('MODERATE')}
-                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
-                  mode === 'MODERATE'
-                    ? 'bg-emerald-700 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Moderate Mode
-              </button>
-              <button
-                type="button"
-                id="btn-fare-mode-advanced"
-                onClick={() => setMode('ADVANCED')}
-                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
-                  mode === 'ADVANCED'
-                    ? 'bg-emerald-700 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Advanced Mode
-              </button>
-            </div>
+            {/* Active Mode Badge */}
+            <span
+              id="btn-fare-mode-advanced"
+              className="px-2.5 py-1 text-xs font-semibold rounded-md bg-emerald-700 text-white shadow-xs"
+            >
+              Advanced Mode
+            </span>
 
             <button
               type="button"

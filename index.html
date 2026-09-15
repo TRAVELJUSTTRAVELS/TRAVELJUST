@@ -2,15 +2,32 @@
 <html lang="en">
   <head>
     <script>
-      // Suppress benign Vite websocket connection errors in AI Studio iframe environment where HMR is disabled
+      // Suppress benign Vite websocket connection errors in AI Studio iframe environment
       (function() {
-        const origError = console.error;
-        console.error = function(...args) {
-          if (args[0] && typeof args[0] === 'string' && (args[0].includes('[vite] failed to connect to websocket') || args[0].startsWith('[vite]'))) {
-            return;
-          }
-          origError.apply(console, args);
+        const isViteNotice = function(arg) {
+          if (!arg) return false;
+          const str = typeof arg === 'string' ? arg : (arg.message ? String(arg.message) : String(arg));
+          return str.includes('[vite]') || str.includes('vite-hmr') || str.includes('WebSocket closed without opened');
         };
+        const suppress = function(originalFn) {
+          return function(...args) {
+            if (args.length > 0 && isViteNotice(args[0])) {
+              return;
+            }
+            originalFn.apply(console, args);
+          };
+        };
+        console.error = suppress(console.error);
+        console.warn = suppress(console.warn);
+        console.info = suppress(console.info);
+        console.debug = suppress(console.debug);
+
+        window.addEventListener('unhandledrejection', function(event) {
+          if (event && event.reason && isViteNotice(event.reason)) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        });
       })();
     </script>
     <!-- Google tag (gtag.js) -->

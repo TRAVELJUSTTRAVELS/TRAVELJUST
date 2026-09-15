@@ -312,7 +312,7 @@ export const PopularRoutesLandingSection: React.FC<PopularRoutesLandingSectionPr
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="border border-slate-200 rounded-2xl p-4 text-center hover:border-emerald-500 transition-colors bg-white">
                 <span className="text-xs font-bold text-slate-500 block uppercase tracking-wide">
-                  Sedan (Etios / Dzire)
+                  Sedan (4+1)
                 </span>
                 <span className="text-xl font-extrabold text-slate-900 mt-1 block">
                   Rs. {Number(activeRoute.startingFare?.sedan ?? 0).toLocaleString('en-IN')}

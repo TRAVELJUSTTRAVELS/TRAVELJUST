@@ -24,6 +24,9 @@ class FareService {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed && typeof parsed === 'object') {
+          if (parsed['sedan-4-1']?.pricingByBookingType?.LOCAL?.extraPerKmRate === 12) {
+            parsed['sedan-4-1'].pricingByBookingType.LOCAL.extraPerKmRate = 13;
+          }
           if (parsed['toyota-etios']?.pricingByBookingType?.LOCAL?.extraPerKmRate === 12) {
             parsed['toyota-etios'].pricingByBookingType.LOCAL.extraPerKmRate = 13;
           }
@@ -75,7 +78,15 @@ class FareService {
    * Get cached configuration for a vehicle
    */
   public getConfigSync(vehicleId: string): VehicleDynamicPricingConfig {
-    return this.memoryConfigs[vehicleId] || DEFAULT_VEHICLE_CONFIGS[vehicleId] || DEFAULT_VEHICLE_CONFIGS['toyota-etios'];
+    return (
+      this.memoryConfigs[vehicleId] ||
+      DEFAULT_VEHICLE_CONFIGS[vehicleId] ||
+      (vehicleId === 'innova-6-1' || vehicleId === 'innova-7-1'
+        ? this.memoryConfigs['innova'] || DEFAULT_VEHICLE_CONFIGS['innova']
+        : undefined) ||
+      DEFAULT_VEHICLE_CONFIGS['sedan-4-1'] ||
+      DEFAULT_VEHICLE_CONFIGS['toyota-etios']
+    );
   }
 
   /**

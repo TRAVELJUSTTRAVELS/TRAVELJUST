@@ -31,6 +31,18 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   // Filter vehicles if user selected a specific vehicle type preference
   const availableVehicles = vehiclesData.filter((v) => {
     if (searchDetails.vehicleType !== 'all' && v.id !== searchDetails.vehicleType) {
+      if (
+        (searchDetails.vehicleType === 'toyota-etios' || searchDetails.vehicleType === 'swift-desire') &&
+        v.id === 'sedan-4-1'
+      ) {
+        return true;
+      }
+      if (
+        (searchDetails.vehicleType === 'innova-6-1' || searchDetails.vehicleType === 'innova-7-1') &&
+        v.id === 'innova'
+      ) {
+        return true;
+      }
       return false;
     }
     // Filter out vehicles that cannot hold passenger count

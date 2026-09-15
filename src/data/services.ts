@@ -3,6 +3,7 @@ import { ServiceType } from '../types';
 export interface ServiceDetail {
   type: ServiceType;
   title: string;
+  buttonText?: string;
   shortDescription: string;
   fullDescription: string;
   keyBenefits: string[];
@@ -14,6 +15,7 @@ export const servicesData: ServiceDetail[] = [
   {
     type: 'local',
     title: 'Local Travel',
+    buttonText: 'Book Local Travel',
     shortDescription: 'Convenient transportation for local travel, hourly rentals, and urban errands.',
     fullDescription: 'Flexible hourly packages designed for full-day or half-day local transport requirements. Keep the vehicle and driver at your disposal without worrying about re-booking or parking hassles.',
     keyBenefits: [
@@ -28,6 +30,7 @@ export const servicesData: ServiceDetail[] = [
   {
     type: 'oneway',
     title: 'One Way Drop',
+    buttonText: 'Book One Way',
     shortDescription: 'Simple point-to-point transportation with flexible pickup scheduling.',
     fullDescription: 'Direct point-to-point ride service where you only pay for the single journey taken. Ideal for hassle-free transfers without return commitments.',
     keyBenefits: [
@@ -56,6 +59,7 @@ export const servicesData: ServiceDetail[] = [
   {
     type: 'airport',
     title: 'Airport Transfer',
+    buttonText: 'Book Airport',
     shortDescription: 'Reliable airport pickup and drop-off coordination with terminal guidance.',
     fullDescription: 'Punctual, stress-free transfers to and from airport terminals. Features flight monitoring, driver meet-and-greet support, and luggage assistance.',
     keyBenefits: [

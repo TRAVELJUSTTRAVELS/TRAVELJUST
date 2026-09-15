@@ -127,7 +127,7 @@ export const AIQuoteFloatingWidget: React.FC<AIQuoteFloatingWidgetProps> = ({
           reply: `Here is your estimated cab fare for ${pickup} to ${drop}: ₹${passengers > 4 ? '3,200 - ₹3,800' : '2,200 - ₹2,700'}. Includes vehicle, fuel & driver allowance.`,
           estimatedFareMin: passengers > 4 ? 3200 : 2200,
           estimatedFareMax: passengers > 4 ? 3800 : 2700,
-          recommendedVehicle: passengers > 4 ? 'ERTIGA (6+1)' : 'SWIFT DESIRE (4+1)',
+          recommendedVehicle: passengers > 4 ? 'ERTIGA (6+1)' : 'SEDAN (4+1)',
           distanceKm: 145,
           travelTimeHours: 3.5,
           tips: ['Clean AC cab guaranteed', 'Doorstep pickup in Mysuru'],
@@ -136,7 +136,7 @@ export const AIQuoteFloatingWidget: React.FC<AIQuoteFloatingWidgetProps> = ({
     } catch (err) {
       console.error('Quote fetch error:', err);
       // Friendly fallback quote
-      const rec = passengers > 4 ? 'ERTIGA (6+1)' : 'SWIFT DESIRE (4+1)';
+      const rec = passengers > 4 ? 'ERTIGA (6+1)' : 'SEDAN (4+1)';
       setQuoteResult({
         reply: `Instant Quote for ${pickup} to ${drop}:\n• Estimated Price: ₹${passengers > 4 ? '3,200 - ₹3,800' : '2,200 - ₹2,700'}\n• Recommended Cab: ${rec}\n• Includes AC vehicle, driver allowance & fuel.`,
         estimatedFareMin: passengers > 4 ? 3200 : 2200,

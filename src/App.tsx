@@ -56,6 +56,16 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && parsed.vehiclePricing) {
+          if (!parsed.vehiclePricing['sedan-4-1']) {
+            parsed.vehiclePricing['sedan-4-1'] = defaultPricingConfig.vehiclePricing['sedan-4-1'];
+          }
+          if (!parsed.vehiclePricing['innova']) {
+            parsed.vehiclePricing['innova'] = defaultPricingConfig.vehiclePricing['innova'];
+          }
+          if (parsed.vehiclePricing['sedan-4-1']?.localPerKmRate === 12) {
+            parsed.vehiclePricing['sedan-4-1'].localPerKmRate = 13.0;
+            parsed.vehiclePricing['sedan-4-1'].perKmFare = 13.0;
+          }
           if (parsed.vehiclePricing['toyota-etios']?.localPerKmRate === 12) {
             parsed.vehiclePricing['toyota-etios'].localPerKmRate = 13.0;
             parsed.vehiclePricing['toyota-etios'].perKmFare = 13.0;
@@ -388,7 +398,14 @@ export default function App() {
 
     setSearchState(rebookedState);
     if (vehicleId) {
-      const matched = vehiclesData.find((v) => v.id === vehicleId);
+      const matched =
+        vehiclesData.find((v) => v.id === vehicleId) ||
+        (vehicleId === 'toyota-etios' || vehicleId === 'swift-desire'
+          ? vehiclesData.find((v) => v.id === 'sedan-4-1')
+          : undefined) ||
+        (vehicleId === 'innova-6-1' || vehicleId === 'innova-7-1'
+          ? vehiclesData.find((v) => v.id === 'innova')
+          : undefined);
       if (matched) setSelectedVehicle(matched);
     }
 

@@ -105,7 +105,7 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({
                       : searchDetails?.serviceType === 'airport'
                       ? (pricingConfig.vehiclePricing?.[vehicle.id]?.airportPerKmRate || pricingConfig.vehiclePricing?.[vehicle.id]?.perKmFare || 14)
                       : (pricingConfig.vehiclePricing?.[vehicle.id]?.perKmFare || 13);
-                    if ((vehicle.id === 'toyota-etios' || vehicle.id === 'swift-desire') && (rate === 12 || rate === 12.0)) {
+                    if ((vehicle.id === 'sedan-4-1' || vehicle.id === 'toyota-etios' || vehicle.id === 'swift-desire') && (rate === 12 || rate === 12.0)) {
                       return 13;
                     }
                     return rate;

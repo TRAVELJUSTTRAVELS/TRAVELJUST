@@ -74,7 +74,14 @@ class PricingStore {
   public calculateAuthoritativeFare(
     input: DynamicFareCalculationInput
   ): DynamicFareCalculationResult {
-    const vehicleConfig = this.configs.get(input.vehicleId) || DEFAULT_VEHICLE_CONFIGS[input.vehicleId];
+    const vehicleConfig =
+      this.configs.get(input.vehicleId) ||
+      DEFAULT_VEHICLE_CONFIGS[input.vehicleId] ||
+      (input.vehicleId === 'innova-6-1' || input.vehicleId === 'innova-7-1'
+        ? this.configs.get('innova') || DEFAULT_VEHICLE_CONFIGS['innova']
+        : undefined) ||
+      this.configs.get('sedan-4-1') ||
+      DEFAULT_VEHICLE_CONFIGS['sedan-4-1'];
     return calculateDynamicFare({
       ...input,
       customPricingConfig: vehicleConfig,

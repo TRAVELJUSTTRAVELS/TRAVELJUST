@@ -397,7 +397,7 @@ export function createApiRouter(): Router {
         distanceKm: customKm,
         durationMinutes: customMins,
         bookingType = "ONE_WAY",
-        vehicleId = "toyota-etios",
+        vehicleId = "sedan-4-1",
         pickupTime = "09:00",
         roundTripDays = 1,
       } = req.body;
@@ -1369,7 +1369,7 @@ export function createApiRouter(): Router {
       if (!apiKey || apiKey === "MY_GEMINI_API_KEY" || apiKey.trim() === "") {
         const numPax = Number(passengers) || 2;
         const isGroup = numPax > 4;
-        const recVehicle = isGroup ? "ERTIGA (6+1)" : "SWIFT DESIRE (4+1)";
+        const recVehicle = isGroup ? "ERTIGA (6+1)" : "SEDAN (4+1)";
         const fareMin = isGroup ? 3200 : 2200;
         const fareMax = isGroup ? 3900 : 2700;
 
@@ -1407,20 +1407,18 @@ Return your answer strictly in JSON format matching this schema:
   "reply": "Friendly explanation of the trip quote, inclusions, and route advice",
   "estimatedFareMin": 2200,
   "estimatedFareMax": 2800,
-  "recommendedVehicle": "SWIFT DESIRE (4+1)",
+  "recommendedVehicle": "SEDAN (4+1)",
   "distanceKm": 145,
   "travelTimeHours": 3.5,
   "tips": ["Tip 1 about route or timing", "Tip 2 about luggage or tolls"]
 }
 
 Available Vehicles in Travel Just Mysuru Fleet:
-- TOYOTA ETIOS (4+1)
-- SWIFT DESIRE (4+1)
-- HYUNDAI AURA (4+1)
+- SEDAN (4+1)
 - ERTIGA (6+1)
-- INNOVA 6+1
-- INNOVA 7+1
-- INNOVA CRYSTA`;
+- INNOVA
+- INNOVA CRYSTA
+- TEMPO TRAVELLER (12+1)`;
 
       const response = await ai.models.generateContent({
         model: "gemini-3.8-flash",
