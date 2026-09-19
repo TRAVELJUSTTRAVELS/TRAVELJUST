@@ -13,8 +13,8 @@ import {
   Database,
   User,
   UserCheck,
-  Sliders,
   Smartphone,
+  Zap,
 } from 'lucide-react';
 import { siteConfig } from '../config/siteConfig';
 import { CustomerUser } from '../types';
@@ -25,10 +25,10 @@ interface HeaderProps {
   isOwner?: boolean;
   onOpenOwnerLogin?: () => void;
   onExitOwnerMode?: () => void;
+  onOpenFareEngine?: () => void;
   customer?: CustomerUser | null;
   onOpenCustomerPortal?: () => void;
   onOpenPartnerDrawer?: () => void;
-  onOpenFareEngine?: () => void;
   onOpenDownloadApp?: () => void;
   onOpenCustomerAuth?: () => void;
   onCustomerLogout?: () => void;
@@ -40,10 +40,10 @@ export const Header: React.FC<HeaderProps> = ({
   isOwner = false,
   onOpenOwnerLogin,
   onExitOwnerMode,
+  onOpenFareEngine,
   customer = null,
   onOpenCustomerPortal,
   onOpenPartnerDrawer,
-  onOpenFareEngine,
   onOpenDownloadApp,
   onOpenCustomerAuth,
   onCustomerLogout,
@@ -81,7 +81,6 @@ export const Header: React.FC<HeaderProps> = ({
         { name: 'Routes & Outstation', href: '#popular-routes-section' },
         { name: 'Services', href: '#services' },
         { name: 'Fleet', href: '#fleet' },
-        { name: 'Live Dispatch', href: '#recent-trips' },
         { name: 'About', href: '#about' },
         { name: 'FAQ', href: '#faq' },
       ]
@@ -306,39 +305,19 @@ export const Header: React.FC<HeaderProps> = ({
               </>
             )}
 
-            {/* Price / Fare Engine & Dispatch - ONLY visible to OWNER */}
+            {/* Exit Owner Mode - ONLY visible to OWNER */}
             {isOwner && (
               <div className="flex items-center gap-1.5 bg-amber-50/80 p-1 rounded-2xl border border-amber-200 ml-1">
-                {onOpenFareEngine && (
-                  <button
-                    type="button"
-                    onClick={onOpenFareEngine}
-                    className="bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs px-3 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-xs"
-                    title="Configure Live Dynamic Price & Fare Engine"
-                  >
-                    <Sliders className="w-3.5 h-3.5 text-emerald-300" />
-                    <span>Fare Engine</span>
-                  </button>
-                )}
-
-                <a
-                  href="#recent-trips"
-                  onClick={(e) => handleNavClick(e, '#recent-trips')}
-                  className="bg-slate-900 hover:bg-slate-800 text-amber-300 font-bold text-xs px-3 py-2 rounded-xl transition-colors flex items-center gap-1.5"
-                  title="View Live Dispatch & Bookings Registry"
-                >
-                  <Database className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Dispatch Registry</span>
-                </a>
-
                 {onExitOwnerMode && (
                   <button
+                    type="button"
                     onClick={onExitOwnerMode}
-                    className="p-2 text-slate-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-colors"
+                    className="p-1.5 text-slate-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-colors cursor-pointer flex items-center gap-1 text-xs font-bold"
                     title="Exit Owner Mode"
                     aria-label="Exit Owner Mode"
                   >
                     <LogOut className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Exit</span>
                   </button>
                 )}
               </div>
@@ -439,20 +418,6 @@ export const Header: React.FC<HeaderProps> = ({
                   </button>
                 )}
               </div>
-
-              {onOpenFareEngine && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    onOpenFareEngine();
-                  }}
-                  className="w-full bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs px-3 py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-xs"
-                >
-                  <Sliders className="w-4 h-4 text-emerald-300" />
-                  <span>Live Dynamic Fare Engine Settings</span>
-                </button>
-              )}
             </div>
           )}
 
@@ -493,19 +458,20 @@ export const Header: React.FC<HeaderProps> = ({
             )}
 
             {/* In mobile nav: only show Owner tools if Owner */}
-            {isOwner && (
+            {isOwner && onExitOwnerMode && (
               <div className="space-y-1.5 mt-2 pt-2 border-t border-amber-200">
-                <a
-                  href="#recent-trips"
-                  onClick={(e) => handleNavClick(e, '#recent-trips')}
-                  className="w-full text-left text-sm font-bold text-amber-950 bg-amber-50 hover:bg-amber-100 px-3 py-2.5 rounded-lg transition-colors flex items-center justify-between border border-amber-200"
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onExitOwnerMode();
+                  }}
+                  className="w-full text-left text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 px-3 py-2.5 rounded-lg transition-colors flex items-center justify-between border border-red-200 cursor-pointer"
                 >
                   <div className="flex items-center gap-2">
-                    <Database className="w-4 h-4 text-emerald-700" />
-                    <span>Live Dispatch & Bookings Registry</span>
+                    <LogOut className="w-4 h-4 text-red-700" />
+                    <span>Exit Owner Mode</span>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-amber-700" />
-                </a>
+                </button>
               </div>
             )}
           </div>

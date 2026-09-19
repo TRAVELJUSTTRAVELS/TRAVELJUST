@@ -35,6 +35,7 @@ import {
   Lock,
   Unlock,
   MessageSquare,
+  Zap,
 } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { BookingSearchState, Vehicle, BookingRequest } from '../types';
@@ -48,6 +49,7 @@ export interface RecentTripsSectionProps {
   onOpenBookingSearch?: () => void;
   isOwner?: boolean;
   onOpenOwnerLogin?: () => void;
+  onOpenFareEngine?: () => void;
 }
 
 export interface DbBookingRecord {
@@ -89,6 +91,7 @@ export const RecentTripsSection: React.FC<RecentTripsSectionProps> = ({
   onOpenBookingSearch,
   isOwner = false,
   onOpenOwnerLogin,
+  onOpenFareEngine,
 }) => {
   const [trips, setTrips] = useState<DbBookingRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -864,17 +867,6 @@ export const RecentTripsSection: React.FC<RecentTripsSectionProps> = ({
         <div className="flex items-center flex-wrap gap-2">
           {isOwner && (
             <>
-              <button
-                id="fleet-manager-customer-logins-btn"
-                type="button"
-                onClick={() => setShowLoginAlertsModal(true)}
-                className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs active:scale-95 cursor-pointer"
-                title="View Customer Login WhatsApp Notifications sent strictly to Fleet Manager"
-              >
-                <MessageSquare className="w-3.5 h-3.5 text-emerald-700" />
-                <span>Customer Logins (WhatsApp)</span>
-              </button>
-
               <button
                 type="button"
                 onClick={handleExportCsv}

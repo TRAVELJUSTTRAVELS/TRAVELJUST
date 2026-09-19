@@ -3,7 +3,7 @@ import { Vehicle } from '../types';
 export const vehiclesData: Vehicle[] = [
   {
     id: 'sedan-4-1',
-    name: 'SEDAN (4+1)',
+    name: 'Sedan (4+1)',
     category: 'Sedan (4+1)',
     seatingCapacity: 4,
     luggageCapacity: 2,
@@ -15,12 +15,12 @@ export const vehiclesData: Vehicle[] = [
     badge: 'Popular Choice',
   },
   {
-    id: 'ertiga',
-    name: 'ERTIGA (6+1)',
-    category: 'MUV (6+1)',
-    seatingCapacity: 5,
+    id: 'suv-6-1',
+    name: 'SUV (6+1)',
+    category: 'SUV (6+1)',
+    seatingCapacity: 6,
     luggageCapacity: 3,
-    description: 'Versatile Maruti Ertiga 6+1 MUV suitable for family trips and small group transfers.',
+    description: 'Spacious and versatile 6+1 SUV (Ertiga/Marazzo) suitable for family trips and small group transfers.',
     features: ['Dual AC System', 'Flexible Seating', 'Ample Legroom', 'Phone Charger'],
     suitableServices: ['local', 'oneway', 'roundtrip', 'airport'],
     comfortLevel: 'Premium',
@@ -55,7 +55,7 @@ export const vehiclesData: Vehicle[] = [
   },
   {
     id: 'tempo-traveller-12-1',
-    name: 'TEMPO TRAVELLER (12+1)',
+    name: 'TEMPO TRAVELL(12+1)',
     category: 'Tempo Traveller (12+1)',
     seatingCapacity: 12,
     luggageCapacity: 8,

@@ -97,7 +97,9 @@ export interface BookingSearchState {
   passengers: number;
   vehicleType: string; // 'all' or vehicle id
   routeInfo?: CalculatedRouteInfo;
+  distanceKm?: number;
   flightNumber?: string;
+  fareEngineType?: 'ENGINE_A' | 'ENGINE_B';
 }
 
 export interface Vehicle {
@@ -180,6 +182,8 @@ export interface FareEstimate {
   fareSnapshot?: FareSnapshot;
   pricingVersion?: number;
   pricingModel?: PricingModel;
+  engineType?: 'ENGINE_A' | 'ENGINE_B';
+  engineName?: string;
 }
 
 export interface PassengerDetails {
@@ -187,13 +191,16 @@ export interface PassengerDetails {
   mobileNumber: string;
   email: string;
   passengersCount?: number;
-  specialInstructions: string;
+  specialInstructions?: string;
+  specialRequests?: string;
 }
 
 export interface DriverDetails {
   driverName?: string;
   driverPhone?: string;
   driverVehiclePlate?: string;
+  driverVehicleModel?: string;
+  driverLicense?: string;
   assignedAt?: string;
 }
 
@@ -204,7 +211,7 @@ export interface BookingRequest {
   passengerDetails: PassengerDetails;
   estimatedFare: FareEstimate;
   createdAt: string;
-  status: 'Pending Confirmation' | 'Confirmed' | 'Driver Assigned' | 'Completed';
+  status: 'Pending Confirmation' | 'Confirmed' | 'Driver Assigned' | 'Completed' | 'Cancelled' | 'Requested' | 'Under Review' | string;
   driverDetails?: DriverDetails;
   fare_snapshot?: FareSnapshot;
   pricing_version?: number;

@@ -208,7 +208,7 @@ export const POPULAR_ROUTE_PAGES: RoutePageData[] = [
       'Coonoor & Sim’s Park (Extended Sightseeing)',
     ],
     startingFare: {
-      sedan: 2799,
+      sedan: 2900,
       suv: 3799,
       innovaCrysta: 4899,
       tempoTraveller: 7499,
@@ -535,7 +535,7 @@ export const POPULAR_ROUTE_PAGES: RoutePageData[] = [
       'Nanjangud Srikanteshwara Temple',
     ],
     startingFare: {
-      sedan: 2799,
+      sedan: 2900,
       suv: 3799,
       innovaCrysta: 4899,
       tempoTraveller: 7499,

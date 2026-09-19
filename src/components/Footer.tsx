@@ -1,5 +1,5 @@
 import React from 'react';
-import { Compass, ShieldCheck, Phone, Mail, Lock, Database, User, Car, Globe, MessageSquare } from 'lucide-react';
+import { Compass, ShieldCheck, Phone, Mail, Lock, Database, User, Car, Globe, MessageSquare, Zap } from 'lucide-react';
 import { siteConfig } from '../config/siteConfig';
 import { CustomerUser } from '../types';
 
@@ -8,6 +8,7 @@ interface FooterProps {
   onBookRideClick: () => void;
   isOwner?: boolean;
   onOpenOwnerLogin?: () => void;
+  onOpenFareEngine?: () => void;
   customer?: CustomerUser | null;
   onOpenCustomerPortal?: () => void;
   onOpenPartnerDrawer?: () => void;
@@ -18,6 +19,7 @@ export const Footer: React.FC<FooterProps> = ({
   onBookRideClick,
   isOwner = false,
   onOpenOwnerLogin,
+  onOpenFareEngine,
   customer = null,
   onOpenCustomerPortal,
   onOpenPartnerDrawer,
@@ -131,14 +133,6 @@ export const Footer: React.FC<FooterProps> = ({
                   </button>
                 </li>
               )}
-              {isOwner && (
-                <li>
-                  <a href="#recent-trips" onClick={(e) => handleNavClick(e, '#recent-trips')} className="text-amber-400 hover:text-amber-300 font-semibold transition-colors flex items-center gap-1">
-                    <Database className="w-3 h-3" />
-                    <span>Live Dispatch Registry</span>
-                  </a>
-                </li>
-              )}
               {onOpenPartnerDrawer && (
                 <li>
                   <button
@@ -247,20 +241,24 @@ export const Footer: React.FC<FooterProps> = ({
             <span>•</span>
             {isOwner ? (
               <div className="flex items-center gap-3">
-                <a
-                  href="#recent-trips"
-                  onClick={(e) => handleNavClick(e, '#recent-trips')}
-                  className="flex items-center gap-1.5 text-amber-400 hover:text-amber-300 font-bold transition-colors"
-                >
-                  <Database className="w-3 h-3" />
-                  <span>Dispatch Registry</span>
-                </a>
+                {onOpenFareEngine && (
+                  <button
+                    type="button"
+                    id="footer-owner-portal-btn"
+                    onClick={onOpenFareEngine}
+                    className="flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 font-bold transition-colors cursor-pointer"
+                    title="TRAVEL JUST Owner & Fleet Management Portal"
+                  >
+                    <Zap className="w-3 h-3 text-amber-400 fill-amber-400" />
+                    <span>Owner & Fleet Management Portal</span>
+                  </button>
+                )}
               </div>
             ) : (
               <button
                 type="button"
                 onClick={onOpenOwnerLogin}
-                className="flex items-center gap-1 text-slate-500 hover:text-slate-300 transition-colors"
+                className="flex items-center gap-1 text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
                 title="Fleet Manager & Business Owner Login"
               >
                 <Lock className="w-3 h-3" />

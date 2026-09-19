@@ -1,19 +1,247 @@
 import {
   BookingTypeCategory,
+  DistanceRoundingRule,
   DynamicFareCalculationInput,
   DynamicFareCalculationResult,
   FareSnapshot,
+  LocationDetailInfo,
   RoundingRule,
+  RouteCategory,
+  StatePairPricingRule,
   TimeRoundingMethod,
   VehicleBookingPricing,
   VehicleDynamicPricingConfig,
 } from '../types/dynamicPricing';
 
+export const DEFAULT_STATE_PAIR_RULES: StatePairPricingRule[] = [
+  {
+    id: 'sp_ka_tn',
+    fromState: 'Karnataka',
+    toState: 'Tamil Nadu',
+    ratesByVehicle: {
+      'sedan-4-1': 500,
+      'suv-6-1': 700,
+      'ertiga': 700,
+      'innova': 800,
+      'innova-crysta': 1000,
+      'tempo-traveller-12-1': 1500,
+    },
+    active: true,
+    notes: 'Karnataka to Tamil Nadu (e.g. Ooty, Coimbatore, Chennai) Interstate Border Crossing',
+    updatedAt: '2026-09-15T00:00:00.000Z',
+  },
+  {
+    id: 'sp_ka_kl',
+    fromState: 'Karnataka',
+    toState: 'Kerala',
+    ratesByVehicle: {
+      'sedan-4-1': 600,
+      'suv-6-1': 800,
+      'ertiga': 800,
+      'innova': 900,
+      'innova-crysta': 1100,
+      'tempo-traveller-12-1': 1600,
+    },
+    active: true,
+    notes: 'Karnataka to Kerala (e.g. Wayanad, Calicut, Kannur) Interstate Border Crossing',
+    updatedAt: '2026-09-15T00:00:00.000Z',
+  },
+  {
+    id: 'sp_ka_ap',
+    fromState: 'Karnataka',
+    toState: 'Andhra Pradesh',
+    ratesByVehicle: {
+      'sedan-4-1': 700,
+      'suv-6-1': 900,
+      'ertiga': 900,
+      'innova': 1000,
+      'innova-crysta': 1200,
+      'tempo-traveller-12-1': 1800,
+    },
+    active: true,
+    notes: 'Karnataka to Andhra Pradesh (e.g. Tirupati, Chittoor, Nellore)',
+    updatedAt: '2026-09-15T00:00:00.000Z',
+  },
+  {
+    id: 'sp_ka_ts',
+    fromState: 'Karnataka',
+    toState: 'Telangana',
+    ratesByVehicle: {
+      'sedan-4-1': 1000,
+      'suv-6-1': 1300,
+      'ertiga': 1300,
+      'innova': 1400,
+      'innova-crysta': 1600,
+      'tempo-traveller-12-1': 2200,
+    },
+    active: true,
+    notes: 'Karnataka to Telangana (e.g. Hyderabad)',
+    updatedAt: '2026-09-15T00:00:00.000Z',
+  },
+  {
+    id: 'sp_tn_ka',
+    fromState: 'Tamil Nadu',
+    toState: 'Karnataka',
+    ratesByVehicle: {
+      'sedan-4-1': 500,
+      'suv-6-1': 700,
+      'ertiga': 700,
+      'innova': 800,
+      'innova-crysta': 1000,
+      'tempo-traveller-12-1': 1500,
+    },
+    active: true,
+    notes: 'Tamil Nadu to Karnataka Interstate Border Crossing',
+    updatedAt: '2026-09-15T00:00:00.000Z',
+  },
+  {
+    id: 'sp_kl_ka',
+    fromState: 'Kerala',
+    toState: 'Karnataka',
+    ratesByVehicle: {
+      'sedan-4-1': 600,
+      'suv-6-1': 800,
+      'ertiga': 800,
+      'innova': 900,
+      'innova-crysta': 1100,
+      'tempo-traveller-12-1': 1600,
+    },
+    active: true,
+    notes: 'Kerala to Karnataka Interstate Border Crossing',
+    updatedAt: '2026-09-15T00:00:00.000Z',
+  },
+  {
+    id: 'sp_tn_kl',
+    fromState: 'Tamil Nadu',
+    toState: 'Kerala',
+    ratesByVehicle: {
+      'sedan-4-1': 550,
+      'suv-6-1': 750,
+      'ertiga': 750,
+      'innova': 850,
+      'innova-crysta': 1050,
+      'tempo-traveller-12-1': 1550,
+    },
+    active: true,
+    notes: 'Tamil Nadu to Kerala Interstate Border Crossing (e.g. Coimbatore to Palakkad/Cochin)',
+    updatedAt: '2026-09-15T00:00:00.000Z',
+  },
+  {
+    id: 'sp_kl_tn',
+    fromState: 'Kerala',
+    toState: 'Tamil Nadu',
+    ratesByVehicle: {
+      'sedan-4-1': 550,
+      'suv-6-1': 750,
+      'ertiga': 750,
+      'innova': 850,
+      'innova-crysta': 1050,
+      'tempo-traveller-12-1': 1550,
+    },
+    active: true,
+    notes: 'Kerala to Tamil Nadu Interstate Border Crossing (e.g. Palakkad to Coimbatore/Ooty)',
+    updatedAt: '2026-09-15T00:00:00.000Z',
+  },
+];
+
+/**
+ * Robust Indian State Detection
+ * Evaluates geocoded place metadata or location addresses to identify the Indian state.
+ */
+export function detectIndianState(locationText?: string, details?: LocationDetailInfo | string): string {
+  if (details && typeof details === 'object' && details.state && details.state.trim().length > 0) {
+    const s = details.state.trim();
+    if (/karnataka/i.test(s)) return 'Karnataka';
+    if (/tamil\s*nadu/i.test(s)) return 'Tamil Nadu';
+    if (/kerala/i.test(s)) return 'Kerala';
+    if (/andhra/i.test(s)) return 'Andhra Pradesh';
+    if (/telangana/i.test(s)) return 'Telangana';
+    if (/goa/i.test(s)) return 'Goa';
+    if (/maharashtra/i.test(s)) return 'Maharashtra';
+    if (/pondicherry|puducherry/i.test(s)) return 'Puducherry';
+    return s;
+  }
+
+  const detailString = typeof details === 'string' ? details : `${details?.formattedAddress || ''} ${details?.city || ''}`;
+  const text = `${locationText || ''} ${detailString}`.toLowerCase();
+
+  // Explicit state tokens
+  if (text.includes('tamil nadu') || text.includes('tamilnadu') || /\btn\b/i.test(text)) return 'Tamil Nadu';
+  if (text.includes('kerala') || /\bkl\b/i.test(text)) return 'Kerala';
+  if (text.includes('andhra') || text.includes('andhra pradesh') || /\bap\b/i.test(text)) return 'Andhra Pradesh';
+  if (text.includes('telangana') || /\bts\b/i.test(text)) return 'Telangana';
+  if (text.includes('goa')) return 'Goa';
+  if (text.includes('maharashtra') || /\bmh\b/i.test(text)) return 'Maharashtra';
+  if (text.includes('pondicherry') || text.includes('puducherry')) return 'Puducherry';
+  if (text.includes('karnataka') || /\bka\b/i.test(text)) return 'Karnataka';
+
+  // Major cities in Tamil Nadu
+  const tnCities = [
+    'ooty', 'udhagamandalam', 'nilgiri', 'nilgiris', 'coonoor', 'kotagiri', 'gudalur',
+    'coimbatore', 'chennai', 'madurai', 'salem', 'vellore', 'tiruchirappalli', 'trichy',
+    'hosur', 'erode', 'tiruppur', 'kodaikanal', 'dindigul', 'thanjavur', 'kanyakumari',
+    'mudumalai', 'dharmapuri', 'krishnagiri', 'tiruvannamalai', 'ramanathapuram', 'rameswaram'
+  ];
+  for (const c of tnCities) {
+    if (text.includes(c)) return 'Tamil Nadu';
+  }
+
+  // Major cities in Kerala
+  const klCities = [
+    'wayanad', 'kalpetta', 'sulthan bathery', 'sultan bathery', 'mananthavady', 'vythiri',
+    'meppadi', 'kochi', 'cochin', 'ernakulam', 'kozhikode', 'calicut', 'trivandrum',
+    'thiruvananthapuram', 'kannur', 'kasaragod', 'thrissur', 'palakkad', 'alappuzha',
+    'alleppey', 'kottayam', 'munnar', 'idukki', 'kollam', 'malappuram', 'guruvayur',
+    'bekal', 'thekkady', 'varkala', 'kovalam'
+  ];
+  for (const c of klCities) {
+    if (text.includes(c)) return 'Kerala';
+  }
+
+  // Major cities in Andhra Pradesh
+  const apCities = [
+    'tirupati', 'chittoor', 'nellore', 'vijayawada', 'visakhapatnam', 'vizag', 'guntur',
+    'kurnool', 'kadapa', 'anantapur', 'rajahmundry', 'kakinada', 'tirumala', 'srikalahasti'
+  ];
+  for (const c of apCities) {
+    if (text.includes(c)) return 'Andhra Pradesh';
+  }
+
+  // Major cities in Telangana
+  const tsCities = ['hyderabad', 'secunderabad', 'warangal', 'nizamabad', 'karimnagar', 'khammam'];
+  for (const c of tsCities) {
+    if (text.includes(c)) return 'Telangana';
+  }
+
+  // Goa
+  if (text.includes('panaji') || text.includes('panjim') || text.includes('margao') || text.includes('vasco') || text.includes('calangute')) {
+    return 'Goa';
+  }
+
+  // Maharashtra
+  if (text.includes('mumbai') || text.includes('pune') || text.includes('shirdi') || text.includes('nagpur') || text.includes('nashik') || text.includes('kolhapur')) {
+    return 'Maharashtra';
+  }
+
+  // Default to Karnataka (Travel Just Mysore base headquarters)
+  return 'Karnataka';
+}
+
+/**
+ * Apply distance rounding rule
+ */
+export function applyDistanceRounding(distanceKm: number, rule: DistanceRoundingRule = 'NEAREST_1'): number {
+  if (rule === 'EXACT') return Number(distanceKm.toFixed(1));
+  if (rule === 'NEAREST_5') return Math.ceil(distanceKm / 5) * 5;
+  // Default: round to nearest whole integer km
+  return Math.ceil(distanceKm);
+}
+
 export const DEFAULT_VEHICLE_CONFIGS: Record<string, VehicleDynamicPricingConfig> = {
   'sedan-4-1': {
     id: 'cfg_sedan_4_1',
     vehicleId: 'sedan-4-1',
-    vehicleName: 'SEDAN (4+1)',
+    vehicleName: 'Sedan (4+1)',
     vehicleCategory: 'Sedan (4+1)',
     active: true,
     pricingVersion: 1,
@@ -37,8 +265,8 @@ export const DEFAULT_VEHICLE_CONFIGS: Record<string, VehicleDynamicPricingConfig
         includedKm: 0,
         extraPerKmRate: 13,
         includedHours: 0,
-        hourlyRate: 250,
-        extraPerHourRate: 150,
+        hourlyRate: 0,
+        extraPerHourRate: 0,
         driverAllowance: 300,
         minimumKm: 10,
         minimumFare: 700,
@@ -57,9 +285,9 @@ export const DEFAULT_VEHICLE_CONFIGS: Record<string, VehicleDynamicPricingConfig
         perKmRate: 13,
         includedKm: 300, // 300 km min per day
         extraPerKmRate: 13,
-        includedHours: 12,
-        hourlyRate: 200,
-        extraPerHourRate: 150,
+        includedHours: 0,
+        hourlyRate: 0,
+        extraPerHourRate: 0,
         driverAllowance: 300,
         minimumKm: 300,
         minimumFare: 3900,
@@ -96,149 +324,12 @@ export const DEFAULT_VEHICLE_CONFIGS: Record<string, VehicleDynamicPricingConfig
       },
       AIRPORT_TRANSFER: {
         baseFare: 699,
-        perKmRate: 14,
-        includedKm: 0,
-        extraPerKmRate: 13,
-        includedHours: 3,
-        hourlyRate: 250,
-        extraPerHourRate: 150,
-        driverAllowance: 250,
-        minimumKm: 30,
-        minimumFare: 1200,
-        pricingModel: 'BASE_PLUS_DISTANCE',
-        timeRounding: 'BLOCK_30_MIN',
-        tollPolicy: 'AT_ACTUALS',
-        tollFixedAmount: 0,
-        parkingPolicy: 'AT_ACTUALS',
-        parkingFixedAmount: 0,
-        permitPolicy: 'AT_ACTUALS',
-        permitFixedAmount: 0,
-        taxPercentage: 0,
-      },
-      OUTSTATION: {
-        baseFare: 600,
-        perKmRate: 14,
-        includedKm: 300,
-        extraPerKmRate: 13,
-        includedHours: 12,
-        hourlyRate: 250,
-        extraPerHourRate: 150,
-        driverAllowance: 300,
-        minimumKm: 300,
-        minimumFare: 4200,
-        pricingModel: 'DISTANCE_ONLY',
-        timeRounding: 'BLOCK_1_HOUR',
-        tollPolicy: 'AT_ACTUALS',
-        tollFixedAmount: 0,
-        parkingPolicy: 'AT_ACTUALS',
-        parkingFixedAmount: 0,
-        permitPolicy: 'AT_ACTUALS',
-        permitFixedAmount: 0,
-        taxPercentage: 0,
-      },
-    },
-    airportSpecific: {
-      airportBaseFare: 699,
-      airportPerKmRate: 14,
-      airportExtraKmRate: 13,
-      airportDriverAllowance: 250,
-      airportParking: 0,
-      airportPickupCharge: 0,
-    },
-  },
-
-  'toyota-etios': {
-    id: 'cfg_toyota_etios',
-    vehicleId: 'toyota-etios',
-    vehicleName: 'TOYOTA ETIOS (4+1)',
-    vehicleCategory: 'Sedan (4+1)',
-    active: true,
-    pricingVersion: 1,
-    createdAt: '2026-01-01T00:00:00.000Z',
-    updatedAt: '2026-03-01T00:00:00.000Z',
-    updatedBy: 'Administrator',
-    effectiveFrom: '2026-01-01T00:00:00.000Z',
-    roundingRule: 'NEAREST_10',
-    mode: 'ADVANCED',
-    nightConfig: {
-      enabled: true,
-      startHour: 22,
-      endHour: 6,
-      chargeType: 'PERCENTAGE',
-      amount: 10,
-    },
-    pricingByBookingType: {
-      ONE_WAY: {
-        baseFare: 500,
         perKmRate: 14,
         includedKm: 0,
         extraPerKmRate: 13,
         includedHours: 0,
-        hourlyRate: 250,
-        extraPerHourRate: 150,
-        driverAllowance: 300,
-        minimumKm: 10,
-        minimumFare: 700,
-        pricingModel: 'BASE_PLUS_DISTANCE',
-        timeRounding: 'BLOCK_30_MIN',
-        tollPolicy: 'AT_ACTUALS',
-        tollFixedAmount: 0,
-        parkingPolicy: 'AT_ACTUALS',
-        parkingFixedAmount: 0,
-        permitPolicy: 'AT_ACTUALS',
-        permitFixedAmount: 0,
-        taxPercentage: 0,
-      },
-      ROUND_TRIP: {
-        baseFare: 500,
-        perKmRate: 13,
-        includedKm: 300, // 300 km min per day
-        extraPerKmRate: 13,
-        includedHours: 12,
-        hourlyRate: 200,
-        extraPerHourRate: 150,
-        driverAllowance: 300,
-        minimumKm: 300,
-        minimumFare: 3900,
-        pricingModel: 'DISTANCE_ONLY',
-        timeRounding: 'BLOCK_1_HOUR',
-        tollPolicy: 'AT_ACTUALS',
-        tollFixedAmount: 0,
-        parkingPolicy: 'AT_ACTUALS',
-        parkingFixedAmount: 0,
-        permitPolicy: 'AT_ACTUALS',
-        permitFixedAmount: 0,
-        taxPercentage: 0,
-      },
-      LOCAL: {
-        baseFare: 500,
-        perKmRate: 14,
-        includedKm: 80,
-        extraPerKmRate: 13,
-        includedHours: 8,
-        hourlyRate: 250,
-        extraPerHourRate: 150,
-        driverAllowance: 300,
-        minimumKm: 40,
-        minimumFare: 1500,
-        pricingModel: 'DISTANCE_AND_TIME',
-        timeRounding: 'BLOCK_30_MIN',
-        tollPolicy: 'AT_ACTUALS',
-        tollFixedAmount: 0,
-        parkingPolicy: 'AT_ACTUALS',
-        parkingFixedAmount: 0,
-        permitPolicy: 'AT_ACTUALS',
-        permitFixedAmount: 0,
-        taxPercentage: 0,
-      },
-      AIRPORT_TRANSFER: {
-        baseFare: 699,
-        perKmRate: 14,
-        includedKm: 0,
-        extraPerKmRate: 13,
-        includedHours: 3,
-        hourlyRate: 250,
-        extraPerHourRate: 150,
+        hourlyRate: 0,
+        extraPerHourRate: 0,
         driverAllowance: 250,
         minimumKm: 30,
         minimumFare: 1200,
@@ -256,147 +347,10 @@ export const DEFAULT_VEHICLE_CONFIGS: Record<string, VehicleDynamicPricingConfig
         baseFare: 600,
         perKmRate: 14,
         includedKm: 300,
-        extraPerKmRate: 13,
-        includedHours: 12,
-        hourlyRate: 250,
-        extraPerHourRate: 150,
-        driverAllowance: 300,
-        minimumKm: 300,
-        minimumFare: 4200,
-        pricingModel: 'DISTANCE_ONLY',
-        timeRounding: 'BLOCK_1_HOUR',
-        tollPolicy: 'AT_ACTUALS',
-        tollFixedAmount: 0,
-        parkingPolicy: 'AT_ACTUALS',
-        parkingFixedAmount: 0,
-        permitPolicy: 'AT_ACTUALS',
-        permitFixedAmount: 0,
-        taxPercentage: 0,
-      },
-    },
-    airportSpecific: {
-      airportBaseFare: 699,
-      airportPerKmRate: 14,
-      airportExtraKmRate: 13,
-      airportDriverAllowance: 250,
-      airportParking: 0,
-      airportPickupCharge: 0,
-    },
-  },
-
-  'swift-desire': {
-    id: 'cfg_swift_desire',
-    vehicleId: 'swift-desire',
-    vehicleName: 'SWIFT DESIRE (4+1)',
-    vehicleCategory: 'Sedan (4+1)',
-    active: true,
-    pricingVersion: 1,
-    createdAt: '2026-01-01T00:00:00.000Z',
-    updatedAt: '2026-03-01T00:00:00.000Z',
-    updatedBy: 'Administrator',
-    effectiveFrom: '2026-01-01T00:00:00.000Z',
-    roundingRule: 'NEAREST_10',
-    mode: 'ADVANCED',
-    nightConfig: {
-      enabled: true,
-      startHour: 22,
-      endHour: 6,
-      chargeType: 'PERCENTAGE',
-      amount: 10,
-    },
-    pricingByBookingType: {
-      ONE_WAY: {
-        baseFare: 500,
-        perKmRate: 14,
-        includedKm: 0,
         extraPerKmRate: 13,
         includedHours: 0,
-        hourlyRate: 250,
-        extraPerHourRate: 150,
-        driverAllowance: 300,
-        minimumKm: 10,
-        minimumFare: 700,
-        pricingModel: 'BASE_PLUS_DISTANCE',
-        timeRounding: 'BLOCK_30_MIN',
-        tollPolicy: 'AT_ACTUALS',
-        tollFixedAmount: 0,
-        parkingPolicy: 'AT_ACTUALS',
-        parkingFixedAmount: 0,
-        permitPolicy: 'AT_ACTUALS',
-        permitFixedAmount: 0,
-        taxPercentage: 0,
-      },
-      ROUND_TRIP: {
-        baseFare: 500,
-        perKmRate: 13,
-        includedKm: 300,
-        extraPerKmRate: 13,
-        includedHours: 12,
-        hourlyRate: 200,
-        extraPerHourRate: 150,
-        driverAllowance: 300,
-        minimumKm: 300,
-        minimumFare: 3900,
-        pricingModel: 'DISTANCE_ONLY',
-        timeRounding: 'BLOCK_1_HOUR',
-        tollPolicy: 'AT_ACTUALS',
-        tollFixedAmount: 0,
-        parkingPolicy: 'AT_ACTUALS',
-        parkingFixedAmount: 0,
-        permitPolicy: 'AT_ACTUALS',
-        permitFixedAmount: 0,
-        taxPercentage: 0,
-      },
-      LOCAL: {
-        baseFare: 500,
-        perKmRate: 14,
-        includedKm: 80,
-        extraPerKmRate: 13,
-        includedHours: 8,
-        hourlyRate: 250,
-        extraPerHourRate: 150,
-        driverAllowance: 300,
-        minimumKm: 40,
-        minimumFare: 1500,
-        pricingModel: 'DISTANCE_AND_TIME',
-        timeRounding: 'BLOCK_30_MIN',
-        tollPolicy: 'AT_ACTUALS',
-        tollFixedAmount: 0,
-        parkingPolicy: 'AT_ACTUALS',
-        parkingFixedAmount: 0,
-        permitPolicy: 'AT_ACTUALS',
-        permitFixedAmount: 0,
-        taxPercentage: 0,
-      },
-      AIRPORT_TRANSFER: {
-        baseFare: 699,
-        perKmRate: 14,
-        includedKm: 0,
-        extraPerKmRate: 13,
-        includedHours: 3,
-        hourlyRate: 250,
-        extraPerHourRate: 150,
-        driverAllowance: 250,
-        minimumKm: 30,
-        minimumFare: 1200,
-        pricingModel: 'BASE_PLUS_DISTANCE',
-        timeRounding: 'BLOCK_30_MIN',
-        tollPolicy: 'AT_ACTUALS',
-        tollFixedAmount: 0,
-        parkingPolicy: 'AT_ACTUALS',
-        parkingFixedAmount: 0,
-        permitPolicy: 'AT_ACTUALS',
-        permitFixedAmount: 0,
-        taxPercentage: 0,
-      },
-      OUTSTATION: {
-        baseFare: 600,
-        perKmRate: 14,
-        includedKm: 300,
-        extraPerKmRate: 13,
-        includedHours: 12,
-        hourlyRate: 250,
-        extraPerHourRate: 150,
+        hourlyRate: 0,
+        extraPerHourRate: 0,
         driverAllowance: 300,
         minimumKm: 300,
         minimumFare: 4200,
@@ -421,11 +375,11 @@ export const DEFAULT_VEHICLE_CONFIGS: Record<string, VehicleDynamicPricingConfig
     },
   },
 
-  'ertiga': {
-    id: 'cfg_ertiga',
-    vehicleId: 'ertiga',
-    vehicleName: 'ERTIGA (6+1)',
-    vehicleCategory: 'MUV (6+1)',
+  'suv-6-1': {
+    id: 'cfg_suv_6_1',
+    vehicleId: 'suv-6-1',
+    vehicleName: 'SUV (6+1)',
+    vehicleCategory: 'SUV (6+1)',
     active: true,
     pricingVersion: 1,
     createdAt: '2026-01-01T00:00:00.000Z',
@@ -448,8 +402,8 @@ export const DEFAULT_VEHICLE_CONFIGS: Record<string, VehicleDynamicPricingConfig
         includedKm: 0,
         extraPerKmRate: 15,
         includedHours: 0,
-        hourlyRate: 350,
-        extraPerHourRate: 200,
+        hourlyRate: 0,
+        extraPerHourRate: 0,
         driverAllowance: 400,
         minimumKm: 10,
         minimumFare: 900,
@@ -468,9 +422,9 @@ export const DEFAULT_VEHICLE_CONFIGS: Record<string, VehicleDynamicPricingConfig
         perKmRate: 16.5,
         includedKm: 300,
         extraPerKmRate: 15,
-        includedHours: 12,
-        hourlyRate: 300,
-        extraPerHourRate: 200,
+        includedHours: 0,
+        hourlyRate: 0,
+        extraPerHourRate: 0,
         driverAllowance: 400,
         minimumKm: 300,
         minimumFare: 4950,
@@ -510,9 +464,9 @@ export const DEFAULT_VEHICLE_CONFIGS: Record<string, VehicleDynamicPricingConfig
         perKmRate: 18,
         includedKm: 0,
         extraPerKmRate: 16,
-        includedHours: 3,
-        hourlyRate: 350,
-        extraPerHourRate: 200,
+        includedHours: 0,
+        hourlyRate: 0,
+        extraPerHourRate: 0,
         driverAllowance: 350,
         minimumKm: 30,
         minimumFare: 1600,
@@ -531,9 +485,9 @@ export const DEFAULT_VEHICLE_CONFIGS: Record<string, VehicleDynamicPricingConfig
         perKmRate: 18,
         includedKm: 300,
         extraPerKmRate: 16,
-        includedHours: 12,
-        hourlyRate: 350,
-        extraPerHourRate: 200,
+        includedHours: 0,
+        hourlyRate: 0,
+        extraPerHourRate: 0,
         driverAllowance: 400,
         minimumKm: 300,
         minimumFare: 5400,
@@ -585,8 +539,8 @@ export const DEFAULT_VEHICLE_CONFIGS: Record<string, VehicleDynamicPricingConfig
         includedKm: 0,
         extraPerKmRate: 15,
         includedHours: 0,
-        hourlyRate: 350,
-        extraPerHourRate: 200,
+        hourlyRate: 0,
+        extraPerHourRate: 0,
         driverAllowance: 400,
         minimumKm: 10,
         minimumFare: 900,
@@ -605,9 +559,9 @@ export const DEFAULT_VEHICLE_CONFIGS: Record<string, VehicleDynamicPricingConfig
         perKmRate: 17.5,
         includedKm: 300,
         extraPerKmRate: 15,
-        includedHours: 12,
-        hourlyRate: 320,
-        extraPerHourRate: 200,
+        includedHours: 0,
+        hourlyRate: 0,
+        extraPerHourRate: 0,
         driverAllowance: 400,
         minimumKm: 300,
         minimumFare: 5250,
@@ -647,9 +601,9 @@ export const DEFAULT_VEHICLE_CONFIGS: Record<string, VehicleDynamicPricingConfig
         perKmRate: 18,
         includedKm: 0,
         extraPerKmRate: 16,
-        includedHours: 3,
-        hourlyRate: 350,
-        extraPerHourRate: 200,
+        includedHours: 0,
+        hourlyRate: 0,
+        extraPerHourRate: 0,
         driverAllowance: 350,
         minimumKm: 30,
         minimumFare: 1800,
@@ -668,9 +622,9 @@ export const DEFAULT_VEHICLE_CONFIGS: Record<string, VehicleDynamicPricingConfig
         perKmRate: 18,
         includedKm: 300,
         extraPerKmRate: 16,
-        includedHours: 12,
-        hourlyRate: 350,
-        extraPerHourRate: 200,
+        includedHours: 0,
+        hourlyRate: 0,
+        extraPerHourRate: 0,
         driverAllowance: 400,
         minimumKm: 300,
         minimumFare: 5400,
@@ -690,280 +644,6 @@ export const DEFAULT_VEHICLE_CONFIGS: Record<string, VehicleDynamicPricingConfig
       airportPerKmRate: 18,
       airportExtraKmRate: 16,
       airportDriverAllowance: 350,
-      airportParking: 0,
-      airportPickupCharge: 0,
-    },
-  },
-
-  'innova-6-1': {
-    id: 'cfg_innova_6_1',
-    vehicleId: 'innova-6-1',
-    vehicleName: 'INNOVA 6+1',
-    vehicleCategory: 'Innova (6+1)',
-    active: true,
-    pricingVersion: 1,
-    createdAt: '2026-01-01T00:00:00.000Z',
-    updatedAt: '2026-03-01T00:00:00.000Z',
-    updatedBy: 'Administrator',
-    effectiveFrom: '2026-01-01T00:00:00.000Z',
-    roundingRule: 'NEAREST_10',
-    mode: 'ADVANCED',
-    nightConfig: {
-      enabled: true,
-      startHour: 22,
-      endHour: 6,
-      chargeType: 'PERCENTAGE',
-      amount: 10,
-    },
-    pricingByBookingType: {
-      ONE_WAY: {
-        baseFare: 700,
-        perKmRate: 18,
-        includedKm: 0,
-        extraPerKmRate: 15,
-        includedHours: 0,
-        hourlyRate: 350,
-        extraPerHourRate: 200,
-        driverAllowance: 400,
-        minimumKm: 10,
-        minimumFare: 900,
-        pricingModel: 'BASE_PLUS_DISTANCE',
-        timeRounding: 'BLOCK_30_MIN',
-        tollPolicy: 'AT_ACTUALS',
-        tollFixedAmount: 0,
-        parkingPolicy: 'AT_ACTUALS',
-        parkingFixedAmount: 0,
-        permitPolicy: 'AT_ACTUALS',
-        permitFixedAmount: 0,
-        taxPercentage: 0,
-      },
-      ROUND_TRIP: {
-        baseFare: 700,
-        perKmRate: 17.5,
-        includedKm: 300,
-        extraPerKmRate: 15,
-        includedHours: 12,
-        hourlyRate: 320,
-        extraPerHourRate: 200,
-        driverAllowance: 400,
-        minimumKm: 300,
-        minimumFare: 5250,
-        pricingModel: 'DISTANCE_ONLY',
-        timeRounding: 'BLOCK_1_HOUR',
-        tollPolicy: 'AT_ACTUALS',
-        tollFixedAmount: 0,
-        parkingPolicy: 'AT_ACTUALS',
-        parkingFixedAmount: 0,
-        permitPolicy: 'AT_ACTUALS',
-        permitFixedAmount: 0,
-        taxPercentage: 0,
-      },
-      LOCAL: {
-        baseFare: 700,
-        perKmRate: 18,
-        includedKm: 80,
-        extraPerKmRate: 15,
-        includedHours: 8,
-        hourlyRate: 350,
-        extraPerHourRate: 200,
-        driverAllowance: 400,
-        minimumKm: 40,
-        minimumFare: 2400,
-        pricingModel: 'DISTANCE_AND_TIME',
-        timeRounding: 'BLOCK_30_MIN',
-        tollPolicy: 'AT_ACTUALS',
-        tollFixedAmount: 0,
-        parkingPolicy: 'AT_ACTUALS',
-        parkingFixedAmount: 0,
-        permitPolicy: 'AT_ACTUALS',
-        permitFixedAmount: 0,
-        taxPercentage: 0,
-      },
-      AIRPORT_TRANSFER: {
-        baseFare: 1199,
-        perKmRate: 18,
-        includedKm: 0,
-        extraPerKmRate: 16,
-        includedHours: 3,
-        hourlyRate: 350,
-        extraPerHourRate: 200,
-        driverAllowance: 350,
-        minimumKm: 30,
-        minimumFare: 1800,
-        pricingModel: 'BASE_PLUS_DISTANCE',
-        timeRounding: 'BLOCK_30_MIN',
-        tollPolicy: 'AT_ACTUALS',
-        tollFixedAmount: 0,
-        parkingPolicy: 'AT_ACTUALS',
-        parkingFixedAmount: 0,
-        permitPolicy: 'AT_ACTUALS',
-        permitFixedAmount: 0,
-        taxPercentage: 0,
-      },
-      OUTSTATION: {
-        baseFare: 800,
-        perKmRate: 18,
-        includedKm: 300,
-        extraPerKmRate: 16,
-        includedHours: 12,
-        hourlyRate: 350,
-        extraPerHourRate: 200,
-        driverAllowance: 400,
-        minimumKm: 300,
-        minimumFare: 5400,
-        pricingModel: 'DISTANCE_ONLY',
-        timeRounding: 'BLOCK_1_HOUR',
-        tollPolicy: 'AT_ACTUALS',
-        tollFixedAmount: 0,
-        parkingPolicy: 'AT_ACTUALS',
-        parkingFixedAmount: 0,
-        permitPolicy: 'AT_ACTUALS',
-        permitFixedAmount: 0,
-        taxPercentage: 0,
-      },
-    },
-    airportSpecific: {
-      airportBaseFare: 1199,
-      airportPerKmRate: 18,
-      airportExtraKmRate: 16,
-      airportDriverAllowance: 350,
-      airportParking: 0,
-      airportPickupCharge: 0,
-    },
-  },
-
-  'innova-7-1': {
-    id: 'cfg_innova_7_1',
-    vehicleId: 'innova-7-1',
-    vehicleName: 'INNOVA 7+1',
-    vehicleCategory: 'Innova (7+1)',
-    active: true,
-    pricingVersion: 1,
-    createdAt: '2026-01-01T00:00:00.000Z',
-    updatedAt: '2026-03-01T00:00:00.000Z',
-    updatedBy: 'Administrator',
-    effectiveFrom: '2026-01-01T00:00:00.000Z',
-    roundingRule: 'NEAREST_10',
-    mode: 'ADVANCED',
-    nightConfig: {
-      enabled: true,
-      startHour: 22,
-      endHour: 6,
-      chargeType: 'PERCENTAGE',
-      amount: 10,
-    },
-    pricingByBookingType: {
-      ONE_WAY: {
-        baseFare: 750,
-        perKmRate: 19,
-        includedKm: 0,
-        extraPerKmRate: 16,
-        includedHours: 0,
-        hourlyRate: 380,
-        extraPerHourRate: 220,
-        driverAllowance: 450,
-        minimumKm: 10,
-        minimumFare: 1000,
-        pricingModel: 'BASE_PLUS_DISTANCE',
-        timeRounding: 'BLOCK_30_MIN',
-        tollPolicy: 'AT_ACTUALS',
-        tollFixedAmount: 0,
-        parkingPolicy: 'AT_ACTUALS',
-        parkingFixedAmount: 0,
-        permitPolicy: 'AT_ACTUALS',
-        permitFixedAmount: 0,
-        taxPercentage: 0,
-      },
-      ROUND_TRIP: {
-        baseFare: 750,
-        perKmRate: 18.5,
-        includedKm: 300,
-        extraPerKmRate: 16,
-        includedHours: 12,
-        hourlyRate: 340,
-        extraPerHourRate: 220,
-        driverAllowance: 450,
-        minimumKm: 300,
-        minimumFare: 5550,
-        pricingModel: 'DISTANCE_ONLY',
-        timeRounding: 'BLOCK_1_HOUR',
-        tollPolicy: 'AT_ACTUALS',
-        tollFixedAmount: 0,
-        parkingPolicy: 'AT_ACTUALS',
-        parkingFixedAmount: 0,
-        permitPolicy: 'AT_ACTUALS',
-        permitFixedAmount: 0,
-        taxPercentage: 0,
-      },
-      LOCAL: {
-        baseFare: 750,
-        perKmRate: 19,
-        includedKm: 80,
-        extraPerKmRate: 16,
-        includedHours: 8,
-        hourlyRate: 380,
-        extraPerHourRate: 220,
-        driverAllowance: 450,
-        minimumKm: 40,
-        minimumFare: 2600,
-        pricingModel: 'DISTANCE_AND_TIME',
-        timeRounding: 'BLOCK_30_MIN',
-        tollPolicy: 'AT_ACTUALS',
-        tollFixedAmount: 0,
-        parkingPolicy: 'AT_ACTUALS',
-        parkingFixedAmount: 0,
-        permitPolicy: 'AT_ACTUALS',
-        permitFixedAmount: 0,
-        taxPercentage: 0,
-      },
-      AIRPORT_TRANSFER: {
-        baseFare: 1249,
-        perKmRate: 19,
-        includedKm: 0,
-        extraPerKmRate: 17,
-        includedHours: 3,
-        hourlyRate: 380,
-        extraPerHourRate: 220,
-        driverAllowance: 400,
-        minimumKm: 30,
-        minimumFare: 1900,
-        pricingModel: 'BASE_PLUS_DISTANCE',
-        timeRounding: 'BLOCK_30_MIN',
-        tollPolicy: 'AT_ACTUALS',
-        tollFixedAmount: 0,
-        parkingPolicy: 'AT_ACTUALS',
-        parkingFixedAmount: 0,
-        permitPolicy: 'AT_ACTUALS',
-        permitFixedAmount: 0,
-        taxPercentage: 0,
-      },
-      OUTSTATION: {
-        baseFare: 850,
-        perKmRate: 19,
-        includedKm: 300,
-        extraPerKmRate: 17,
-        includedHours: 12,
-        hourlyRate: 380,
-        extraPerHourRate: 220,
-        driverAllowance: 450,
-        minimumKm: 300,
-        minimumFare: 5700,
-        pricingModel: 'DISTANCE_ONLY',
-        timeRounding: 'BLOCK_1_HOUR',
-        tollPolicy: 'AT_ACTUALS',
-        tollFixedAmount: 0,
-        parkingPolicy: 'AT_ACTUALS',
-        parkingFixedAmount: 0,
-        permitPolicy: 'AT_ACTUALS',
-        permitFixedAmount: 0,
-        taxPercentage: 0,
-      },
-    },
-    airportSpecific: {
-      airportBaseFare: 1249,
-      airportPerKmRate: 19,
-      airportExtraKmRate: 17,
-      airportDriverAllowance: 400,
       airportParking: 0,
       airportPickupCharge: 0,
     },
@@ -996,8 +676,8 @@ export const DEFAULT_VEHICLE_CONFIGS: Record<string, VehicleDynamicPricingConfig
         includedKm: 0,
         extraPerKmRate: 20,
         includedHours: 0,
-        hourlyRate: 500,
-        extraPerHourRate: 300,
+        hourlyRate: 0,
+        extraPerHourRate: 0,
         driverAllowance: 500,
         minimumKm: 10,
         minimumFare: 1400,
@@ -1016,9 +696,9 @@ export const DEFAULT_VEHICLE_CONFIGS: Record<string, VehicleDynamicPricingConfig
         perKmRate: 23,
         includedKm: 300,
         extraPerKmRate: 20,
-        includedHours: 12,
-        hourlyRate: 450,
-        extraPerHourRate: 300,
+        includedHours: 0,
+        hourlyRate: 0,
+        extraPerHourRate: 0,
         driverAllowance: 500,
         minimumKm: 300,
         minimumFare: 6900,
@@ -1058,9 +738,9 @@ export const DEFAULT_VEHICLE_CONFIGS: Record<string, VehicleDynamicPricingConfig
         perKmRate: 25,
         includedKm: 0,
         extraPerKmRate: 22,
-        includedHours: 3,
-        hourlyRate: 500,
-        extraPerHourRate: 300,
+        includedHours: 0,
+        hourlyRate: 0,
+        extraPerHourRate: 0,
         driverAllowance: 500,
         minimumKm: 30,
         minimumFare: 2400,
@@ -1079,9 +759,9 @@ export const DEFAULT_VEHICLE_CONFIGS: Record<string, VehicleDynamicPricingConfig
         perKmRate: 25,
         includedKm: 300,
         extraPerKmRate: 22,
-        includedHours: 12,
-        hourlyRate: 500,
-        extraPerHourRate: 300,
+        includedHours: 0,
+        hourlyRate: 0,
+        extraPerHourRate: 0,
         driverAllowance: 500,
         minimumKm: 300,
         minimumFare: 7500,
@@ -1133,8 +813,8 @@ export const DEFAULT_VEHICLE_CONFIGS: Record<string, VehicleDynamicPricingConfig
         includedKm: 0,
         extraPerKmRate: 20,
         includedHours: 0,
-        hourlyRate: 500,
-        extraPerHourRate: 300,
+        hourlyRate: 0,
+        extraPerHourRate: 0,
         driverAllowance: 500,
         minimumKm: 10,
         minimumFare: 1800,
@@ -1153,9 +833,9 @@ export const DEFAULT_VEHICLE_CONFIGS: Record<string, VehicleDynamicPricingConfig
         perKmRate: 28,
         includedKm: 300,
         extraPerKmRate: 25,
-        includedHours: 12,
-        hourlyRate: 500,
-        extraPerHourRate: 350,
+        includedHours: 0,
+        hourlyRate: 0,
+        extraPerHourRate: 0,
         driverAllowance: 700,
         minimumKm: 300,
         minimumFare: 8400,
@@ -1195,9 +875,9 @@ export const DEFAULT_VEHICLE_CONFIGS: Record<string, VehicleDynamicPricingConfig
         perKmRate: 30,
         includedKm: 0,
         extraPerKmRate: 26,
-        includedHours: 4,
-        hourlyRate: 600,
-        extraPerHourRate: 400,
+        includedHours: 0,
+        hourlyRate: 0,
+        extraPerHourRate: 0,
         driverAllowance: 600,
         minimumKm: 40,
         minimumFare: 3500,
@@ -1216,9 +896,9 @@ export const DEFAULT_VEHICLE_CONFIGS: Record<string, VehicleDynamicPricingConfig
         perKmRate: 28,
         includedKm: 300,
         extraPerKmRate: 25,
-        includedHours: 12,
-        hourlyRate: 600,
-        extraPerHourRate: 400,
+        includedHours: 0,
+        hourlyRate: 0,
+        extraPerHourRate: 0,
         driverAllowance: 700,
         minimumKm: 300,
         minimumFare: 8400,
@@ -1243,6 +923,28 @@ export const DEFAULT_VEHICLE_CONFIGS: Record<string, VehicleDynamicPricingConfig
     },
   },
 };
+
+// Backward compatibility aliases for lookups (non-enumerable so they do not appear in rate card tabs or Object.keys)
+Object.defineProperty(DEFAULT_VEHICLE_CONFIGS, 'ertiga', {
+  enumerable: false,
+  configurable: true,
+  get: () => DEFAULT_VEHICLE_CONFIGS['suv-6-1'],
+});
+Object.defineProperty(DEFAULT_VEHICLE_CONFIGS, 'toyota-etios', {
+  enumerable: false,
+  configurable: true,
+  get: () => DEFAULT_VEHICLE_CONFIGS['sedan-4-1'],
+});
+Object.defineProperty(DEFAULT_VEHICLE_CONFIGS, 'swift-desire', {
+  enumerable: false,
+  configurable: true,
+  get: () => DEFAULT_VEHICLE_CONFIGS['sedan-4-1'],
+});
+Object.defineProperty(DEFAULT_VEHICLE_CONFIGS, 'tempo-traveller-14-1', {
+  enumerable: false,
+  configurable: true,
+  get: () => DEFAULT_VEHICLE_CONFIGS['tempo-traveller-12-1'],
+});
 
 /**
  * Apply time rounding based on configured policy
@@ -1309,6 +1011,19 @@ export function isNightTime(pickupTimeStr?: string, startHour = 22, endHour = 6)
 }
 
 /**
+ * Helper to identify Mysore <-> Ooty corridor
+ */
+export function isMysoreOotyRoute(origin?: string, destination?: string): boolean {
+  if (!origin || !destination) return false;
+  const o = origin.toLowerCase();
+  const d = destination.toLowerCase();
+  const isMysore = (t: string) => t.includes('mysur') || t.includes('myso');
+  const isOoty = (t: string) =>
+    t.includes('ooty') || t.includes('udhagamandalam') || t.includes('nilgiri');
+  return (isMysore(o) && isOoty(d)) || (isOoty(o) && isMysore(d));
+}
+
+/**
  * Centralized Dynamic Fare Calculation Engine
  * Strictly follows the 20-step execution order.
  */
@@ -1327,18 +1042,27 @@ export function calculateDynamicFare(input: DynamicFareCalculationInput): Dynami
     customPricingConfig,
   } = input;
 
-  // 1-5: Validate inputs & Google route metrics
-  const distanceKm = Math.max(0, Number(rawDistanceKm.toFixed(2)));
+  // 1-5: Load vehicle configuration & apply distance rounding
+  const vehicleConfig =
+    customPricingConfig ||
+    DEFAULT_VEHICLE_CONFIGS[vehicleId] ||
+    (vehicleId === 'ertiga' || vehicleId === 'suv' ? DEFAULT_VEHICLE_CONFIGS['suv-6-1'] : undefined) ||
+    DEFAULT_VEHICLE_CONFIGS['sedan-4-1'];
+
+  const distanceRounding: DistanceRoundingRule =
+    input.distanceRounding || vehicleConfig.distanceRounding || 'NEAREST_1';
+  const distanceKm = applyDistanceRounding(Math.max(0, Number(rawDistanceKm.toFixed(2))), distanceRounding);
   const durationMinutes = Math.max(0, Math.round(rawDurationMinutes));
   const rawDurationHours = durationMinutes / 60;
   const durationFormatted = formatDurationText(durationMinutes);
 
-  // 6-7: Load vehicle configuration for booking type
-  const vehicleConfig =
-    customPricingConfig ||
-    DEFAULT_VEHICLE_CONFIGS[vehicleId] ||
-    DEFAULT_VEHICLE_CONFIGS['sedan-4-1'] ||
-    DEFAULT_VEHICLE_CONFIGS['toyota-etios'];
+  // State Detection & Route Classification
+  const originState = input.originState || detectIndianState(origin, input.originDetails);
+  const destinationState = input.destinationState || detectIndianState(destination, input.destinationDetails);
+  const isInterState = originState.toLowerCase().trim() !== destinationState.toLowerCase().trim();
+  const routeCategory: RouteCategory = isInterState ? 'INTER_STATE' : 'INTRA_STATE';
+
+  // 6-7: Load pricing rule for booking type
   const pricingRule: VehicleBookingPricing =
     vehicleConfig.pricingByBookingType?.[bookingType] ||
     vehicleConfig.pricingByBookingType?.['ONE_WAY'] ||
@@ -1348,8 +1072,17 @@ export function calculateDynamicFare(input: DynamicFareCalculationInput): Dynami
   const roundingRule = vehicleConfig.roundingRule || 'NEAREST_10';
   const timeRounding = pricingRule.timeRounding || 'BLOCK_30_MIN';
 
+  const effectiveVehicleId = vehicleId || vehicleConfig.vehicleId;
+  const isMysoreOotySedan =
+    bookingType === 'ONE_WAY' &&
+    (effectiveVehicleId === 'sedan-4-1' ||
+      effectiveVehicleId === 'toyota-etios' ||
+      effectiveVehicleId === 'swift-desire' ||
+      vehicleConfig.vehicleCategory === 'Sedan') &&
+    isMysoreOotyRoute(origin, destination);
+
   // 8: Apply Base Fare
-  let baseFare = pricingRule.baseFare;
+  let baseFare = isMysoreOotySedan ? 0 : pricingRule.baseFare;
   if (bookingType === 'AIRPORT_TRANSFER' && vehicleConfig.airportSpecific?.airportBaseFare) {
     baseFare = vehicleConfig.airportSpecific.airportBaseFare;
   }
@@ -1382,7 +1115,16 @@ export function calculateDynamicFare(input: DynamicFareCalculationInput): Dynami
         ? vehicleConfig.airportSpecific.airportExtraKmRate
         : pricingRule.extraPerKmRate;
 
-    if (includedKm > 0) {
+    if (isMysoreOotySedan) {
+      // Special Mysore <-> Ooty corridor: Minimum ₹2900 with 150 km limit
+      includedKm = 150;
+      baseFare = 0;
+      distanceFare = 2900;
+      if (distanceKm > 150) {
+        const extraKm = distanceKm - 150;
+        extraDistanceFare = extraKm * (pricingRule.extraPerKmRate || 13);
+      }
+    } else if (includedKm > 0) {
       if (distanceKm <= includedKm) {
         distanceFare = distanceKm * perKmRate;
       } else {
@@ -1396,11 +1138,12 @@ export function calculateDynamicFare(input: DynamicFareCalculationInput): Dynami
   }
 
   // 12-14: Apply duration & hourly pricing based on PricingModel
-  // Only charge duration if pricing model includes TIME
+  // Only charge duration if pricing model includes TIME and booking type is LOCAL
   const chargesDuration =
-    pricingModel === 'TIME_ONLY' ||
-    pricingModel === 'DISTANCE_AND_TIME' ||
-    pricingModel === 'BASE_PLUS_TIME';
+    bookingType === 'LOCAL' &&
+    (pricingModel === 'TIME_ONLY' ||
+      pricingModel === 'DISTANCE_AND_TIME' ||
+      pricingModel === 'BASE_PLUS_TIME');
 
   const roundedDurationHours = roundDurationHours(rawDurationHours, timeRounding);
   let hourlyFare = 0;
@@ -1428,7 +1171,9 @@ export function calculateDynamicFare(input: DynamicFareCalculationInput): Dynami
 
   // 15: Apply Driver Allowance
   let driverAllowance = pricingRule.driverAllowance;
-  if (bookingType === 'ROUND_TRIP') {
+  if (isMysoreOotySedan) {
+    driverAllowance = 0; // Chauffeur allowance already incorporated into flat ₹2900 package
+  } else if (bookingType === 'ROUND_TRIP') {
     const days = Math.max(1, roundTripDays);
     driverAllowance = pricingRule.driverAllowance * days;
   } else if (bookingType === 'AIRPORT_TRANSFER' && vehicleConfig.airportSpecific?.airportDriverAllowance !== undefined) {
@@ -1474,6 +1219,63 @@ export function calculateDynamicFare(input: DynamicFareCalculationInput): Dynami
     viaStopsCharge = viaStopsCount * 150;
   }
 
+  // 17b: Dedicated INTER-STATE calculation (EXCLUSIVELY for ONE WAY bookings)
+  let interStateCharge = 0;
+  let interStateAppliedRule = isInterState ? 'Inter-State Border Crossing' : 'Intra-State (Same State)';
+  let interStateRate = 0;
+
+  if (bookingType === 'ONE_WAY') {
+    if (isInterState && !isMysoreOotySedan) {
+      // 1. Check active State-Pair Rule first (Highest Priority)
+      const statePairRules = input.statePairRules || DEFAULT_STATE_PAIR_RULES;
+      const matchedPair = statePairRules.find(
+        (r) =>
+          r.active !== false &&
+          r.fromState.toLowerCase().trim() === originState.toLowerCase().trim() &&
+          r.toState.toLowerCase().trim() === destinationState.toLowerCase().trim()
+      );
+
+      const vehiclePairRate =
+        matchedPair?.ratesByVehicle?.[effectiveVehicleId] ??
+        matchedPair?.ratesByVehicle?.[vehicleId] ??
+        matchedPair?.ratesByVehicle?.['sedan-4-1'];
+
+      if (matchedPair && typeof vehiclePairRate === 'number' && vehiclePairRate > 0) {
+        interStateCharge = vehiclePairRate;
+        interStateRate = vehiclePairRate;
+        interStateAppliedRule = `${matchedPair.fromState} → ${matchedPair.toState} (State-Pair Rule: ₹${vehiclePairRate})`;
+      } else {
+        // 2. Check Vehicle-Specific Inter-State Rule
+        const mode = pricingRule.interStatePricingMode || vehicleConfig.interStatePricingMode || 'FLAT';
+        if (mode === 'PER_KM') {
+          const perKm = pricingRule.interStatePerKmRate ?? vehicleConfig.interStatePerKmRate ?? 3;
+          interStateCharge = Math.round(distanceKm * perKm);
+          interStateRate = perKm;
+          interStateAppliedRule = `Vehicle Inter-State Rate (₹${perKm}/km @ ${distanceKm} km)`;
+        } else {
+          // Default FLAT
+          const flat = pricingRule.interStateCharge ?? vehicleConfig.interStateCharge ?? 500;
+          interStateCharge = flat;
+          interStateRate = flat;
+          interStateAppliedRule = `Vehicle Inter-State ONE WAY Rule (${vehicleConfig.vehicleName} - ₹${flat})`;
+        }
+      }
+    } else if (isMysoreOotySedan) {
+      // Mysore-Ooty Sedan package already has state crossing incorporated
+      interStateCharge = 0;
+      interStateAppliedRule = 'Incorporated into Mysore-Ooty ₹2900 Fixed Package';
+    } else {
+      // Intra-State
+      interStateCharge = 0;
+      interStateAppliedRule = 'Intra-State (Same State - ₹0)';
+    }
+  } else {
+    // Non-ONE_WAY booking types (ROUND_TRIP, LOCAL, AIRPORT_TRANSFER, OUTSTATION)
+    // The INTER-STATE column/rule is strictly NOT used or applied.
+    interStateCharge = 0;
+    interStateAppliedRule = 'Not Applicable (ONE WAY Only)';
+  }
+
   // Calculate pre-tax subtotal based on selected pricingModel
   let coreFare = 0;
   switch (pricingModel) {
@@ -1496,12 +1298,19 @@ export function calculateDynamicFare(input: DynamicFareCalculationInput): Dynami
   }
 
   const subtotalBeforeMin =
-    coreFare + driverAllowance + nightCharge + tolls + parking + permits + viaStopsCharge;
+    coreFare +
+    driverAllowance +
+    interStateCharge +
+    nightCharge +
+    tolls +
+    parking +
+    permits +
+    viaStopsCharge;
 
   // 18: Apply Minimum Fare constraint
   let minimumFareApplied = false;
   let runningTotal = subtotalBeforeMin;
-  const minFare = pricingRule.minimumFare || 0;
+  const minFare = isMysoreOotySedan ? 2900 : (pricingRule.minimumFare || 0);
   if (runningTotal < minFare) {
     runningTotal = minFare;
     minimumFareApplied = true;
@@ -1522,34 +1331,49 @@ export function calculateDynamicFare(input: DynamicFareCalculationInput): Dynami
   // 20: Transparent customer breakdown (private internal formulas hidden from customer view)
   const breakdown: Array<{ label: string; amount: number; detail?: string }> = [];
 
-  if (baseFare > 0 && (pricingModel === 'BASE_PLUS_DISTANCE' || pricingModel === 'BASE_PLUS_TIME' || pricingModel === 'DISTANCE_AND_TIME')) {
+  if (isMysoreOotySedan) {
     breakdown.push({
-      label: `Base Fare (${vehicleConfig.vehicleName})`,
-      amount: Math.round(baseFare),
+      label: 'Mysore ⇄ Ooty Sedan Special Minimum Fare (150 km limit)',
+      amount: 2900,
+      detail: 'Includes 150 km road journey, fuel, and chauffeur allowance',
     });
-  }
+    if (extraDistanceFare > 0) {
+      const extraKm = Math.max(0, distanceKm - 150);
+      breakdown.push({
+        label: `Extra Distance (${extraKm.toFixed(1)} km @ ₹${pricingRule.extraPerKmRate || 13}/km)`,
+        amount: Math.round(extraDistanceFare),
+      });
+    }
+  } else {
+    if (baseFare > 0 && (pricingModel === 'BASE_PLUS_DISTANCE' || pricingModel === 'BASE_PLUS_TIME' || pricingModel === 'DISTANCE_AND_TIME')) {
+      breakdown.push({
+        label: `Base Fare (${vehicleConfig.vehicleName})`,
+        amount: Math.round(baseFare),
+      });
+    }
 
-  if (bookingType === 'ROUND_TRIP') {
-    const days = Math.max(1, roundTripDays);
-    breakdown.push({
-      label: `Round Trip Road Distance (${Math.round(billableKm)} km billed · ${days} Day${days > 1 ? 's' : ''})`,
-      amount: Math.round(distanceFare),
-      detail: `Min. ${includedKm} km included`,
-    });
-  } else if (distanceFare > 0) {
-    const kmLabel = includedKm > 0 ? `${includedKm} km included` : `${distanceKm} km`;
-    breakdown.push({
-      label: `Distance Charge (${kmLabel})`,
-      amount: Math.round(distanceFare),
-    });
-  }
+    if (bookingType === 'ROUND_TRIP') {
+      const days = Math.max(1, roundTripDays);
+      breakdown.push({
+        label: `Round Trip Road Distance (${Math.round(billableKm)} km billed · ${days} Day${days > 1 ? 's' : ''})`,
+        amount: Math.round(distanceFare),
+        detail: `Min. ${includedKm} km included`,
+      });
+    } else if (distanceFare > 0) {
+      const kmLabel = includedKm > 0 ? `${includedKm} km included` : `${distanceKm} km`;
+      breakdown.push({
+        label: `Distance Charge (${kmLabel})`,
+        amount: Math.round(distanceFare),
+      });
+    }
 
-  if (extraDistanceFare > 0) {
-    const extraKm = Math.max(0, distanceKm - includedKm);
-    breakdown.push({
-      label: `Extra Distance (${extraKm.toFixed(1)} km)`,
-      amount: Math.round(extraDistanceFare),
-    });
+    if (extraDistanceFare > 0) {
+      const extraKm = Math.max(0, distanceKm - includedKm);
+      breakdown.push({
+        label: `Extra Distance (${extraKm.toFixed(1)} km)`,
+        amount: Math.round(extraDistanceFare),
+      });
+    }
   }
 
   if (hourlyFare > 0) {
@@ -1606,6 +1430,14 @@ export function calculateDynamicFare(input: DynamicFareCalculationInput): Dynami
     });
   }
 
+  if (interStateCharge > 0) {
+    breakdown.push({
+      label: 'Inter-State Border Crossing Charge (ONE WAY Only)',
+      amount: Math.round(interStateCharge),
+      detail: `${originState} ➔ ${destinationState} • ${interStateAppliedRule}`,
+    });
+  }
+
   if (viaStopsCharge > 0) {
     breakdown.push({
       label: `Via Stops (${viaStopsCount} stops)`,
@@ -1644,7 +1476,15 @@ export function calculateDynamicFare(input: DynamicFareCalculationInput): Dynami
     distanceKm,
     durationMinutes,
     durationHours: Number(rawDurationHours.toFixed(2)),
-    additionalCharges: nightCharge + tolls + parking + permits + taxes + viaStopsCharge,
+    routeCategory,
+    originState,
+    destinationState,
+    interStateCharge: Math.round(interStateCharge),
+    interStateRate,
+    interStateAppliedRule,
+    additionalCharges: Math.round(nightCharge + tolls + parking + permits + taxes + viaStopsCharge + interStateCharge),
+    subtotal: Math.round(subtotalBeforeMin),
+    roundingAdjustment: Math.round(totalFare - unroundedFare),
     totalFare,
     pricingVersion: vehicleConfig.pricingVersion,
     currency: 'INR',
@@ -1672,14 +1512,23 @@ export function calculateDynamicFare(input: DynamicFareCalculationInput): Dynami
     hourlyFare: Math.round(hourlyFare),
     extraHourFare: Math.round(extraHourFare),
     driverAllowance: Math.round(driverAllowance),
+    routeCategory,
+    originState,
+    destinationState,
+    isInterState,
+    interStateCharge: Math.round(interStateCharge),
+    interStateAppliedRule,
+    distanceRoundingApplied: distanceRounding,
     nightCharge: Math.round(nightCharge),
     taxes: Math.round(taxes),
     tolls: Math.round(tolls),
     parking: Math.round(parking),
     permits: Math.round(permits),
-    additionalCharges: Math.round(nightCharge + tolls + parking + permits + taxes + viaStopsCharge),
+    additionalCharges: Math.round(nightCharge + tolls + parking + permits + taxes + viaStopsCharge + interStateCharge),
+    subtotal: Math.round(subtotalBeforeMin),
     minimumFareApplied,
     unroundedFare,
+    roundingAdjustment: Math.round(totalFare - unroundedFare),
     totalFare,
     currency: 'INR',
     fareBreakdown: breakdown,

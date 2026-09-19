@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   CheckCircle2,
-  Sliders,
   Sparkles,
   Clock,
   ArrowRight,
@@ -17,13 +16,12 @@ import { FleetSection } from './components/FleetSection';
 import { TopRoutesDirectorySection } from './components/TopRoutesDirectorySection';
 import { WhyChooseUs } from './components/WhyChooseUs';
 import { FAQSection } from './components/FAQSection';
-import { RecentTripsSection } from './components/RecentTripsSection';
 import { Footer } from './components/Footer';
 import { BookingModal } from './components/BookingModal';
 import { LegalModal } from './components/LegalModal';
 import { OwnerAuthModal } from './components/OwnerAuthModal';
 import { CustomerPortalModal } from './components/CustomerPortalModal';
-import { AdminFareManagementModal } from './components/AdminFareManagementModal';
+import { OwnerPortalModal } from './components/OwnerPortalModal';
 import { DriverPartnerDrawer } from './components/DriverPartnerDrawer';
 import { DownloadAppModal } from './components/DownloadAppModal';
 import { CustomerAuthModal } from './components/CustomerAuthModal';
@@ -107,8 +105,21 @@ export default function App() {
   const [customerPortalModalOpen, setCustomerPortalModalOpen] = useState(false);
 
   const [ownerAuthModalOpen, setOwnerAuthModalOpen] = useState(false);
-  const [adminFareModalOpen, setAdminFareModalOpen] = useState(false);
+  const [ownerPortalModalOpen, setOwnerPortalModalOpen] = useState(false);
   const [fareUpdateTrigger, setFareUpdateTrigger] = useState(0);
+
+  // Clear any residual fare engine data from storage
+  useEffect(() => {
+    try {
+      localStorage.removeItem('tj_dynamic_pricing_configs_v1');
+      localStorage.removeItem('tj_state_pair_rules_v1');
+      localStorage.removeItem('tj_fare_settings_v1');
+      localStorage.removeItem('tj_active_fare_engine');
+      localStorage.removeItem('tj_fare_audit_logs_v1');
+    } catch (e) {
+      // ignore
+    }
+  }, []);
   const [searchState, setSearchState] = useState<BookingSearchState | null>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
@@ -150,6 +161,7 @@ export default function App() {
 
   const handleOwnerLoginSuccess = () => {
     setIsOwner(true);
+    setOwnerPortalModalOpen(true);
     try {
       localStorage.setItem('tj_is_owner', 'true');
     } catch (e) {
@@ -159,6 +171,7 @@ export default function App() {
 
   const handleExitOwnerMode = () => {
     setIsOwner(false);
+    setOwnerPortalModalOpen(false);
     try {
       localStorage.removeItem('tj_is_owner');
     } catch (e) {
@@ -423,11 +436,11 @@ export default function App() {
         onBookRideClick={handleScrollToBookingSearch}
         onOpenOwnerLogin={() => setOwnerAuthModalOpen(true)}
         onExitOwnerMode={handleExitOwnerMode}
+        onOpenFareEngine={() => setOwnerPortalModalOpen(true)}
         onOpenLegal={(type) => setLegalModalType(type)}
         customer={customer}
         onOpenCustomerPortal={() => setCustomerPortalModalOpen(true)}
         onOpenPartnerDrawer={() => setPartnerDrawerOpen(true)}
-        onOpenFareEngine={() => setAdminFareModalOpen(true)}
         onOpenDownloadApp={() => setDownloadAppModalOpen(true)}
         onOpenCustomerAuth={() => setCustomerAuthModalOpen(true)}
         onCustomerLogout={handleCustomerLogout}
@@ -483,16 +496,6 @@ export default function App() {
         {/* Top Outstation & Airport Taxi Routes Directory Section */}
         <TopRoutesDirectorySection />
 
-        {/* Live Dispatch & Bookings Registry Section - EXCLUSIVELY VISIBLE FOR FLEET MANAGER & OWNER PORTAL ONLY */}
-        {isOwner && (
-          <RecentTripsSection
-            onRebookTrip={handleRebookTrip}
-            onOpenBookingSearch={handleScrollToBookingSearch}
-            isOwner={isOwner}
-            onOpenOwnerLogin={() => setOwnerAuthModalOpen(true)}
-          />
-        )}
-
         {/* Why Choose Us Section */}
         <WhyChooseUs onOpenPartnerDrawer={() => setPartnerDrawerOpen(true)} />
 
@@ -506,6 +509,7 @@ export default function App() {
         onOpenLegal={(type) => setLegalModalType(type)}
         onBookRideClick={handleScrollToBookingSearch}
         onOpenOwnerLogin={() => setOwnerAuthModalOpen(true)}
+        onOpenFareEngine={() => setOwnerPortalModalOpen(true)}
         customer={customer}
         onOpenCustomerPortal={() => setCustomerPortalModalOpen(true)}
         onOpenPartnerDrawer={() => setPartnerDrawerOpen(true)}
@@ -554,13 +558,6 @@ export default function App() {
         onSuccess={handleOwnerLoginSuccess}
       />
 
-      {/* Owner Dynamic Price & Fare Engine Modal */}
-      <AdminFareManagementModal
-        isOpen={adminFareModalOpen}
-        onClose={() => setAdminFareModalOpen(false)}
-        onPricingUpdated={() => setFareUpdateTrigger((prev) => prev + 1)}
-      />
-
       {/* Download App Modal */}
       <DownloadAppModal
         isOpen={downloadAppModalOpen}
@@ -583,6 +580,13 @@ export default function App() {
           setCustomerAuthModalOpen(false);
           setPartnerDrawerOpen(true);
         }}
+      />
+
+      {/* Comprehensive Business Owner & Fleet Management Portal */}
+      <OwnerPortalModal
+        isOpen={isOwner && ownerPortalModalOpen}
+        onClose={() => setOwnerPortalModalOpen(false)}
+        onExitOwnerMode={handleExitOwnerMode}
       />
 
       {/* 24x7 Travel Expert Popup Modal (opens after 30 seconds) */}

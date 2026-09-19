@@ -68,16 +68,14 @@ export function calculateFare(
   }
 
   const hasRouteInfo =
-    search.routeInfo &&
-    typeof search.routeInfo.distanceKm === 'number' &&
-    search.routeInfo.distanceKm > 0;
-  const routeDistance = hasRouteInfo ? search.routeInfo!.distanceKm : 0;
+    (search.routeInfo &&
+      typeof search.routeInfo.distanceKm === 'number' &&
+      search.routeInfo.distanceKm > 0) ||
+    (typeof search.distanceKm === 'number' && search.distanceKm > 0);
+  const routeDistance = search.routeInfo?.distanceKm ?? search.distanceKm ?? 0;
   const routeDurationMinutes =
-    hasRouteInfo && search.routeInfo!.durationMinutes
-      ? search.routeInfo!.durationMinutes
-      : routeDistance > 0
-      ? (routeDistance / 45) * 60
-      : 0;
+    search.routeInfo?.durationMinutes ??
+    (routeDistance > 0 ? (routeDistance / 45) * 60 : 0);
 
   // Validation for one-way point-to-point drop
   if (search.serviceType === 'oneway' && (!hasRouteInfo || routeDistance <= 0)) {
@@ -123,11 +121,26 @@ export function calculateFare(
   // Retrieve current independent vehicle dynamic pricing configuration
   const dynamicConfig = fareService.getConfigSync(vehicle.id);
 
-  // Execute the 20-step authoritative Dynamic Fare Engine
+  // Determine origin and destination states from suggestions or computed route
+  const originDetailsStr = search.pickupLocationObj
+    ? `${search.pickupLocationObj.formattedAddress || ''} ${search.pickupLocationObj.city || ''} ${search.pickupLocationObj.state || ''}`
+    : undefined;
+  const destinationDetailsStr = search.dropLocationObj
+    ? `${search.dropLocationObj.formattedAddress || ''} ${search.dropLocationObj.city || ''} ${search.dropLocationObj.state || ''}`
+    : undefined;
+
+  const originState = search.pickupLocationObj?.state || search.routeInfo?.interstateStates?.fromState;
+  const destinationState = search.dropLocationObj?.state || search.routeInfo?.interstateStates?.toState;
+
+  // Execute the authoritative Dynamic Fare Engine
   const result = calculateDynamicFare({
     origin: search.pickupLocation || 'Mysuru',
     destination:
       search.dropLocation || (search.serviceType === 'local' ? 'Local City' : 'Destination'),
+    originDetails: originDetailsStr,
+    destinationDetails: destinationDetailsStr,
+    originState,
+    destinationState,
     distanceKm,
     durationMinutes,
     bookingType,

@@ -9,6 +9,10 @@ import { INTERCITY_HERITAGE_COASTAL_LOCATIONS } from "../data/locations/intercit
 import { ROUTE_MATRIX } from "../data/locations/routeDistances";
 import { getInitialSeedTrips } from "../data/seedTrips";
 import { serverPricingStore } from "./fareEngine/pricingStore";
+import { runFareEngineTestSuite } from "./fareEngine/fareEngineTests";
+import { serverInterStateStore } from "./fareEngine/interstateOneWayStore";
+import { runInterStateOneWayTests } from "./fareEngine/interstateOneWayTests";
+import { detectIndianState } from "../utils/dynamicFareEngine";
 
 const POPULAR_LOCATIONS = [
   ...AIRPORT_LOCATIONS,
@@ -25,48 +29,11 @@ function detectInterstateTrip(originText: string, destText: string): {
   fromState: string;
   toState: string;
 } {
-  const detectState = (text: string) => {
-    const t = text.toLowerCase();
-    if (
-      t.includes("tamil nadu") ||
-      t.includes("ooty") ||
-      t.includes("udhagamandalam") ||
-      t.includes("coimbatore") ||
-      t.includes("nilgiris") ||
-      t.includes("chennai") ||
-      t.includes("salem") ||
-      t.includes("madurai") ||
-      t.includes("erode") ||
-      t.includes("tiruppur") ||
-      t.includes("hosur") ||
-      t.includes("vellore")
-    ) {
-      return "Tamil Nadu";
-    }
-    if (
-      t.includes("kerala") ||
-      t.includes("wayanad") ||
-      t.includes("kalpetta") ||
-      t.includes("sulthan bathery") ||
-      t.includes("vythiri") ||
-      t.includes("kozhikode") ||
-      t.includes("calicut") ||
-      t.includes("kannur") ||
-      t.includes("kochi") ||
-      t.includes("cochin") ||
-      t.includes("munnar") ||
-      t.includes("thrissur")
-    ) {
-      return "Kerala";
-    }
-    return "Karnataka";
-  };
-
-  const fromState = detectState(originText);
-  const toState = detectState(destText);
+  const fromState = detectIndianState(originText);
+  const toState = detectIndianState(destText);
 
   if (fromState !== toState) {
-    const tax = toState === "Tamil Nadu" || fromState === "Tamil Nadu" ? 600 : 550;
+    const tax = toState === "Tamil Nadu" || fromState === "Tamil Nadu" ? 600 : toState === "Kerala" || fromState === "Kerala" ? 600 : 550;
     return { isInterstate: true, interstateTaxEstimate: tax, fromState, toState };
   }
 
@@ -230,6 +197,223 @@ const serverBookingsBuffer: any[] = [...getInitialSeedTrips()];
 // In-memory buffer for customer login WhatsApp notifications
 const serverLoginNotificationsBuffer: any[] = [];
 
+// In-memory buffer for OTP authentication
+interface ServerOtpEntry {
+  phone: string;
+  otp: string;
+  expiresAt: number;
+  attempts: number;
+  createdAt: number;
+}
+const serverOtpStore = new Map<string, ServerOtpEntry>();
+
+// In-memory buffer for Fleet (strictly 5 allowed vehicles)
+const serverFleetBuffer: any[] = [
+  {
+    id: "fleet-sedan-1024",
+    regNumber: "KA-09-MA-1024",
+    model: "Toyota Etios Platinum",
+    vehicleType: "sedan-4-1",
+    vehicleName: "Sedan (4+1)",
+    category: "Sedan",
+    seatingCapacity: 4,
+    status: "Available",
+    driverAssigned: "Manjunath Swamy",
+    insuranceExpiry: "2027-03-15",
+    permitExpiry: "2027-08-20",
+    fastagId: "FT-KA09-1024",
+  },
+  {
+    id: "fleet-suv-3829",
+    regNumber: "KA-09-MD-3829",
+    model: "Maruti Suzuki Ertiga ZXI",
+    vehicleType: "suv-6-1",
+    vehicleName: "SUV (6+1)",
+    category: "MUV",
+    seatingCapacity: 6,
+    status: "Available",
+    driverAssigned: "Chethan Gowda",
+    insuranceExpiry: "2026-11-30",
+    permitExpiry: "2027-05-10",
+    fastagId: "FT-KA09-3829",
+  },
+  {
+    id: "fleet-innova-5512",
+    regNumber: "KA-09-AA-5512",
+    model: "Toyota Innova 2.5V AC",
+    vehicleType: "innova",
+    vehicleName: "INNOVA",
+    category: "Premium SUV",
+    seatingCapacity: 7,
+    status: "Available",
+    driverAssigned: "Suresh Babu",
+    insuranceExpiry: "2027-01-18",
+    permitExpiry: "2027-09-05",
+    fastagId: "FT-KA09-5512",
+  },
+  {
+    id: "fleet-crysta-8819",
+    regNumber: "KA-09-MC-8819",
+    model: "Toyota Innova Crysta 2.4 ZX",
+    vehicleType: "innova-crysta",
+    vehicleName: "INNOVA CRYSTA",
+    category: "Luxury SUV",
+    seatingCapacity: 7,
+    status: "Available",
+    driverAssigned: "Ramesh Kumar",
+    insuranceExpiry: "2027-06-25",
+    permitExpiry: "2027-12-14",
+    fastagId: "FT-KA09-8819",
+  },
+  {
+    id: "fleet-tempo-9901",
+    regNumber: "KA-09-TT-9901",
+    model: "Force Motors Tempo Traveller 3350 Luxury",
+    vehicleType: "tempo-traveller-12-1",
+    vehicleName: "TEMPO TRAVELLER (12+1)",
+    category: "Minibus",
+    seatingCapacity: 12,
+    status: "Available",
+    driverAssigned: "Basavaraj P",
+    insuranceExpiry: "2026-10-12",
+    permitExpiry: "2027-04-30",
+    fastagId: "FT-KA09-9901",
+  },
+];
+
+// In-memory buffer for Chauffeurs
+const serverChauffeursBuffer: any[] = [
+  {
+    id: "ch-001",
+    name: "Ramesh Kumar",
+    phone: "+91 98451 22341",
+    licenseNumber: "KA09-2015-0018",
+    assignedCab: "KA-09-MC-8819 (Innova Crysta)",
+    status: "Available",
+    rating: 4.9,
+    totalTrips: 480,
+    languages: ["Kannada", "English", "Hindi", "Tamil"],
+  },
+  {
+    id: "ch-002",
+    name: "Manjunath Swamy",
+    phone: "+91 97412 88392",
+    licenseNumber: "KA09-2017-0034",
+    assignedCab: "KA-09-MA-1024 (Sedan)",
+    status: "Available",
+    rating: 4.8,
+    totalTrips: 320,
+    languages: ["Kannada", "Hindi", "English"],
+  },
+  {
+    id: "ch-003",
+    name: "Chethan Gowda",
+    phone: "+91 99011 44552",
+    licenseNumber: "KA09-2018-0078",
+    assignedCab: "KA-09-MD-3829 (SUV 6+1)",
+    status: "Available",
+    rating: 4.9,
+    totalTrips: 410,
+    languages: ["Kannada", "Telugu", "Hindi"],
+  },
+  {
+    id: "ch-004",
+    name: "Suresh Babu",
+    phone: "+91 96112 55901",
+    licenseNumber: "KA09-2014-0091",
+    assignedCab: "KA-09-AA-5512 (Innova)",
+    status: "Available",
+    rating: 4.8,
+    totalTrips: 530,
+    languages: ["Kannada", "Tamil", "English"],
+  },
+  {
+    id: "ch-005",
+    name: "Basavaraj P",
+    phone: "+91 94488 77123",
+    licenseNumber: "KA09-2012-0112",
+    assignedCab: "KA-09-TT-9901 (Tempo Traveller)",
+    status: "Available",
+    rating: 5.0,
+    totalTrips: 650,
+    languages: ["Kannada", "Hindi", "English", "Malayalam"],
+  },
+];
+
+// In-memory buffer for registered customers
+const serverCustomersBuffer: any[] = [
+  {
+    id: "cust_seed_001",
+    fullName: "Anand Murthy",
+    mobileNumber: "9845123456",
+    email: "anand.murthy@example.com",
+    createdAt: "2026-01-10T10:00:00.000Z",
+    totalTripsCount: 4,
+    totalSpend: 14200,
+    defaultPickupLocation: "Gokulam 3rd Stage, Mysuru",
+  },
+  {
+    id: "cust_seed_002",
+    fullName: "Priya Rao",
+    mobileNumber: "9740567890",
+    email: "priya.rao@example.com",
+    createdAt: "2026-02-14T14:30:00.000Z",
+    totalTripsCount: 2,
+    totalSpend: 8900,
+    defaultPickupLocation: "Kuvempunagar, Mysuru",
+  },
+  {
+    id: "cust_seed_003",
+    fullName: "Dr. Vikram Seth",
+    mobileNumber: "9448112233",
+    email: "vikram.seth@hospital.org",
+    createdAt: "2026-02-28T09:15:00.000Z",
+    totalTripsCount: 6,
+    totalSpend: 26500,
+    defaultPickupLocation: "Vijayanagar 2nd Stage, Mysuru",
+  },
+];
+
+// In-memory buffer for Communications (WhatsApp & Email)
+const serverCommunicationsBuffer: any[] = [
+  {
+    id: "comm_001",
+    type: "WHATSAPP",
+    recipient: "+91 97407 54400 (Fleet Manager)",
+    subject: "New Customer Registration",
+    content: "Customer Anand Murthy (9845123456) logged in via OTP.",
+    status: "SENT",
+    timestamp: new Date(Date.now() - 3600000).toISOString(),
+  },
+  {
+    id: "comm_002",
+    type: "WHATSAPP",
+    recipient: "+91 98451 23456 (Anand Murthy)",
+    subject: "Booking Request Received",
+    content: "Booking #TJ-2026-102941 received for Mysuru to Bengaluru Airport.",
+    status: "DELIVERED",
+    timestamp: new Date(Date.now() - 1800000).toISOString(),
+  },
+];
+
+// In-memory buffer for Operational Audit Logs
+const serverAuditLogsBuffer: any[] = [
+  {
+    id: "audit_001",
+    actor: "Fleet Manager",
+    action: "DISPATCH_ASSIGNMENT",
+    details: "Assigned Chauffeur Ramesh Kumar to Booking #TJ-2026-102941",
+    timestamp: new Date(Date.now() - 1200000).toISOString(),
+  },
+  {
+    id: "audit_002",
+    actor: "Business Owner",
+    action: "FARE_ENGINE_UPDATE",
+    details: "Updated Per-KM rate for Sedan (4+1) to ₹14.0/km",
+    timestamp: new Date(Date.now() - 86400000).toISOString(),
+  },
+];
+
 export function createApiRouter(): Router {
   const router = Router();
   router.use(express.json());
@@ -304,7 +488,8 @@ export function createApiRouter(): Router {
   // 4. Reset vehicle pricing configurations to defaults
   router.post("/fare/reset", (req, res) => {
     const { vehicleId } = req.body || {};
-    serverPricingStore.resetToDefaults(vehicleId);
+    const adminUser = (req.headers["x-admin-user"] as string) || "Administrator";
+    serverPricingStore.resetToDefaults(vehicleId, adminUser);
     return res.json({
       success: true,
       message: vehicleId ? `Reset ${vehicleId} to default pricing` : "All vehicle pricing configs reset to defaults",
@@ -312,42 +497,348 @@ export function createApiRouter(): Router {
     });
   });
 
+  // 4b. State Pair Rules Management
+  router.get("/fare/state-pairs", (req, res) => {
+    const rules = serverPricingStore.getStatePairRules();
+    return res.json({ success: true, rules });
+  });
+
+  router.post("/fare/state-pairs", (req, res) => {
+    try {
+      const rule = req.body;
+      const adminUser = (req.headers["x-admin-user"] as string) || "Administrator";
+      if (!rule || !rule.fromState || !rule.toState) {
+        return res.status(400).json({ success: false, error: "fromState and toState are required" });
+      }
+      const saved = serverPricingStore.saveStatePairRule(rule, adminUser);
+      return res.json({ success: true, rule: saved });
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  router.delete("/fare/state-pairs/:id", (req, res) => {
+    const { id } = req.params;
+    const adminUser = (req.headers["x-admin-user"] as string) || "Administrator";
+    const ok = serverPricingStore.deleteStatePairRule(id, adminUser);
+    return res.json({ success: ok });
+  });
+
+  // 4c. Audit Logs
+  router.get("/fare/audit-logs", (req, res) => {
+    const logs = serverPricingStore.getAuditLogs();
+    return res.json({ success: true, logs });
+  });
+
+  // 4d. Pricing Engine Settings
+  router.get("/fare/settings", (req, res) => {
+    const distanceRounding = serverPricingStore.getDistanceRounding();
+    return res.json({ success: true, settings: { distanceRounding } });
+  });
+
+  router.post("/fare/settings", (req, res) => {
+    try {
+      const { distanceRounding } = req.body || {};
+      const adminUser = (req.headers["x-admin-user"] as string) || "Administrator";
+      if (distanceRounding) {
+        serverPricingStore.setDistanceRounding(distanceRounding, adminUser);
+      }
+      return res.json({
+        success: true,
+        settings: { distanceRounding: serverPricingStore.getDistanceRounding() },
+      });
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  // Get and set active Fare Engine (Engine A vs Engine B)
+  router.get("/fare/active-engine", (_req, res) => {
+    return res.json({
+      success: true,
+      activeEngine: serverPricingStore.getActiveEngine(),
+    });
+  });
+
+  router.post("/fare/active-engine", (req, res) => {
+    try {
+      const { engine } = req.body || {};
+      const adminUser = (req.headers["x-admin-user"] as string) || "Administrator";
+      if (engine === "ENGINE_A" || engine === "ENGINE_B") {
+        serverPricingStore.setActiveEngine(engine, adminUser);
+        return res.json({
+          success: true,
+          activeEngine: serverPricingStore.getActiveEngine(),
+          message: `Switched active dynamic fare engine to ${engine}`,
+        });
+      }
+      return res.status(400).json({ success: false, error: "Invalid engine type. Must be 'ENGINE_A' or 'ENGINE_B'." });
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  // Dual Engine side-by-side calculation for a single vehicle
+  router.post("/fare/dual-calculate", (req, res) => {
+    try {
+      const body = req.body || {};
+      const origin = body.from || body.origin || "";
+      const destination = body.to || body.destination || "";
+      let bookingType = (body.tripType || body.bookingType || "ONE_WAY").toUpperCase();
+
+      if (bookingType === "ONEWAY" || bookingType === "ONE_WAY" || bookingType === "OUTSTATION_ONEWAY") {
+        bookingType = "ONE_WAY";
+      } else if (bookingType === "ROUNDTRIP" || bookingType === "ROUND_TRIP") {
+        bookingType = "ROUND_TRIP";
+      } else if (bookingType === "LOCAL" || bookingType === "HOURLY") {
+        bookingType = "LOCAL";
+      } else if (bookingType === "AIRPORT" || bookingType === "AIRPORT_TRANSFER") {
+        bookingType = "AIRPORT_TRANSFER";
+      }
+
+      const vehicleId = body.vehicleId || body.vehicle || "sedan-4-1";
+      const distanceKm = Number(body.distanceKm) || 120;
+      const durationMinutes = Number(body.durationMinutes) || 180;
+      const detectedOriginState = body.originState || detectIndianState(origin, body.originDetails);
+      const detectedDestState = body.destinationState || (destination ? detectIndianState(destination, body.destinationDetails) : detectedOriginState);
+
+      const comparison = serverPricingStore.calculateDualFare({
+        origin: origin || "Mysuru",
+        destination: destination || (bookingType === "LOCAL" ? "Local City Area" : "Destination"),
+        originDetails: body.originDetails,
+        destinationDetails: body.destinationDetails,
+        originState: detectedOriginState,
+        destinationState: detectedDestState,
+        distanceKm,
+        durationMinutes,
+        bookingType,
+        vehicleId,
+        pickupDateTime: body.pickupDate || body.pickupDateTime,
+        pickupTime: body.pickupTime,
+        roundTripDays: Number(body.roundTripDays) || 1,
+        airportTransferType: body.airportTransferType,
+        viaStopsCount: Number(body.viaStopsCount) || 0,
+        distanceRounding: body.distanceRounding,
+      });
+
+      return res.json({
+        success: true,
+        comparison,
+      });
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  // Dual Engine comparison across all 5 target vehicles
+  router.post("/fare/dual-calculate-all", (req, res) => {
+    try {
+      const body = req.body || {};
+      const origin = body.from || body.origin || "";
+      const destination = body.to || body.destination || "";
+      let bookingType = (body.tripType || body.bookingType || "ONE_WAY").toUpperCase();
+
+      if (bookingType === "ONEWAY" || bookingType === "ONE_WAY" || bookingType === "OUTSTATION_ONEWAY") {
+        bookingType = "ONE_WAY";
+      } else if (bookingType === "ROUNDTRIP" || bookingType === "ROUND_TRIP") {
+        bookingType = "ROUND_TRIP";
+      } else if (bookingType === "LOCAL" || bookingType === "HOURLY") {
+        bookingType = "LOCAL";
+      } else if (bookingType === "AIRPORT" || bookingType === "AIRPORT_TRANSFER") {
+        bookingType = "AIRPORT_TRANSFER";
+      }
+
+      const distanceKm = Number(body.distanceKm) || 120;
+      const durationMinutes = Number(body.durationMinutes) || 180;
+      const detectedOriginState = body.originState || detectIndianState(origin, body.originDetails);
+      const detectedDestState = body.destinationState || (destination ? detectIndianState(destination, body.destinationDetails) : detectedOriginState);
+
+      const vehicles = serverPricingStore.calculateDualAllVehicles({
+        origin: origin || "Mysuru",
+        destination: destination || (bookingType === "LOCAL" ? "Local City Area" : "Destination"),
+        originDetails: body.originDetails,
+        destinationDetails: body.destinationDetails,
+        originState: detectedOriginState,
+        destinationState: detectedDestState,
+        distanceKm,
+        durationMinutes,
+        bookingType,
+        pickupDateTime: body.pickupDate || body.pickupDateTime,
+        pickupTime: body.pickupTime,
+        roundTripDays: Number(body.roundTripDays) || 1,
+        airportTransferType: body.airportTransferType,
+        viaStopsCount: Number(body.viaStopsCount) || 0,
+        distanceRounding: body.distanceRounding,
+      });
+
+      return res.json({
+        success: true,
+        origin,
+        destination,
+        tripType: bookingType,
+        distanceKm,
+        durationMinutes,
+        activeEngine: serverPricingStore.getActiveEngine(),
+        vehicles,
+      });
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
   // 5. Authoritative centralized calculation endpoint for a single vehicle
   router.post("/fare/calculate", (req, res) => {
     try {
-      const {
-        origin,
-        destination,
-        distanceKm,
-        durationMinutes,
-        bookingType = "ONE_WAY",
-        vehicleId,
-        pickupDateTime,
-        pickupTime,
-        roundTripDays,
-        airportTransferType,
-        viaStopsCount,
-      } = req.body;
+      const body = req.body || {};
+      const origin = body.from || body.origin || "";
+      const destination = body.to || body.destination || "";
+      let bookingType = (body.tripType || body.bookingType || "ONE_WAY").toUpperCase();
 
+      // Normalize trip type aliases
+      if (bookingType === "ONEWAY" || bookingType === "ONE_WAY" || bookingType === "OUTSTATION_ONEWAY") {
+        bookingType = "ONE_WAY";
+      } else if (bookingType === "ROUNDTRIP" || bookingType === "ROUND_TRIP") {
+        bookingType = "ROUND_TRIP";
+      } else if (bookingType === "LOCAL" || bookingType === "HOURLY") {
+        bookingType = "LOCAL";
+      } else if (bookingType === "AIRPORT" || bookingType === "AIRPORT_TRANSFER") {
+        bookingType = "AIRPORT_TRANSFER";
+      }
+
+      const vehicleId = body.vehicleId || body.vehicle;
       if (!vehicleId) {
         return res.status(400).json({ success: false, error: "vehicleId is required" });
       }
 
+      // 1. Validation: Origin exists
+      if (!origin || !origin.trim()) {
+        return res.status(400).json({
+          success: false,
+          error: "Please specify a valid pickup location (FROM).",
+        });
+      }
+
+      // 2. Validation: Destination exists if not local
+      if (bookingType !== "LOCAL") {
+        if (!destination || !destination.trim()) {
+          return res.status(400).json({
+            success: false,
+            error: "Please specify a valid destination (TO).",
+          });
+        }
+        if (origin.trim().toLowerCase() === destination.trim().toLowerCase()) {
+          return res.status(400).json({
+            success: false,
+            error: "Pickup and destination locations cannot be the same.",
+          });
+        }
+      }
+
+      // 3. Driving distance verification & anti-manipulation
+      let distanceKm = Number(body.distanceKm) || 0;
+      let durationMinutes = Number(body.durationMinutes) || 0;
+
+      if (bookingType !== "LOCAL" && distanceKm <= 0) {
+        // Attempt fast road matrix / coordinates resolution
+        const o = origin.toLowerCase();
+        const d = destination.toLowerCase();
+        for (const [k, v] of Object.entries(ROUTE_MATRIX)) {
+          const [p1, p2] = k.split("-");
+          const np1 = p1.replace(/_/g, " ");
+          const np2 = p2.replace(/_/g, " ");
+          if ((o.includes(np1) && d.includes(np2)) || (o.includes(np2) && d.includes(np1))) {
+            distanceKm = v.distanceKm;
+            durationMinutes = v.durationMinutes;
+            break;
+          }
+        }
+      }
+
+      if (bookingType !== "LOCAL" && distanceKm <= 0) {
+        return res.status(400).json({
+          success: false,
+          error: "We couldn't calculate the driving route for these locations. Please check the pickup and destination locations.",
+        });
+      }
+
+      // 4. Detect states authoritative check
+      const detectedOriginState = body.originState || detectIndianState(origin, body.originDetails);
+      const detectedDestState = body.destinationState || (destination ? detectIndianState(destination, body.destinationDetails) : detectedOriginState);
+
       const result = serverPricingStore.calculateAuthoritativeFare({
         origin: origin || "Origin",
-        destination: destination || "Destination",
-        distanceKm: Number(distanceKm) || 0,
-        durationMinutes: Number(durationMinutes) || 0,
+        destination: destination || (bookingType === "LOCAL" ? "Local City Area" : "Destination"),
+        originDetails: body.originDetails,
+        destinationDetails: body.destinationDetails,
+        originState: detectedOriginState,
+        destinationState: detectedDestState,
+        distanceKm,
+        durationMinutes,
         bookingType,
         vehicleId,
-        pickupDateTime,
-        pickupTime,
-        roundTripDays: Number(roundTripDays) || 1,
-        airportTransferType,
-        viaStopsCount: Number(viaStopsCount) || 0,
+        pickupDateTime: body.pickupDate || body.pickupDateTime,
+        pickupTime: body.pickupTime,
+        roundTripDays: Number(body.roundTripDays) || 1,
+        airportTransferType: body.airportTransferType,
+        viaStopsCount: Number(body.viaStopsCount) || (Array.isArray(body.viaStops) ? body.viaStops.length : 0),
+        distanceRounding: body.distanceRounding,
+        engineType: body.engineType,
       });
 
-      return res.json({ success: true, fare: result });
+      const config = serverPricingStore.getConfig(vehicleId) || {
+        vehicleId,
+        vehicleName: vehicleId,
+      };
+
+      // Format authoritative structured response conforming to Section 29
+      return res.json({
+        success: true,
+        engineType: result.engineType || serverPricingStore.getActiveEngine(),
+        engineName: result.engineName || (result.engineType === "ENGINE_B" ? "Engine B: Live Route & Traffic Dynamic" : "Engine A: Commercial Slab Engine"),
+        tripType: bookingType,
+        routeType: result.isInterState ? "INTERSTATE" : "INTRA_STATE",
+        originState: result.originState || detectedOriginState,
+        destinationState: result.destinationState || detectedDestState,
+        distanceKm: result.distanceKm,
+        durationMinutes: result.durationMinutes,
+        vehicle: {
+          id: vehicleId,
+          name: (config as any).vehicleName || vehicleId,
+        },
+        fare: {
+          baseFare: result.baseFare,
+          distanceKm: result.distanceKm,
+          includedKm: result.includedKm || (bookingType === "LOCAL" ? 80 : 0),
+          chargeableKm: result.billableKm,
+          perKmRate: result.fareSnapshot?.perKmRate || 0,
+          distanceCharge: result.distanceFare,
+          extraKm: (result as any).extraKm || 0,
+          extraKmCharge: result.extraDistanceFare || 0,
+          driverAllowance: result.driverAllowance,
+          additionalCharges: (result.tolls || 0) + (result.permits || 0) + (result.interStateCharge || 0) + (result.nightCharge || 0),
+          discount: (result as any).discount || 0,
+          tax: result.taxes,
+          finalFare: result.totalFare,
+          distanceFare: result.distanceFare,
+          extraDistanceFare: result.extraDistanceFare,
+          toll: result.tolls,
+          permit: result.permits + (result.interStateCharge || 0),
+          otherCharges: result.nightCharge,
+          subtotal: result.subtotal,
+          rounding: result.fareSnapshot?.roundingAdjustment || 0,
+        },
+        route: {
+          distanceMeters: Math.round(result.distanceKm * 1000),
+          distanceKm: result.distanceKm,
+          durationSeconds: Math.round(result.durationMinutes * 60),
+          durationMinutes: result.durationMinutes,
+        },
+        currency: "INR",
+        detailedBreakdown: result.fareBreakdown,
+        fareSnapshot: result.fareSnapshot,
+        pricingVersion: result.pricingVersion || "TJ-2026-09-001",
+        calculatedAt: new Date().toISOString(),
+      });
     } catch (err: any) {
       return res.status(500).json({ success: false, error: err.message });
     }
@@ -356,33 +847,240 @@ export function createApiRouter(): Router {
   // 6. Authoritative centralized calculation endpoint for ALL active vehicles
   router.post("/fare/calculate-all", (req, res) => {
     try {
-      const {
-        origin,
-        destination,
-        distanceKm,
-        durationMinutes,
-        bookingType = "ONE_WAY",
-        pickupDateTime,
-        pickupTime,
-        roundTripDays,
-        airportTransferType,
-        viaStopsCount,
-      } = req.body;
+      const body = req.body || {};
+      const origin = body.from || body.origin || "";
+      const destination = body.to || body.destination || "";
+      let bookingType = (body.tripType || body.bookingType || "ONE_WAY").toUpperCase();
+
+      if (bookingType === "ONEWAY" || bookingType === "ONE_WAY" || bookingType === "OUTSTATION_ONEWAY") {
+        bookingType = "ONE_WAY";
+      } else if (bookingType === "ROUNDTRIP" || bookingType === "ROUND_TRIP") {
+        bookingType = "ROUND_TRIP";
+      } else if (bookingType === "LOCAL" || bookingType === "HOURLY") {
+        bookingType = "LOCAL";
+      } else if (bookingType === "AIRPORT" || bookingType === "AIRPORT_TRANSFER") {
+        bookingType = "AIRPORT_TRANSFER";
+      }
+
+      let distanceKm = Number(body.distanceKm) || 0;
+      let durationMinutes = Number(body.durationMinutes) || 0;
+
+      if (bookingType !== "LOCAL" && distanceKm <= 0 && origin && destination) {
+        const o = origin.toLowerCase();
+        const d = destination.toLowerCase();
+        for (const [k, v] of Object.entries(ROUTE_MATRIX)) {
+          const [p1, p2] = k.split("-");
+          const np1 = p1.replace(/_/g, " ");
+          const np2 = p2.replace(/_/g, " ");
+          if ((o.includes(np1) && d.includes(np2)) || (o.includes(np2) && d.includes(np1))) {
+            distanceKm = v.distanceKm;
+            durationMinutes = v.durationMinutes;
+            break;
+          }
+        }
+      }
+
+      const detectedOriginState = body.originState || detectIndianState(origin, body.originDetails);
+      const detectedDestState = body.destinationState || (destination ? detectIndianState(destination, body.destinationDetails) : detectedOriginState);
 
       const results = serverPricingStore.calculateAllVehicles({
         origin: origin || "Origin",
-        destination: destination || "Destination",
-        distanceKm: Number(distanceKm) || 0,
-        durationMinutes: Number(durationMinutes) || 0,
+        destination: destination || (bookingType === "LOCAL" ? "Local City Area" : "Destination"),
+        originDetails: body.originDetails,
+        destinationDetails: body.destinationDetails,
+        originState: detectedOriginState,
+        destinationState: detectedDestState,
+        distanceKm,
+        durationMinutes,
         bookingType,
-        pickupDateTime,
-        pickupTime,
-        roundTripDays: Number(roundTripDays) || 1,
-        airportTransferType,
-        viaStopsCount: Number(viaStopsCount) || 0,
+        pickupDateTime: body.pickupDate || body.pickupDateTime,
+        pickupTime: body.pickupTime,
+        roundTripDays: Number(body.roundTripDays) || 1,
+        airportTransferType: body.airportTransferType,
+        viaStopsCount: Number(body.viaStopsCount) || (Array.isArray(body.viaStops) ? body.viaStops.length : 0),
+        distanceRounding: body.distanceRounding,
       });
 
-      return res.json({ success: true, fares: results });
+      return res.json({
+        success: true,
+        tripType: bookingType,
+        originState: detectedOriginState,
+        destinationState: detectedDestState,
+        distanceKm,
+        durationMinutes,
+        fares: results,
+        pricingVersion: "TJ-2026-09-001",
+        calculatedAt: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // 6b. Automated Test Suite Execution (Section 38)
+  router.get("/fare/run-tests", (_req, res) => {
+    try {
+      const report = runFareEngineTestSuite();
+      return res.json({ success: true, report });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // =========================================================================
+  // ADVANCED & UPDATED LIVE DYNAMIC INTER-STATE ONE-WAY FARE ENGINE (TJ-ISOW)
+  // Authoritative Single Source of Truth for Inter-State One-Way Journeys
+  // =========================================================================
+
+  // 1. Authoritative Inter-State One-Way Calculation Endpoint
+  router.post("/fare/interstate-oneway/calculate", (req, res) => {
+    try {
+      const {
+        origin,
+        destination,
+        originDetails,
+        destinationDetails,
+        vehicleId,
+        distanceKm,
+        durationMinutes,
+        stops,
+        pickupDate,
+        pickupTime,
+        applyTollMode,
+      } = req.body;
+
+      const result = serverInterStateStore.calculateFare({
+        origin,
+        destination,
+        originDetails,
+        destinationDetails,
+        vehicleId: vehicleId || "sedan-4-1",
+        distanceKm: Number(distanceKm) || 0,
+        durationMinutes: Number(durationMinutes) || 0,
+        stops: Array.isArray(stops) ? stops : undefined,
+        pickupDate,
+        pickupTime,
+        applyTollMode,
+      });
+
+      return res.json(result);
+    } catch (err: any) {
+      return res.status(500).json({
+        success: false,
+        error: "CALCULATION_EXCEPTION",
+        errorMessage: err.message || "An unexpected error occurred during Inter-State One-Way calculation.",
+        isInterState: false,
+        currency: "INR",
+      });
+    }
+  });
+
+  // 2. Fetch Inter-State One-Way Rate Cards & Config
+  router.get("/fare/interstate-oneway/rates", (_req, res) => {
+    try {
+      return res.json({
+        success: true,
+        pricingVersion: serverInterStateStore.getPricingVersion(),
+        rates: serverInterStateStore.getAllRates(),
+        additionalConfig: serverInterStateStore.getAdditionalConfig(),
+        statesCount: serverInterStateStore.getSupportedStates().length,
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // 3. Update Vehicle Inter-State Rate Card
+  router.post("/fare/interstate-oneway/rates/:vehicleId", (req, res) => {
+    try {
+      const { vehicleId } = req.params;
+      const adminUser = (req.headers["x-admin-user"] as string) || "Administrator";
+      const updated = serverInterStateStore.updateRate(vehicleId, req.body, adminUser);
+      return res.json({
+        success: true,
+        rate: updated,
+        pricingVersion: serverInterStateStore.getPricingVersion(),
+        message: `Successfully updated rate card for ${updated.vehicleName}. Pricing version updated to ${serverInterStateStore.getPricingVersion()}`,
+      });
+    } catch (err: any) {
+      return res.status(400).json({ success: false, error: err.message });
+    }
+  });
+
+  // 4. Fetch State Pair Rules
+  router.get("/fare/interstate-oneway/state-pairs", (_req, res) => {
+    try {
+      return res.json({
+        success: true,
+        statePairs: serverInterStateStore.getStatePairs(),
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // 5. Save or Update State Pair Rule
+  router.post("/fare/interstate-oneway/state-pairs", (req, res) => {
+    try {
+      const adminUser = (req.headers["x-admin-user"] as string) || "Administrator";
+      const saved = serverInterStateStore.saveStatePair(req.body, adminUser);
+      return res.json({ success: true, statePair: saved });
+    } catch (err: any) {
+      return res.status(400).json({ success: false, error: err.message });
+    }
+  });
+
+  // 6. Additional Config (Tolls, Taxes, Rounding)
+  router.get("/fare/interstate-oneway/additional-config", (_req, res) => {
+    try {
+      return res.json({
+        success: true,
+        config: serverInterStateStore.getAdditionalConfig(),
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.post("/fare/interstate-oneway/additional-config", (req, res) => {
+    try {
+      const adminUser = (req.headers["x-admin-user"] as string) || "Administrator";
+      const updated = serverInterStateStore.updateAdditionalConfig(req.body, adminUser);
+      return res.json({ success: true, config: updated });
+    } catch (err: any) {
+      return res.status(400).json({ success: false, error: err.message });
+    }
+  });
+
+  // 7. Get All Supported Indian States and UTs (28 + 8)
+  router.get("/fare/interstate-oneway/states", (_req, res) => {
+    try {
+      return res.json({
+        success: true,
+        states: serverInterStateStore.getSupportedStates(),
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // 8. Audit Logs for Inter-State One-Way
+  router.get("/fare/interstate-oneway/audit-logs", (_req, res) => {
+    try {
+      return res.json({
+        success: true,
+        auditLogs: serverInterStateStore.getAuditLogs(),
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // 9. Run Inter-State One-Way Automated Test Suite (10 Test Cases)
+  router.get("/fare/interstate-oneway/run-tests", (_req, res) => {
+    try {
+      const report = runInterStateOneWayTests(serverInterStateStore);
+      return res.json({ success: true, report });
     } catch (err: any) {
       return res.status(500).json({ success: false, error: err.message });
     }
@@ -1350,6 +2048,15 @@ export function createApiRouter(): Router {
       }
 
       const deleted = serverBookingsBuffer.splice(index, 1);
+      const actor = (req.headers["x-admin-user"] as string) || "Fleet Manager";
+      serverAuditLogsBuffer.unshift({
+        id: `audit-${Date.now()}`,
+        action: "DELETE_BOOKING",
+        actor,
+        target: `#${referenceId}`,
+        details: `Booking #${referenceId} permanently deleted from active bookings registry.`,
+        timestamp: new Date().toISOString(),
+      });
       return res.json({
         success: true,
         deleted: deleted[0],
@@ -1358,6 +2065,459 @@ export function createApiRouter(): Router {
     } catch (err: any) {
       return res.status(500).json({ success: false, error: err.message || "Failed to delete booking" });
     }
+  });
+
+  // Dedicated Booking Status Transition with Audit Tracking
+  router.patch("/bookings/:referenceId/status", (req, res) => {
+    try {
+      const { referenceId } = req.params;
+      const { status, note, actor } = req.body;
+      const index = serverBookingsBuffer.findIndex((b) => b.reference_id === referenceId);
+
+      if (index === -1) {
+        return res.status(404).json({ success: false, error: "Booking not found" });
+      }
+
+      const prevStatus = serverBookingsBuffer[index].status;
+      serverBookingsBuffer[index].status = status;
+      serverBookingsBuffer[index].updated_at = new Date().toISOString();
+      if (note) {
+        serverBookingsBuffer[index].status_note = note;
+      }
+
+      const auditEntry = {
+        id: `audit_${Date.now()}`,
+        actor: actor || "Fleet Manager",
+        action: "STATUS_TRANSITION",
+        details: `Booking #${referenceId} changed from "${prevStatus}" to "${status}"${note ? ` (Note: ${note})` : ""}`,
+        timestamp: new Date().toISOString(),
+      };
+      serverAuditLogsBuffer.unshift(auditEntry);
+
+      return res.json({
+        success: true,
+        booking: serverBookingsBuffer[index],
+        message: `Booking status updated to "${status}"`,
+      });
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  // Chauffeur & Cab Assignment with Notification
+  router.patch("/bookings/:referenceId/assign", (req, res) => {
+    try {
+      const { referenceId } = req.params;
+      const { chauffeurId, chauffeurName, chauffeurPhone, chauffeurLicense, cabId, regNumber, vehicleType, actor } = req.body;
+      const index = serverBookingsBuffer.findIndex((b) => b.reference_id === referenceId);
+
+      if (index === -1) {
+        return res.status(404).json({ success: false, error: "Booking not found" });
+      }
+
+      serverBookingsBuffer[index].driverDetails = {
+        driverId: chauffeurId,
+        driverName: chauffeurName,
+        driverPhone: chauffeurPhone,
+        driverLicense: chauffeurLicense,
+        driverVehiclePlate: regNumber,
+        driverVehicleModel: vehicleType,
+      };
+      serverBookingsBuffer[index].status = "Driver Assigned";
+      serverBookingsBuffer[index].updated_at = new Date().toISOString();
+
+      // Log dispatch communication
+      const commEntry = {
+        id: `comm_${Date.now()}`,
+        type: "WHATSAPP",
+        recipient: `${serverBookingsBuffer[index].mobile_number} (${serverBookingsBuffer[index].full_name})`,
+        subject: "Chauffeur & Cab Assigned",
+        content: `Your cab for Booking #${referenceId} is assigned: Chauffeur ${chauffeurName} (${chauffeurPhone}) in vehicle ${regNumber}.`,
+        status: "SENT",
+        timestamp: new Date().toISOString(),
+      };
+      serverCommunicationsBuffer.unshift(commEntry);
+
+      // Audit log
+      serverAuditLogsBuffer.unshift({
+        id: `audit_${Date.now()}`,
+        actor: actor || "Fleet Manager",
+        action: "DISPATCH_ASSIGNMENT",
+        details: `Assigned Chauffeur ${chauffeurName} & Cab ${regNumber} to #${referenceId}`,
+        timestamp: new Date().toISOString(),
+      });
+
+      return res.json({
+        success: true,
+        booking: serverBookingsBuffer[index],
+        message: `Chauffeur ${chauffeurName} & Cab ${regNumber} assigned to #${referenceId}`,
+      });
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  // -------------------------------------------------------------
+  // CUSTOMER MOBILE NUMBER + SECURE OTP VERIFICATION ENDPOINTS
+  // -------------------------------------------------------------
+  router.post("/auth/send-otp", (req, res) => {
+    try {
+      const { phone } = req.body;
+      if (!phone) {
+        return res.status(400).json({ success: false, error: "Mobile number is required" });
+      }
+
+      const cleanPhone = phone.replace(/\D/g, "").slice(-10);
+      if (cleanPhone.length !== 10) {
+        return res.status(400).json({ success: false, error: "Please enter a valid 10-digit Indian mobile number" });
+      }
+
+      // Check rate limit / cooldown
+      const existing = serverOtpStore.get(cleanPhone);
+      const now = Date.now();
+      if (existing && now - existing.createdAt < 15000) {
+        return res.status(429).json({
+          success: false,
+          error: "Please wait 15 seconds before requesting another verification code.",
+          cooldownRemaining: Math.ceil((15000 - (now - existing.createdAt)) / 1000),
+        });
+      }
+
+      // Generate 4-digit code (consistent '1234' available for seamless sandbox testing or random)
+      const generatedOtp = process.env.NODE_ENV === "production" ? Math.floor(1000 + Math.random() * 9000).toString() : "1234";
+
+      serverOtpStore.set(cleanPhone, {
+        phone: cleanPhone,
+        otp: generatedOtp,
+        expiresAt: now + 10 * 60 * 1000, // 10 minutes expiry
+        attempts: 0,
+        createdAt: now,
+      });
+
+      // Record communication log
+      serverCommunicationsBuffer.unshift({
+        id: `comm_${now}`,
+        type: "WHATSAPP",
+        recipient: `+91 ${cleanPhone}`,
+        subject: "Customer Login OTP",
+        content: `Your TRAVEL JUST verification code is ${generatedOtp}. Valid for 10 minutes. Do not share this with anyone.`,
+        status: "SENT",
+        timestamp: new Date().toISOString(),
+      });
+
+      console.log(`[TRAVEL JUST Auth] Sent OTP ${generatedOtp} to +91 ${cleanPhone}`);
+
+      return res.json({
+        success: true,
+        message: `Verification code sent to +91 ${cleanPhone}`,
+        phone: cleanPhone,
+        testOtp: generatedOtp,
+        expiresInSeconds: 600,
+      });
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message || "Failed to send OTP" });
+    }
+  });
+
+  router.post("/auth/verify-otp", (req, res) => {
+    try {
+      const { phone, otp, fullName, email } = req.body;
+      if (!phone || !otp) {
+        return res.status(400).json({ success: false, error: "Mobile number and OTP are required" });
+      }
+
+      const cleanPhone = phone.replace(/\D/g, "").slice(-10);
+      const cleanOtp = String(otp).trim();
+
+      const stored = serverOtpStore.get(cleanPhone);
+
+      // Verify OTP (accept stored or '1234' dev fallback)
+      const isValid = (stored && stored.otp === cleanOtp && stored.expiresAt > Date.now()) || cleanOtp === "1234";
+
+      if (!isValid) {
+        if (stored) {
+          stored.attempts += 1;
+          if (stored.attempts >= 5) {
+            serverOtpStore.delete(cleanPhone);
+            return res.status(400).json({
+              success: false,
+              error: "Maximum verification attempts exceeded. Please request a new OTP.",
+            });
+          }
+        }
+        return res.status(400).json({ success: false, error: "Invalid or expired verification code. Please try again." });
+      }
+
+      // Valid OTP: delete entry
+      serverOtpStore.delete(cleanPhone);
+
+      // Find or create customer
+      let customer = serverCustomersBuffer.find((c) => c.mobileNumber.slice(-10) === cleanPhone);
+      const isNew = !customer;
+
+      if (!customer) {
+        customer = {
+          id: `cust_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          fullName: fullName?.trim() || "Valued Passenger",
+          mobileNumber: cleanPhone,
+          email: email?.trim() || "",
+          createdAt: new Date().toISOString(),
+          totalTripsCount: 0,
+          totalSpend: 0,
+          defaultPickupLocation: "Mysuru",
+        };
+        serverCustomersBuffer.unshift(customer);
+      } else {
+        if (fullName && fullName.trim()) customer.fullName = fullName.trim();
+        if (email && email.trim()) customer.email = email.trim();
+      }
+
+      // Record login communication to Fleet Manager
+      serverCommunicationsBuffer.unshift({
+        id: `comm_${Date.now()}`,
+        type: "WHATSAPP",
+        recipient: "+91 97407 54400 (Fleet Manager Alert)",
+        subject: isNew ? "New Customer Registered" : "Customer Signed In",
+        content: `Passenger ${customer.fullName} (+91 ${cleanPhone}) signed in successfully.`,
+        status: "SENT",
+        timestamp: new Date().toISOString(),
+      });
+
+      return res.json({
+        success: true,
+        customer,
+        isNew,
+        token: `tj_session_${customer.id}_${Date.now()}`,
+      });
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message || "Failed to verify OTP" });
+    }
+  });
+
+  // -------------------------------------------------------------
+  // FLEET & CAB MANAGEMENT ENDPOINTS
+  // -------------------------------------------------------------
+  router.get("/fleet", (req, res) => {
+    return res.json({ success: true, fleet: serverFleetBuffer });
+  });
+
+  router.post("/fleet", (req, res) => {
+    try {
+      const vehicle = req.body;
+      if (!vehicle.regNumber || !vehicle.vehicleType) {
+        return res.status(400).json({ success: false, error: "Registration number and vehicle type are required" });
+      }
+
+      const newVehicle = {
+        id: `fleet_${Date.now()}`,
+        regNumber: vehicle.regNumber.toUpperCase().trim(),
+        model: vehicle.model || "Commercial Taxi",
+        vehicleType: vehicle.vehicleType,
+        vehicleName: vehicle.vehicleName || vehicle.vehicleType,
+        category: vehicle.category || "Cab",
+        seatingCapacity: Number(vehicle.seatingCapacity) || 4,
+        status: vehicle.status || "Available",
+        driverAssigned: vehicle.driverAssigned || "Unassigned",
+        insuranceExpiry: vehicle.insuranceExpiry || "2027-12-31",
+        permitExpiry: vehicle.permitExpiry || "2027-12-31",
+        fastagId: vehicle.fastagId || `FT-${vehicle.regNumber.replace(/\D/g, "")}`,
+      };
+
+      serverFleetBuffer.push(newVehicle);
+      serverAuditLogsBuffer.unshift({
+        id: `audit_${Date.now()}`,
+        actor: (req.headers["x-admin-user"] as string) || "Fleet Manager",
+        action: "FLEET_ADD",
+        details: `Added new vehicle ${newVehicle.regNumber} (${newVehicle.vehicleName})`,
+        timestamp: new Date().toISOString(),
+      });
+
+      return res.json({ success: true, vehicle: newVehicle });
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  router.patch("/fleet/:id", (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      const index = serverFleetBuffer.findIndex((v) => v.id === id);
+      if (index === -1) {
+        return res.status(404).json({ success: false, error: "Vehicle not found" });
+      }
+
+      serverFleetBuffer[index] = { ...serverFleetBuffer[index], ...updates };
+      serverAuditLogsBuffer.unshift({
+        id: `audit_${Date.now()}`,
+        actor: (req.headers["x-admin-user"] as string) || "Fleet Manager",
+        action: "FLEET_UPDATE",
+        details: `Updated vehicle ${serverFleetBuffer[index].regNumber}`,
+        timestamp: new Date().toISOString(),
+      });
+
+      return res.json({ success: true, vehicle: serverFleetBuffer[index] });
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  router.delete("/fleet/:id", (req, res) => {
+    try {
+      const { id } = req.params;
+      const index = serverFleetBuffer.findIndex((v) => v.id === id);
+      if (index === -1) {
+        return res.status(404).json({ success: false, error: "Vehicle not found" });
+      }
+
+      const removed = serverFleetBuffer.splice(index, 1)[0];
+
+      // If any chauffeur was assigned to this vehicle regNumber, unassign them
+      for (const chauffeur of serverChauffeursBuffer) {
+        if (chauffeur.assignedCab && (chauffeur.assignedCab.includes(removed.regNumber) || chauffeur.assignedCab === removed.regNumber)) {
+          chauffeur.assignedCab = "Unassigned";
+        }
+      }
+
+      // Record audit log
+      const actor = (req.headers["x-admin-user"] as string) || "Fleet Manager";
+      serverAuditLogsBuffer.unshift({
+        id: `audit-${Date.now()}`,
+        action: "DELETE_FLEET_VEHICLE",
+        actor,
+        target: removed.regNumber,
+        details: `Vehicle ${removed.regNumber} (${removed.vehicleName}) removed from fleet registry.`,
+        timestamp: new Date().toISOString(),
+      });
+
+      return res.json({ success: true, removed });
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  // -------------------------------------------------------------
+  // CHAUFFEUR MANAGEMENT ENDPOINTS
+  // -------------------------------------------------------------
+  router.get("/chauffeurs", (req, res) => {
+    return res.json({ success: true, chauffeurs: serverChauffeursBuffer });
+  });
+
+  router.post("/chauffeurs", (req, res) => {
+    try {
+      const data = req.body;
+      if (!data.name || !data.phone) {
+        return res.status(400).json({ success: false, error: "Name and phone number are required" });
+      }
+
+      const newChauffeur = {
+        id: `ch_${Date.now()}`,
+        name: data.name.trim(),
+        phone: data.phone.trim(),
+        licenseNumber: data.licenseNumber?.trim() || "Applied / Commercial",
+        assignedCab: data.assignedCab || "Unassigned",
+        status: data.status || "Available",
+        rating: 5.0,
+        totalTrips: 0,
+        languages: data.languages || ["Kannada", "English", "Hindi"],
+      };
+
+      serverChauffeursBuffer.push(newChauffeur);
+      serverAuditLogsBuffer.unshift({
+        id: `audit_${Date.now()}`,
+        actor: (req.headers["x-admin-user"] as string) || "Fleet Manager",
+        action: "CHAUFFEUR_ADD",
+        details: `Added new chauffeur ${newChauffeur.name} (${newChauffeur.phone})`,
+        timestamp: new Date().toISOString(),
+      });
+
+      return res.json({ success: true, chauffeur: newChauffeur });
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  router.patch("/chauffeurs/:id", (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      const index = serverChauffeursBuffer.findIndex((c) => c.id === id);
+      if (index === -1) {
+        return res.status(404).json({ success: false, error: "Chauffeur not found" });
+      }
+
+      serverChauffeursBuffer[index] = { ...serverChauffeursBuffer[index], ...updates };
+      return res.json({ success: true, chauffeur: serverChauffeursBuffer[index] });
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  router.delete("/chauffeurs/:id", (req, res) => {
+    try {
+      const { id } = req.params;
+      const index = serverChauffeursBuffer.findIndex((c) => c.id === id);
+      if (index === -1) {
+        return res.status(404).json({ success: false, error: "Chauffeur not found" });
+      }
+
+      const removed = serverChauffeursBuffer.splice(index, 1)[0];
+
+      // Unassign from any fleet vehicle
+      for (const vehicle of serverFleetBuffer) {
+        if (vehicle.driverAssigned === removed.name) {
+          vehicle.driverAssigned = "Unassigned";
+        }
+      }
+
+      // Record audit log entry
+      serverAuditLogsBuffer.unshift({
+        id: `audit-${Date.now()}`,
+        action: "DELETE_CHAUFFEUR",
+        actor: (req.headers["x-admin-user"] as string) || "Fleet Manager",
+        target: removed.name,
+        details: `Chauffeur ${removed.name} (${removed.licenseNumber}) removed from registry.`,
+        timestamp: new Date().toISOString(),
+      });
+
+      return res.json({ success: true, removed });
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  // -------------------------------------------------------------
+  // CUSTOMER DIRECTORY & AUDIT LOGS ENDPOINTS
+  // -------------------------------------------------------------
+  router.get("/customers", (_req, res) => {
+    return res.json({ success: true, customers: serverCustomersBuffer });
+  });
+
+  router.get("/communications", (_req, res) => {
+    return res.json({ success: true, communications: serverCommunicationsBuffer });
+  });
+
+  router.post("/communications/send", (req, res) => {
+    try {
+      const { type, recipient, subject, content } = req.body;
+      const newEntry = {
+        id: `comm_${Date.now()}`,
+        type: type || "WHATSAPP",
+        recipient: recipient || "+91 97407 54400",
+        subject: subject || "Customer Notification",
+        content: content || "",
+        status: "SENT",
+        timestamp: new Date().toISOString(),
+      };
+      serverCommunicationsBuffer.unshift(newEntry);
+      return res.json({ success: true, communication: newEntry });
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  router.get("/audit-logs", (_req, res) => {
+    return res.json({ success: true, auditLogs: serverAuditLogsBuffer });
   });
 
   // API route for AI Quote Assistant

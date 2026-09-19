@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { X, Phone, MessageSquare } from 'lucide-react';
+import { X, Phone } from 'lucide-react';
 import { siteConfig } from '../config/siteConfig';
 
 interface TravelExpertPopupModalProps {
@@ -48,7 +48,7 @@ export const TravelExpertPopupModal: React.FC<TravelExpertPopupModalProps> = ({
       {/* Popup Card */}
       <div
         id="travel-expert-popup-card"
-        className="relative w-full max-w-2xl rounded-3xl sm:rounded-[32px] bg-gradient-to-r from-[#d8edf9] via-[#e5f3fc] to-[#d3eaf8] p-6 sm:p-9 md:p-10 shadow-[0_25px_60px_-15px_rgba(14,116,144,0.35)] border border-sky-200/90 text-slate-900 animate-in zoom-in-95 duration-300"
+        className="relative w-full max-w-lg rounded-2xl sm:rounded-3xl bg-gradient-to-br from-slate-950 via-emerald-950 to-slate-900 p-4 sm:p-5 md:p-6 shadow-[0_15px_40px_-10px_rgba(5,150,105,0.35)] border border-emerald-500/30 text-white animate-in zoom-in-95 duration-300 backdrop-blur-xl"
       >
         {/* Top-Right Circular Close Button */}
         <button
@@ -56,60 +56,49 @@ export const TravelExpertPopupModal: React.FC<TravelExpertPopupModalProps> = ({
           type="button"
           onClick={onClose}
           aria-label="Close dialog"
-          className="absolute -top-3 -right-3 sm:-top-3.5 sm:-right-3.5 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#b89552] hover:bg-[#a68342] active:scale-95 text-white flex items-center justify-center shadow-lg transition-transform duration-150 cursor-pointer border-2 border-white focus:outline-none focus:ring-2 focus:ring-[#b89552] focus:ring-offset-2"
+          className="absolute -top-2.5 -right-2.5 w-8 h-8 rounded-full bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 flex items-center justify-center shadow-lg transition-all duration-200 cursor-pointer border-2 border-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-400"
         >
-          <X className="w-5 h-5 text-white stroke-[2.5]" />
+          <X className="w-4 h-4 text-slate-950 stroke-[2.5]" />
         </button>
 
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3.5 sm:gap-4">
           {/* Left Text Content */}
-          <div className="flex-1 text-center md:text-left">
-            <span
-              id="travel-expert-eyebrow"
-              className="inline-block text-xs sm:text-sm font-bold tracking-[0.18em] text-[#ab8748] uppercase mb-1 sm:mb-2"
-            >
-              SAY HELLO TO,
-            </span>
-
+          <div className="flex-1 text-center sm:text-left">
             <h2
               id="travel-expert-title"
-              className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 leading-tight"
+              className="text-base sm:text-lg md:text-xl font-black tracking-tight text-white leading-snug"
             >
-              <span>YOUR </span>
-              <span className="text-[#b89552]">24×7</span>
-              <span className="block mt-0.5 sm:mt-1">TRAVEL EXPERT</span>
+              <span>CONNECT WITH </span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-200 to-emerald-300">
+                24×7
+              </span>{' '}
+              <span>CONCIERGE</span>
             </h2>
 
             <p
               id="travel-expert-description"
-              className="text-slate-600 font-medium text-sm sm:text-base mt-2.5 sm:mt-3 max-w-md"
+              className="text-emerald-100/80 font-normal text-xs mt-1 max-w-xs sm:max-w-sm leading-relaxed"
             >
-              Get expert advice for smarter travel plans!
+              For Instant Bookings, cab pricing, and personalized outstation trip planning!
             </p>
           </div>
 
-          {/* Right Action Call Pill & WhatsApp Options */}
-          <div className="flex flex-col sm:flex-row md:flex-col items-center gap-3 shrink-0 w-full md:w-auto">
+          {/* Right Action Call Pill */}
+          <div className="shrink-0 w-full sm:w-auto">
             <a
               id="travel-expert-phone-call-btn"
               href={dialUrl}
-              className="w-full sm:w-auto bg-white hover:bg-slate-50 active:scale-[0.98] text-slate-900 rounded-full px-6 sm:px-8 py-3.5 sm:py-4 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.12)] hover:shadow-[0_15px_30px_-5px_rgba(0,0,0,0.18)] border border-slate-100 flex items-center justify-center gap-3 transition-all duration-200 cursor-pointer group"
+              className="w-full sm:w-auto bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 hover:from-amber-300 hover:to-amber-200 active:scale-[0.98] text-slate-950 rounded-xl px-4 py-2 sm:px-4.5 sm:py-2.5 shadow-md border border-amber-200/60 flex items-center justify-center gap-2.5 transition-all duration-200 cursor-pointer group"
             >
-              <Phone className="w-5 h-5 sm:w-6 sm:h-6 text-slate-900 fill-slate-900 shrink-0 group-hover:scale-110 transition-transform duration-200" />
-              <span className="font-extrabold text-xl sm:text-2xl text-slate-900 tracking-tight whitespace-nowrap">
-                {phoneNumber}
-              </span>
-            </a>
-
-            <a
-              id="travel-expert-whatsapp-btn"
-              href={`https://wa.me/${siteConfig.contact.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent('Hello TRAVEL JUST, I would like to speak to a 24x7 travel expert for planning my ride.')}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full sm:w-auto bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-full px-5 py-2.5 shadow-md flex items-center justify-center gap-2 font-bold text-xs sm:text-sm tracking-wide uppercase transition-all duration-200 cursor-pointer"
-            >
-              <MessageSquare className="w-4 h-4 fill-white" />
-              <span>Chat on WhatsApp</span>
+              <div className="w-7 h-7 rounded-lg bg-slate-950/10 flex items-center justify-center group-hover:bg-slate-950/20 transition-colors">
+                <Phone className="w-3.5 h-3.5 text-slate-950 fill-slate-950 shrink-0 group-hover:scale-110 transition-transform duration-200" />
+              </div>
+              <div className="flex flex-col items-start">
+                <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-800/80">Call Helpline</span>
+                <span className="font-black text-sm sm:text-base text-slate-950 tracking-tight whitespace-nowrap">
+                  {phoneNumber}
+                </span>
+              </div>
             </a>
           </div>
         </div>

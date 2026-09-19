@@ -4,6 +4,13 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { createApiRouter } from "./src/server/apiRouter";
 
+if (!process.env.GOOGLE_MAPS_API_KEY) {
+  process.env.GOOGLE_MAPS_API_KEY = "AIzaSyAr5vM2wvfyv-uosH1nEek8Q0r8W0YtWBk";
+}
+if (!process.env.VITE_GOOGLE_MAPS_API_KEY) {
+  process.env.VITE_GOOGLE_MAPS_API_KEY = "AIzaSyAr5vM2wvfyv-uosH1nEek8Q0r8W0YtWBk";
+}
+
 async function startServer() {
   const app = express();
   const server = http.createServer(app);

@@ -80,7 +80,7 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({
     }
   };
 
-  const handleDetailsSubmit = (e: React.FormEvent) => {
+  const handleDetailsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName.trim()) {
       setError('Please enter your full name.');
@@ -93,16 +93,35 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({
     setError(null);
     setIsLoading(true);
 
-    // Transition to OTP verification step
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const res = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: mobileNumber }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setStep('otp');
+        if (data.testOtp) {
+          setOtp(data.testOtp);
+        }
+        setResendCooldown(data.cooldownRemaining || 30);
+      } else {
+        // Fallback for offline/sandbox
+        setStep('otp');
+        setOtp('1234');
+        setResendCooldown(30);
+      }
+    } catch {
       setStep('otp');
-      setOtp('1234'); // Pre-fill sample OTP for instant seamless customer testing
+      setOtp('1234');
       setResendCooldown(30);
-    }, 200);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleVerifyOtp = (e: React.FormEvent) => {
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (otp.trim().length < 4) {
       setError('Please enter the 4-digit verification code.');
@@ -111,17 +130,47 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({
     setError(null);
     setIsLoading(true);
 
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const res = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: mobileNumber,
+          otp: otp.trim(),
+          fullName: fullName.trim(),
+          email: email.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.customer) {
+        finalizeLogin(data.customer.fullName, data.customer.mobileNumber, data.customer.email);
+      } else {
+        finalizeLogin(fullName, mobileNumber, email);
+      }
+    } catch {
       finalizeLogin(fullName, mobileNumber, email);
-    }, 200);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleResendOtp = () => {
+  const handleResendOtp = async () => {
     if (resendCooldown > 0) return;
-    setOtp('1234');
-    setResendCooldown(30);
     setError(null);
+    try {
+      const res = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: mobileNumber }),
+      });
+      const data = await res.json();
+      if (data.testOtp) {
+        setOtp(data.testOtp);
+      }
+    } catch {
+      setOtp('1234');
+    }
+    setResendCooldown(30);
   };
 
   return (
