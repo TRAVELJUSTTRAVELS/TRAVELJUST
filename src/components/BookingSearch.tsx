@@ -1499,8 +1499,8 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                       className="w-full bg-transparent border-none p-0 text-slate-900 font-semibold text-sm sm:text-base focus:outline-none appearance-none cursor-pointer pr-5"
                       aria-label="Select airport trip"
                     >
-                      <option value="pickup">Pickup from Airport</option>
-                      <option value="drop">Drop to Airport</option>
+                      <option value="pickup">FROM AIRPORT</option>
+                      <option value="drop">TO AIRPORT</option>
                     </select>
                     <ChevronDown className="w-4 h-4 text-[#90A1B9] absolute right-0 pointer-events-none transition-colors" />
                   </div>
