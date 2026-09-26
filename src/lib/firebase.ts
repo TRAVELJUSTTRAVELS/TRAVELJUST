@@ -8,6 +8,7 @@ import {
   type User,
 } from 'firebase/auth';
 import {
+  initializeFirestore,
   getFirestore,
   doc,
   getDocFromServer,
@@ -39,9 +40,64 @@ export const auth = getAuth(app);
 export const googleAuthProvider = new GoogleAuthProvider();
 googleAuthProvider.setCustomParameters({ prompt: 'select_account' });
 
-// Initialize Firestore
+// Initialize Firestore with long-polling fallback for iframe/Cloud Run container network compatibility
 const databaseId = firebaseConfigJson.firestoreDatabaseId || undefined;
-export const db = databaseId ? getFirestore(app, databaseId) : getFirestore(app);
+export const db = initializeFirestore(
+  app,
+  {
+    experimentalAutoDetectLongPolling: true,
+  },
+  databaseId
+);
+
+// Standardized Firestore Error Handling per Firebase Skill
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  };
+}
+
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo:
+        auth.currentUser?.providerData?.map((provider) => ({
+          providerId: provider.providerId,
+          email: provider.email,
+        })) || [],
+    },
+    operationType,
+    path,
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
 
 // Connection test on boot (mandatory Firebase skill check)
 export async function testFirestoreConnection(): Promise<boolean> {
@@ -49,17 +105,29 @@ export async function testFirestoreConnection(): Promise<boolean> {
     await getDocFromServer(doc(db, 'test', 'connection'));
     return true;
   } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn('Firestore offline / check configuration:', error.message);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    const errorCode = (error as { code?: string })?.code;
+    if (
+      errorMsg.includes('the client is offline') ||
+      errorCode === 'unavailable' ||
+      errorMsg.includes('unavailable')
+    ) {
+      console.warn('Firestore operating with offline persistence / network auto-reconnect active.');
       return false;
     }
-    // Document does not exist or permission is normal on new projects
+    // Document does not exist or permission is normal on fresh projects
     return true;
   }
 }
 
-// Kick off test connection
-testFirestoreConnection();
+// Kick off test connection safely without unhandled rejections
+if (typeof window !== 'undefined') {
+  window.setTimeout(() => {
+    testFirestoreConnection().catch((err) => {
+      console.warn('Firestore initial handshake note:', err?.message || err);
+    });
+  }, 1000);
+}
 
 // User Profile helper
 export interface UserProfile {
