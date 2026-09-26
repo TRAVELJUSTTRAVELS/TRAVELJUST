@@ -1,6 +1,7 @@
 import React from 'react';
-import { Users, Briefcase, ShieldCheck, Sparkles, Car, Check } from 'lucide-react';
+import { Users, Briefcase, ShieldCheck, Sparkles, Check } from 'lucide-react';
 import { vehiclesData } from '../data/vehicles';
+import { VehicleVectorGraphic } from './VehicleVectorGraphic';
 import { ServiceType } from '../types';
 
 interface FleetSectionProps {
@@ -31,10 +32,10 @@ export const FleetSection: React.FC<FleetSectionProps> = ({ onSelectVehicleForBo
               className="bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs hover:shadow-md transition-all duration-200 flex flex-col justify-between"
             >
               <div>
-                {/* Abstract Vector Badge Header */}
+                {/* 4K High Definition Vector Illustration Header */}
                 <div className="flex items-center justify-between mb-4">
-                  <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-800 flex items-center justify-center shadow-2xs">
-                    <Car className="w-8 h-8 stroke-[1.8]" />
+                  <div className="h-16 w-24 rounded-2xl bg-gradient-to-b from-slate-50 to-emerald-50/70 border border-slate-200/90 text-emerald-800 flex items-center justify-center shadow-2xs p-1">
+                    <VehicleVectorGraphic vehicleId={vehicle.id} size="md" className="max-w-full drop-shadow-xs" />
                   </div>
                   <div className="text-right">
                     <span className="inline-block px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 font-bold text-[11px] uppercase tracking-wider">

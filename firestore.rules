@@ -1,0 +1,42 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Connection testing endpoint
+    match /test/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // User profile documents
+    match /users/{userId} {
+      allow read: if request.auth != null && (request.auth.uid == userId || request.auth.token.email == 'traveljustmysuru@gmail.com');
+      allow write: if request.auth != null && (request.auth.uid == userId || request.auth.token.email == 'traveljustmysuru@gmail.com');
+
+      // User bookings subcollection
+      match /bookings/{bookingId} {
+        allow read, write: if request.auth != null && (request.auth.uid == userId || request.auth.token.email == 'traveljustmysuru@gmail.com');
+      }
+    }
+
+    // Bookings collection
+    match /bookings/{bookingId} {
+      allow read: if request.auth != null && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.customerEmail == request.auth.token.email ||
+        request.auth.token.email == 'traveljustmysuru@gmail.com'
+      );
+      allow create: if true;
+      allow update, delete: if request.auth != null && (
+        resource.data.userId == request.auth.uid ||
+        request.auth.token.email == 'traveljustmysuru@gmail.com'
+      );
+    }
+
+    // Public / Shared fare configuration
+    match /settings/fareConfig {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}

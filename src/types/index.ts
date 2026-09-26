@@ -184,6 +184,11 @@ export interface FareEstimate {
   pricingModel?: PricingModel;
   engineType?: 'ENGINE_A' | 'ENGINE_B';
   engineName?: string;
+  isInterState?: boolean;
+  originState?: string;
+  destinationState?: string;
+  isFixedPrice?: boolean;
+  fixedRouteName?: string;
 }
 
 export interface PassengerDetails {
@@ -217,6 +222,39 @@ export interface BookingRequest {
   pricing_version?: number;
 }
 
+export interface DbBookingRecord {
+  id?: string;
+  reference_id: string;
+  full_name: string;
+  mobile_number: string;
+  email: string;
+  service_type: string;
+  pickup_location: string;
+  drop_location?: string;
+  travel_date: string;
+  pickup_time: string;
+  return_date?: string;
+  return_time?: string;
+  duration_hours?: number;
+  estimated_distance_km?: number;
+  airport_transfer_type?: string;
+  passengers_count?: number;
+  vehicle_id?: string;
+  vehicle_name?: string;
+  vehicle_category?: string;
+  special_instructions?: string;
+  total_estimated_fare: number;
+  currency?: string;
+  status: string;
+  driver_name?: string;
+  driver_phone?: string;
+  driver_vehicle_plate?: string;
+  driver_assigned_at?: string;
+  search_details?: any;
+  estimated_fare?: any;
+  created_at: string;
+}
+
 export interface SiteConfig {
   businessName: string;
   tagline: string;
@@ -239,6 +277,7 @@ export interface CustomerUser {
   defaultPickupLocation?: string;
   createdAt: string;
   totalTripsCount?: number;
+  lastLoginAt?: string;
 }
 
 export interface CustomerLoginNotification {
@@ -330,7 +369,12 @@ export interface BookingDraftPlan {
   tripSummary?: string;
 }
 
-export type AIModelTier = 'auto' | 'gemini-3.1-pro-preview' | 'gemini-3.8-flash';
+export type AIModelTier =
+  | 'auto'
+  | 'gemini-3.1-pro-preview'
+  | 'gemini-3.5-flash'
+  | 'gemini-3.1-flash-lite'
+  | 'gemini-3.8-flash';
 export type AIGroundingMode = 'auto' | 'search' | 'maps';
 
 export * from './dynamicPricing';

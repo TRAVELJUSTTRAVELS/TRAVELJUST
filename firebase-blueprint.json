@@ -1,0 +1,71 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User account profile synced with Firebase Authentication",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "description": "User email address" },
+        "displayName": { "type": "string", "description": "Full name of the user" },
+        "photoURL": { "type": "string", "description": "Profile picture URL" },
+        "role": { "type": "string", "enum": ["customer", "owner", "admin"], "description": "Role in the app" },
+        "phoneNumber": { "type": "string", "description": "Contact phone number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "Cab booking record with trip details, vehicle selection, and estimated fare",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique booking reference" },
+        "userId": { "type": "string", "description": "Customer UID or anonymous identifier" },
+        "customerName": { "type": "string", "description": "Passenger name" },
+        "customerPhone": { "type": "string", "description": "Passenger contact number" },
+        "customerEmail": { "type": "string", "description": "Passenger email" },
+        "tripType": { "type": "string", "description": "Trip category (LOCAL, ONEWAY, ROUNDTRIP, AIRPORT, INTERSTATE)" },
+        "pickupLocation": { "type": "string", "description": "Starting address" },
+        "dropLocation": { "type": "string", "description": "Destination address" },
+        "pickupDate": { "type": "string", "description": "Date of departure" },
+        "pickupTime": { "type": "string", "description": "Time of departure" },
+        "vehicleType": { "type": "string", "description": "Selected fleet vehicle name" },
+        "estimatedFare": { "type": "number", "description": "Calculated total fare in INR" },
+        "distanceKm": { "type": "number", "description": "Route distance in kilometers" },
+        "status": { "type": "string", "description": "Booking status: PENDING, CONFIRMED, COMPLETED, CANCELLED" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["tripType", "pickupLocation", "dropLocation"]
+    },
+    "FareConfig": {
+      "title": "FareConfig",
+      "description": "Centralized fare engine configuration and rate cards",
+      "type": "object",
+      "properties": {
+        "version": { "type": "number", "description": "Configuration schema version" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "updatedBy": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Stores individual user account profile data"
+    },
+    "/users/{userId}/bookings/{bookingId}": {
+      "schema": "Booking",
+      "description": "Sub-collection of bookings associated with a specific authenticated user"
+    },
+    "/bookings/{bookingId}": {
+      "schema": "Booking",
+      "description": "Central cab bookings collection accessible by authorized users and owners"
+    },
+    "/settings/fareConfig": {
+      "schema": "FareConfig",
+      "description": "Centralized dynamic pricing and fare engine configuration document"
+    }
+  }
+}

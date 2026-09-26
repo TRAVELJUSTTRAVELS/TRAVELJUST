@@ -23,7 +23,10 @@ import {
 } from 'lucide-react';
 import { CustomerUser, BookingRequest, BookingSearchState } from '../types';
 import { getCustomerBookings, saveCustomerSession } from '../services/customerAuthService';
+import { fetchUserBookingsFromFirestore } from '../lib/firebase';
 import { siteConfig } from '../config/siteConfig';
+import { vehiclesData } from '../data/vehicles';
+import { RidePushSubscriptionCard } from './RidePushSubscriptionCard';
 
 interface CustomerPortalModalProps {
   isOpen: boolean;
@@ -55,11 +58,62 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   const loadTrips = async () => {
-    if (!customer?.mobileNumber) return;
+    if (!customer?.mobileNumber && !customer?.id) return;
     setIsLoadingBookings(true);
     try {
-      const data = await getCustomerBookings(customer.mobileNumber);
-      setBookings(data);
+      const localBookings = customer.mobileNumber ? await getCustomerBookings(customer.mobileNumber) : [];
+      let firestoreRecords: any[] = [];
+      if (customer.id) {
+        firestoreRecords = await fetchUserBookingsFromFirestore(customer.id);
+      }
+      
+      // Combine and deduplicate by referenceId
+      const seenIds = new Set(localBookings.map((b) => b.referenceId));
+      const merged = [...localBookings];
+
+      for (const rec of firestoreRecords) {
+        if (!seenIds.has(rec.id)) {
+          seenIds.add(rec.id);
+          const matchedVehicle = vehiclesData.find((v) => v.id === rec.vehicleType) || vehiclesData[0];
+          merged.push({
+            referenceId: rec.id,
+            searchDetails: {
+              serviceType: (rec.tripType as any) || 'oneway',
+              pickupLocation: rec.pickupLocation,
+              dropLocation: rec.dropLocation,
+              pickupDate: rec.pickupDate,
+              pickupTime: rec.pickupTime,
+              travelDate: rec.pickupDate,
+              durationHours: 8,
+              airportTransferType: 'pickup',
+              passengers: 1,
+              vehicleType: matchedVehicle.id,
+            },
+            selectedVehicle: matchedVehicle,
+            passengerDetails: {
+              fullName: rec.customerName || customer.fullName,
+              mobileNumber: rec.customerPhone || customer.mobileNumber,
+              email: rec.customerEmail || customer.email || '',
+            },
+            estimatedFare: {
+              estimatedDistanceKm: rec.distanceKm || 50,
+              exactDistanceKm: rec.distanceKm,
+              estimatedDurationHours: 1,
+              baseFareAmount: rec.estimatedFare || 2500,
+              distanceFareAmount: rec.estimatedFare || 2500,
+              durationFareAmount: 0,
+              passengerSurchargeAmount: 0,
+              airportSurchargeAmount: 0,
+              totalEstimatedFare: rec.estimatedFare || 2500,
+              breakdown: [],
+            },
+            createdAt: rec.createdAt,
+            status: rec.status === 'CONFIRMED' ? 'Confirmed' : rec.status === 'COMPLETED' ? 'Completed' : 'Pending Confirmation',
+          });
+        }
+      }
+
+      setBookings(merged);
     } catch (e) {
       console.warn('Error loading customer trips:', e);
     } finally {
@@ -354,6 +408,13 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                           )}
                         </div>
                       )}
+
+                      {/* Push Notification Subscription for Ride Status */}
+                      <RidePushSubscriptionCard
+                        referenceId={trip.referenceId}
+                        customerPhone={trip.passengerDetails?.mobileNumber}
+                        variant="compact"
+                      />
 
                       {/* Actions Footer */}
                       <div className="flex flex-wrap items-center justify-between gap-2 pt-1">

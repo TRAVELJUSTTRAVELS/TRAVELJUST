@@ -12,6 +12,7 @@ import {
   Mountain,
   Compass,
   AlertCircle,
+  XCircle,
 } from 'lucide-react';
 import { PlaceSuggestion } from '../types';
 import {
@@ -41,6 +42,7 @@ interface LocationAutocompleteInputProps {
   labelClassName?: string;
   inputClassName?: string;
   showSearchIconLeft?: boolean;
+  rightActions?: React.ReactNode;
 }
 
 type FilterCategory = 'all' | 'hotels_resorts' | 'railway_stations' | 'airports' | 'tourist_attractions';
@@ -63,6 +65,7 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
   labelClassName = '',
   inputClassName = '',
   showSearchIconLeft = false,
+  rightActions,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
@@ -313,13 +316,15 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
           <label
             htmlFor={inputId}
             className={
-              variant === 'underline'
-                ? `text-[12px] leading-[16px] font-bold uppercase tracking-wide text-[#0f2441] flex items-center gap-1.5 ${labelClassName}`
-                : `text-[12px] leading-[16px] font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5 ${labelClassName}`
+              labelClassName
+                ? `flex items-center gap-1.5 ${labelClassName}`
+                : variant === 'underline'
+                ? 'text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5'
+                : 'text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5'
             }
           >
             {variant !== 'underline' && renderIcon()}
-            <span className="font-bold text-[12px] leading-[16px]">{label}</span>
+            <span>{label}</span>
             {required && <span className="text-rose-500">*</span>}
           </label>
           
@@ -368,17 +373,17 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
       {/* Input Container */}
       {variant === 'card-box' ? (
         <div
-          className={`relative border rounded-xl bg-white p-3 sm:py-3 sm:px-4 transition-all flex flex-col justify-between min-h-[72px] sm:min-h-[76px] shadow-2xs ${
+          className={`relative border rounded-2xl bg-white p-3 sm:py-3 sm:px-4 transition-all duration-150 flex flex-col justify-between min-h-[74px] sm:min-h-[78px] shadow-2xs ${
             error
-              ? 'border-rose-400 ring-1 ring-rose-300'
+              ? 'border-rose-400 ring-2 ring-rose-200'
               : isOpen
-              ? 'border-slate-400 ring-2 ring-slate-100'
-              : 'border-slate-200 hover:border-slate-300'
+              ? 'border-emerald-600 ring-2 ring-emerald-500/20'
+              : 'border-slate-200/90 hover:border-slate-300 hover:shadow-xs'
           }`}
         >
           {/* Top Label & Compact Actions inside card box */}
           <div className="flex items-center justify-between min-h-[18px] mb-1">
-            <span className="text-slate-500 text-xs sm:text-[13px] font-normal leading-none block">
+            <span className={labelClassName || "text-slate-500 text-[11px] sm:text-xs font-semibold uppercase tracking-wider leading-none block"}>
               {label}
             </span>
             <div className="flex items-center gap-1.5">
@@ -392,7 +397,7 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
                   onClick={handleUseCurrentLocation}
                   disabled={isLocatingGPS}
                   title="Detect GPS location"
-                  className="inline-flex items-center gap-1 text-[10px] text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/70 px-1.5 py-0.5 rounded font-medium cursor-pointer transition-colors"
+                  className="inline-flex items-center gap-1 text-[10px] text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/70 px-1.5 py-0.5 rounded-md font-semibold cursor-pointer transition-colors"
                 >
                   {isLocatingGPS ? (
                     <>
@@ -421,6 +426,9 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
 
           {/* Bottom input */}
           <div className="relative flex items-center">
+            {showSearchIconLeft && (
+              <Search className="w-4 h-4 text-[#90A1B9] shrink-0 mr-1.5 pointer-events-none" />
+            )}
             <input
               ref={inputRef}
               id={inputId}
@@ -436,10 +444,23 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
               onKeyDown={handleKeyDown}
               placeholder={placeholder}
               autoComplete="off"
-              className={`w-full bg-transparent border-none p-0 text-slate-900 font-medium text-sm sm:text-base focus:outline-none placeholder:text-slate-400 placeholder:font-normal truncate ${inputClassName} ${
+              className={`w-full bg-transparent border-none p-0 text-slate-900 font-semibold text-sm sm:text-base focus:outline-none placeholder:text-slate-400 placeholder:font-normal truncate ${inputClassName} ${
                 disabled ? 'opacity-60 cursor-not-allowed' : ''
               }`}
             />
+            {value && !disabled && onClear && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClear();
+                }}
+                title="Clear"
+                className="text-[#90A1B9] hover:text-slate-600 p-0.5 rounded-full transition-colors ml-1 shrink-0 cursor-pointer"
+              >
+                <XCircle className="w-4 h-4 text-[#90A1B9] hover:text-slate-600" />
+              </button>
+            )}
             {isLoading && (
               <Loader2 className="w-3.5 h-3.5 text-slate-400 animate-spin shrink-0 ml-1.5 pointer-events-none" />
             )}
@@ -451,38 +472,55 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
           )}
         </div>
       ) : variant === 'underline' ? (
-        <div className="relative flex items-center gap-2 border-b border-gray-300 pb-1.5 focus-within:border-[#20A8D8] transition-colors">
-          {showSearchIconLeft && (
-            <Search className="w-5 h-5 text-gray-400 shrink-0 pointer-events-none" />
-          )}
-          <input
-            ref={inputRef}
-            id={inputId}
-            type="text"
-            value={value}
-            disabled={disabled}
-            onChange={(e) => {
-              onChange(e.target.value);
-              if (!isOpen) setIsOpen(true);
-            }}
-            onFocus={() => {
-              setIsOpen(true);
-            }}
-            onClick={() => {
-              if (!isOpen) setIsOpen(true);
-            }}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            autoComplete="off"
-            className={`w-full bg-transparent border-none p-0 text-base md:text-lg lg:text-[19px] font-bold text-slate-900 focus:outline-none placeholder:text-slate-400 placeholder:font-normal ${inputClassName} ${
-              disabled ? 'opacity-60 cursor-not-allowed' : ''
+        <div>
+          <div
+            className={`relative flex items-center gap-2 border-b pb-1.5 transition-colors ${
+              error
+                ? 'border-rose-400'
+                : isOpen
+                ? 'border-[#0ea5e9]'
+                : 'border-slate-300 hover:border-slate-400 focus-within:border-[#0ea5e9]'
             }`}
-          />
+          >
+            {showSearchIconLeft && (
+              <Search className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-[#90A1B9] shrink-0 pointer-events-none" />
+            )}
+            <input
+              ref={inputRef}
+              id={inputId}
+              type="text"
+              value={value}
+              disabled={disabled}
+              onChange={(e) => {
+                onChange(e.target.value);
+                if (!isOpen) setIsOpen(true);
+              }}
+              onFocus={() => {
+                setIsOpen(true);
+              }}
+              onClick={() => {
+                if (!isOpen) setIsOpen(true);
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholder}
+              autoComplete="off"
+              className={`w-full bg-transparent border-none p-0 text-sm sm:text-base font-semibold text-slate-900 focus:outline-none placeholder:text-slate-400 placeholder:font-normal truncate ${inputClassName} ${
+                disabled ? 'opacity-60 cursor-not-allowed' : ''
+              }`}
+            />
 
-          {isLoading && (
-            <div className="shrink-0 pointer-events-none">
-              <Loader2 className="w-4 h-4 text-[#20A8D8] animate-spin" />
-            </div>
+            {rightActions}
+
+            {isLoading && (
+              <div className="shrink-0 pointer-events-none">
+                <Loader2 className="w-4 h-4 text-[#0ea5e9] animate-spin" />
+              </div>
+            )}
+          </div>
+          {error && (
+            <span className="text-[10px] text-rose-600 font-medium truncate block leading-tight mt-1">
+              {error}
+            </span>
           )}
         </div>
       ) : (
@@ -520,7 +558,7 @@ export const LocationAutocompleteInput: React.FC<LocationAutocompleteInputProps>
             {isLoading ? (
               <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" />
             ) : (
-              <Search className="w-3.5 h-3.5 text-slate-400" />
+              <Search className="w-3.5 h-3.5 text-[#90A1B9]" />
             )}
           </div>
         </div>

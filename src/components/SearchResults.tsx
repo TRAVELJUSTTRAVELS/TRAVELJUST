@@ -1,13 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Car,
-  Info,
   CheckCircle2,
+  History,
 } from 'lucide-react';
 import { BookingSearchState, Vehicle, PricingConfig } from '../types';
 import { VehicleCard } from './VehicleCard';
 import { vehiclesData } from '../data/vehicles';
 import { calculateFare } from '../utils/fareCalculator';
+import { RecentSearchesBar } from './RecentSearchesBar';
+import { generateSearchKey } from '../services/searchCacheService';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 
 interface SearchResultsProps {
   searchDetails: BookingSearchState;
@@ -17,6 +20,7 @@ interface SearchResultsProps {
   onEditSearch: () => void;
   onProceedToBooking: () => void;
   onClearSearch?: () => void;
+  onSelectCachedSearch?: (search: BookingSearchState) => void;
 }
 
 export const SearchResults: React.FC<SearchResultsProps> = ({
@@ -27,9 +31,19 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   onEditSearch,
   onProceedToBooking,
   onClearSearch,
+  onSelectCachedSearch,
 }) => {
+  const { isOnline, isUnstable, checkConnection } = useOnlineStatus();
+  const [showRecentSearches, setShowRecentSearches] = useState<boolean>(true);
+  const currentKey = generateSearchKey(searchDetails);
+
   // Filter vehicles if user selected a specific vehicle type preference
   const availableVehicles = vehiclesData.filter((v) => {
+    // Filter out vehicles not suitable for the selected service mode (e.g. Tempo Traveller for Local & Round Trip only)
+    if (v.suitableServices && !v.suitableServices.includes(searchDetails.serviceType)) {
+      return false;
+    }
+
     if (searchDetails.vehicleType !== 'all' && v.id !== searchDetails.vehicleType) {
       if (
         (searchDetails.vehicleType === 'toyota-etios' || searchDetails.vehicleType === 'swift-desire') &&
@@ -53,7 +67,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   });
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div id="search-results-page-container" className="space-y-6 animate-in fade-in duration-300">
       {/* Available Vehicles Section */}
       <div>
         <div className="flex items-center justify-between mb-4">
@@ -62,13 +76,8 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
               <h3 className="text-xl font-bold text-slate-900">
                 Select Your Preferred Vehicle
               </h3>
-              {searchDetails.serviceType === 'local' && searchDetails.durationHours === 12 && (
-                <span className="text-xs font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
-                  <span>🎉</span> 15% OFF on 12 Hours / 120 Km
-                </span>
-              )}
             </div>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 mt-0.5">
               Showing {availableVehicles.length} available vehicle options matching your criteria
             </p>
           </div>
@@ -85,7 +94,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
             </p>
             <button
               onClick={onEditSearch}
-              className="mt-2 bg-emerald-800 text-white font-semibold text-xs px-5 py-2.5 rounded-xl hover:bg-emerald-900 transition-colors"
+              className="mt-2 bg-emerald-800 text-white font-semibold text-xs px-5 py-2.5 rounded-xl hover:bg-emerald-900 transition-colors cursor-pointer"
             >
               Modify Search Options
             </button>
@@ -130,10 +139,6 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                 {calculateFare(searchDetails, selectedVehicle, pricingConfig).totalEstimatedFare}
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
-              <Info className="w-3 h-3 text-emerald-400 shrink-0" />
-              <span>* <strong className="text-[#F54900] font-bold">NOTE:</strong> Final fare may vary based on actual route, Extra KM, Parking, Toll, state tax.</span>
-            </p>
           </div>
 
           <div className="flex items-center w-full sm:w-auto">
@@ -152,3 +157,4 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
     </div>
   );
 };
+

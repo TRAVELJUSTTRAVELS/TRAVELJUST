@@ -10,6 +10,10 @@ export function usePWAInstall() {
   const [isInstalled, setIsInstalled] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [platformName, setPlatformName] = useState<string>('Web Browser');
 
   useEffect(() => {
     // Detect standalone mode (already installed)
@@ -18,12 +22,46 @@ export function usePWAInstall() {
       (window.navigator as unknown as { standalone?: boolean }).standalone === true;
     setIsInstalled(isStandalone);
 
-    // Detect mobile OS
+    // Detect device type & OS
     const userAgent = window.navigator.userAgent.toLowerCase();
-    const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
+    const isIOSDevice = /iphone|ipad|ipod/.test(userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); // iPadOS 13+
     const isAndroidDevice = /android/.test(userAgent);
+    const isIPadDevice = /ipad/.test(userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    // Screen width / touch characteristics for tablet vs mobile phone
+    const screenWidth = window.innerWidth;
+    const hasTouch = navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
+    const isTabletDevice =
+      isIPadDevice ||
+      (isAndroidDevice && !/mobile/.test(userAgent)) ||
+      (hasTouch && screenWidth >= 640 && screenWidth <= 1180);
+
+    const isMobileDevice = !isTabletDevice && (isIOSDevice || isAndroidDevice || screenWidth < 640);
+    const isDesktopDevice = !isMobileDevice && !isTabletDevice;
+
     setIsIOS(isIOSDevice);
     setIsAndroid(isAndroidDevice);
+    setIsTablet(isTabletDevice);
+    setIsMobile(isMobileDevice);
+    setIsDesktop(isDesktopDevice);
+
+    if (isIPadDevice) {
+      setPlatformName('iPad');
+    } else if (isTabletDevice) {
+      setPlatformName('Android Tablet');
+    } else if (isIOSDevice) {
+      setPlatformName('iPhone (iOS)');
+    } else if (isAndroidDevice) {
+      setPlatformName('Android Phone');
+    } else if (/macintosh|mac os x/.test(userAgent)) {
+      setPlatformName('macOS Web');
+    } else if (/windows/.test(userAgent)) {
+      setPlatformName('Windows PC');
+    } else {
+      setPlatformName('Web App');
+    }
 
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
@@ -61,6 +99,10 @@ export function usePWAInstall() {
     isInstalled,
     isIOS,
     isAndroid,
+    isTablet,
+    isMobile,
+    isDesktop,
+    platformName,
     deferredPrompt,
     install,
   };

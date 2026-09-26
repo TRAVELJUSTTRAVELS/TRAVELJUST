@@ -1,0 +1,346 @@
+{
+  "version": 4,
+  "updatedAt": "2026-09-24T13:28:42.755Z",
+  "updatedBy": "Administrator",
+  "local": {
+    "sedan-4-1": {
+      "baseFare": 599,
+      "driverAllowance": 399,
+      "perKmRate": 12,
+      "perHourRate": 50,
+      "extraPerKmRate": 14,
+      "extraPerHourRate": 150,
+      "includedKm": 80,
+      "includedHours": 8,
+      "discountType": "NONE",
+      "discountValue": 0
+    },
+    "suv-6-1": {
+      "baseFare": 599,
+      "driverAllowance": 499,
+      "perKmRate": 14,
+      "perHourRate": 75,
+      "extraPerKmRate": 156,
+      "extraPerHourRate": 175,
+      "includedKm": 80,
+      "includedHours": 8,
+      "discountType": "NONE",
+      "discountValue": 0
+    },
+    "innova": {
+      "baseFare": 599,
+      "driverAllowance": 499,
+      "perKmRate": 16,
+      "perHourRate": 85,
+      "extraPerKmRate": 18,
+      "extraPerHourRate": 175,
+      "includedKm": 80,
+      "includedHours": 8,
+      "discountType": "NONE",
+      "discountValue": 0
+    },
+    "innova-crysta": {
+      "baseFare": 599,
+      "driverAllowance": 499,
+      "perKmRate": 18,
+      "perHourRate": 95,
+      "extraPerKmRate": 19,
+      "extraPerHourRate": 180,
+      "includedKm": 80,
+      "includedHours": 8,
+      "discountType": "NONE",
+      "discountValue": 0
+    },
+    "tempo-traveller-12-1": {
+      "baseFare": 1200,
+      "driverAllowance": 799,
+      "perKmRate": 39,
+      "perHourRate": 120,
+      "extraPerKmRate": 30,
+      "extraPerHourRate": 400,
+      "includedKm": 80,
+      "includedHours": 8,
+      "discountType": "NONE",
+      "discountValue": 0
+    }
+  },
+  "oneWay": {
+    "sedan-4-1": {
+      "baseFare": 500,
+      "driverAllowance": 300,
+      "perKmRate": 13,
+      "extraPerKmRate": 13,
+      "includedKm": 0,
+      "minBillableKm": 0,
+      "discountType": "NONE",
+      "discountValue": 0
+    },
+    "suv-6-1": {
+      "baseFare": 700,
+      "driverAllowance": 350,
+      "perKmRate": 18,
+      "extraPerKmRate": 16,
+      "includedKm": 0,
+      "minBillableKm": 0,
+      "discountType": "NONE",
+      "discountValue": 0
+    },
+    "innova": {
+      "baseFare": 700,
+      "driverAllowance": 400,
+      "perKmRate": 18,
+      "extraPerKmRate": 15,
+      "includedKm": 0,
+      "minBillableKm": 0,
+      "discountType": "NONE",
+      "discountValue": 0
+    },
+    "innova-crysta": {
+      "baseFare": 800,
+      "driverAllowance": 450,
+      "perKmRate": 20,
+      "extraPerKmRate": 17,
+      "includedKm": 0,
+      "minBillableKm": 0,
+      "discountType": "NONE",
+      "discountValue": 0
+    },
+    "tempo-traveller-12-1": {
+      "baseFare": 1200,
+      "driverAllowance": 700,
+      "perKmRate": 30,
+      "extraPerKmRate": 25,
+      "includedKm": 0,
+      "minBillableKm": 0,
+      "discountType": "NONE",
+      "discountValue": 0
+    }
+  },
+  "roundTrip": {
+    "sedan-4-1": {
+      "driverAllowance": 300,
+      "perKmRate": 13,
+      "dailyMinimumKm": 300,
+      "discountType": "NONE",
+      "discountValue": 0
+    },
+    "suv-6-1": {
+      "driverAllowance": 350,
+      "perKmRate": 16,
+      "dailyMinimumKm": 300,
+      "discountType": "NONE",
+      "discountValue": 0
+    },
+    "innova": {
+      "driverAllowance": 400,
+      "perKmRate": 17.5,
+      "dailyMinimumKm": 300,
+      "discountType": "NONE",
+      "discountValue": 0
+    },
+    "innova-crysta": {
+      "driverAllowance": 450,
+      "perKmRate": 19,
+      "dailyMinimumKm": 300,
+      "discountType": "NONE",
+      "discountValue": 0
+    },
+    "tempo-traveller-12-1": {
+      "driverAllowance": 700,
+      "perKmRate": 28,
+      "dailyMinimumKm": 300,
+      "discountType": "NONE",
+      "discountValue": 0
+    }
+  },
+  "airport": {
+    "sedan-4-1": {
+      "baseFare": 699,
+      "driverAllowance": 250,
+      "perKmRate": 13,
+      "extraPerKmRate": 13,
+      "discountType": "NONE",
+      "discountValue": 0
+    },
+    "suv-6-1": {
+      "baseFare": 999,
+      "driverAllowance": 350,
+      "perKmRate": 18,
+      "extraPerKmRate": 16,
+      "discountType": "NONE",
+      "discountValue": 0
+    },
+    "innova": {
+      "baseFare": 1199,
+      "driverAllowance": 400,
+      "perKmRate": 18,
+      "extraPerKmRate": 15,
+      "discountType": "NONE",
+      "discountValue": 0
+    },
+    "innova-crysta": {
+      "baseFare": 1499,
+      "driverAllowance": 450,
+      "perKmRate": 20,
+      "extraPerKmRate": 17,
+      "discountType": "NONE",
+      "discountValue": 0
+    },
+    "tempo-traveller-12-1": {
+      "baseFare": 2499,
+      "driverAllowance": 600,
+      "perKmRate": 30,
+      "extraPerKmRate": 26,
+      "discountType": "NONE",
+      "discountValue": 0
+    }
+  },
+  "interStateOneWay": {
+    "sedan-4-1": {
+      "baseFare": 500,
+      "driverAllowance": 350,
+      "perKmRate": 14.5,
+      "extraPerKmRate": 14.5,
+      "minimumBillableKm": 149,
+      "includedKm": 0,
+      "tollCharges": 150,
+      "parkingCharges": 0,
+      "permitStateTaxCharges": 600,
+      "stateEntryCharges": 150,
+      "otherCharges": 0,
+      "includeTolls": true,
+      "includePermit": true,
+      "includeStateEntry": true,
+      "includeOtherCharges": false,
+      "discountType": "NONE",
+      "discountValue": 0,
+      "gstPercentage": 5,
+      "active": true
+    },
+    "suv-6-1": {
+      "baseFare": 700,
+      "driverAllowance": 400,
+      "perKmRate": 19,
+      "extraPerKmRate": 18,
+      "minimumBillableKm": 149,
+      "includedKm": 0,
+      "tollCharges": 200,
+      "parkingCharges": 0,
+      "permitStateTaxCharges": 800,
+      "stateEntryCharges": 200,
+      "otherCharges": 0,
+      "includeTolls": true,
+      "includePermit": true,
+      "includeStateEntry": true,
+      "includeOtherCharges": false,
+      "discountType": "NONE",
+      "discountValue": 0,
+      "gstPercentage": 5,
+      "active": true
+    },
+    "innova": {
+      "baseFare": 800,
+      "driverAllowance": 450,
+      "perKmRate": 20,
+      "extraPerKmRate": 19,
+      "minimumBillableKm": 149,
+      "includedKm": 0,
+      "tollCharges": 250,
+      "parkingCharges": 0,
+      "permitStateTaxCharges": 900,
+      "stateEntryCharges": 250,
+      "otherCharges": 0,
+      "includeTolls": true,
+      "includePermit": true,
+      "includeStateEntry": true,
+      "includeOtherCharges": false,
+      "discountType": "NONE",
+      "discountValue": 0,
+      "gstPercentage": 5,
+      "active": true
+    },
+    "innova-crysta": {
+      "baseFare": 1000,
+      "driverAllowance": 500,
+      "perKmRate": 22,
+      "extraPerKmRate": 21,
+      "minimumBillableKm": 149,
+      "includedKm": 0,
+      "tollCharges": 300,
+      "parkingCharges": 0,
+      "permitStateTaxCharges": 1100,
+      "stateEntryCharges": 300,
+      "otherCharges": 0,
+      "includeTolls": true,
+      "includePermit": true,
+      "includeStateEntry": true,
+      "includeOtherCharges": false,
+      "discountType": "NONE",
+      "discountValue": 0,
+      "gstPercentage": 5,
+      "active": true
+    },
+    "tempo-traveller-12-1": {
+      "baseFare": 1500,
+      "driverAllowance": 800,
+      "perKmRate": 32,
+      "extraPerKmRate": 30,
+      "minimumBillableKm": 149,
+      "includedKm": 0,
+      "tollCharges": 450,
+      "parkingCharges": 0,
+      "permitStateTaxCharges": 1600,
+      "stateEntryCharges": 400,
+      "otherCharges": 0,
+      "includeTolls": true,
+      "includePermit": true,
+      "includeStateEntry": true,
+      "includeOtherCharges": false,
+      "discountType": "NONE",
+      "discountValue": 0,
+      "gstPercentage": 5,
+      "active": true
+    }
+  },
+  "fixedCorridors": {
+    "MYSURU_KIA_AIRPORT": {
+      "id": "MYSURU_KIA_AIRPORT",
+      "corridorName": "Mysuru ⇄ Kempegowda International Airport (Terminal 1 / Terminal 2)",
+      "fromLocation": "Mysuru / Mysore",
+      "toLocation": "Kempegowda International Airport (Terminal 1 / Terminal 2)",
+      "referenceDistanceKm": 182,
+      "distanceLabel": "Approximately 182 km",
+      "durationHours": 3.5,
+      "rates": {
+        "sedan-4-1": 2899,
+        "suv-6-1": 3910,
+        "innova": 4299,
+        "innova-crysta": 4610,
+        "tempo-traveller-12-1": 6999
+      },
+      "active": true,
+      "bidirectional": true
+    },
+    "MYSURU_BENGALURU_CITY": {
+      "id": "MYSURU_BENGALURU_CITY",
+      "corridorName": "Mysuru ⇄ Bengaluru City (~149 km limit)",
+      "fromLocation": "Mysuru / Mysore",
+      "toLocation": "Bengaluru City / Bangalore City",
+      "referenceDistanceKm": 149,
+      "distanceLabel": "Approximately 149 km",
+      "durationHours": 2.5,
+      "rates": {
+        "sedan-4-1": 2599,
+        "suv-6-1": 3519,
+        "innova": 3799,
+        "innova-crysta": 4119,
+        "tempo-traveller-12-1": 5999
+      },
+      "active": true,
+      "bidirectional": true
+    }
+  },
+  "versionCode": "2026-09-24-004",
+  "status": "ACTIVE",
+  "lastUpdatedFormatted": "24 September 2026, 01:28 pm"
+}

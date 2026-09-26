@@ -2,32 +2,72 @@
 <html lang="en">
   <head>
     <script>
-      // Suppress benign Vite websocket connection errors in AI Studio iframe environment
+      // Suppress benign Vite websocket / HMR notices in AI Studio iframe environment
       (function() {
-        const isViteNotice = function(arg) {
+        var isViteNotice = function(arg) {
           if (!arg) return false;
-          const str = typeof arg === 'string' ? arg : (arg.message ? String(arg.message) : String(arg));
-          return str.includes('[vite]') || str.includes('vite-hmr') || str.includes('WebSocket closed without opened');
+          try {
+            var str = '';
+            if (typeof arg === 'string') {
+              str = arg;
+            } else if (arg instanceof Error) {
+              str = (arg.message || '') + ' ' + (arg.stack || '');
+            } else if (typeof arg === 'object') {
+              str = JSON.stringify(arg);
+            } else {
+              str = String(arg);
+            }
+            var lower = str.toLowerCase();
+            return lower.includes('[vite]') ||
+                   lower.includes('vite-hmr') ||
+                   lower.includes('websocket closed') ||
+                   lower.includes('failed to connect to websocket') ||
+                   lower.includes("reading 'send'") ||
+                   (lower.includes('websocket') && (lower.includes(':3000') || lower.includes('connection failed') || lower.includes('connection lost')));
+          } catch (e) {
+            return false;
+          }
         };
-        const suppress = function(originalFn) {
-          return function(...args) {
-            if (args.length > 0 && isViteNotice(args[0])) {
+
+        var shouldSuppress = function(args) {
+          for (var i = 0; i < args.length; i++) {
+            if (isViteNotice(args[i])) return true;
+          }
+          return false;
+        };
+
+        var wrap = function(fn) {
+          return function() {
+            var args = Array.prototype.slice.call(arguments);
+            if (shouldSuppress(args)) {
               return;
             }
-            originalFn.apply(console, args);
+            if (typeof fn === 'function') {
+              fn.apply(console, args);
+            }
           };
         };
-        console.error = suppress(console.error);
-        console.warn = suppress(console.warn);
-        console.info = suppress(console.info);
-        console.debug = suppress(console.debug);
+
+        console.log = wrap(console.log);
+        console.error = wrap(console.error);
+        console.warn = wrap(console.warn);
+        console.info = wrap(console.info);
+        console.debug = wrap(console.debug);
+
+        window.addEventListener('error', function(event) {
+          if (event && (isViteNotice(event.message) || isViteNotice(event.error) || isViteNotice(event.filename))) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            return true;
+          }
+        }, true);
 
         window.addEventListener('unhandledrejection', function(event) {
-          if (event && event.reason && isViteNotice(event.reason)) {
+          if (event && (isViteNotice(event.reason) || (event.reason && isViteNotice(event.reason.message)))) {
             event.preventDefault();
-            event.stopPropagation();
+            event.stopImmediatePropagation();
           }
-        });
+        }, true);
       })();
     </script>
     <!-- Google tag (gtag.js) -->
@@ -40,12 +80,14 @@
       gtag('config', 'G-N5CVX3DY50');
     </script>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
     <meta name="theme-color" content="#032014" />
+    <meta name="application-name" content="TRAVEL JUST" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="TRAVEL JUST" />
+    <meta name="format-detection" content="telephone=yes" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <title>TRAVEL JUST</title>

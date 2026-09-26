@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import {
   BookingTypeCategory,
   DistanceRoundingRule,
@@ -16,14 +18,19 @@ import {
   calculateDynamicFare,
 } from "../../utils/dynamicFareEngine";
 import {
-  calculateEngineAFare,
-  calculateEngineBFare,
-  calculateDualEngineFare,
-  calculateDualEngineAllVehicles,
-} from "../../utils/dualFareEngine";
+  CentralizedFareConfig,
+  FareVehicleId,
+} from "../../types/fareEngine";
+import {
+  DEFAULT_CENTRALIZED_FARE_CONFIG,
+  calculateMasterFare,
+} from "../../utils/centralFareEngine";
+
+const CACHE_FILE_PATH = path.resolve(process.cwd(), ".fare_centralized_config.json");
 
 class PricingStore {
   private configs: Map<string, VehicleDynamicPricingConfig>;
+  private centralizedConfig: CentralizedFareConfig;
   private statePairRules: StatePairPricingRule[];
   private auditLogs: FareAuditLogEntry[];
   private distanceRounding: DistanceRoundingRule;
@@ -34,6 +41,14 @@ class PricingStore {
     this.distanceRounding = "NEAREST_1";
     this.activeEngine = "ENGINE_A";
     this.statePairRules = JSON.parse(JSON.stringify(DEFAULT_STATE_PAIR_RULES));
+
+    const loadedFromFile = this.loadConfigFromFile();
+    if (loadedFromFile) {
+      this.centralizedConfig = loadedFromFile;
+    } else {
+      this.centralizedConfig = JSON.parse(JSON.stringify(DEFAULT_CENTRALIZED_FARE_CONFIG));
+    }
+
     this.auditLogs = [
       {
         id: "audit_init_1",
@@ -41,7 +56,7 @@ class PricingStore {
         user: "System Initializer",
         action: "INITIALIZE",
         vehicleId: "all",
-        summary: "Live Dynamic Price & Fare Engine initialized with centralized 20-step calculation and ONE-WAY Inter-State rules.",
+        summary: "Live Advanced Fare & Price Engine initialized as single source of truth.",
       },
     ];
 
@@ -49,6 +64,181 @@ class PricingStore {
     for (const [key, cfg] of Object.entries(DEFAULT_VEHICLE_CONFIGS)) {
       this.configs.set(key, JSON.parse(JSON.stringify(cfg)));
     }
+    this.syncCentralizedToConfigs();
+  }
+
+  private loadConfigFromFile(): CentralizedFareConfig | null {
+    try {
+      if (fs.existsSync(CACHE_FILE_PATH)) {
+        const raw = fs.readFileSync(CACHE_FILE_PATH, "utf-8");
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.local && parsed.oneWay && parsed.roundTrip && parsed.airport) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn("Could not read cached fare config from disk:", e);
+    }
+    return null;
+  }
+
+  private saveConfigToFile(config: CentralizedFareConfig) {
+    try {
+      fs.writeFileSync(CACHE_FILE_PATH, JSON.stringify(config, null, 2), "utf-8");
+    } catch (e) {
+      console.warn("Could not save cached fare config to disk:", e);
+    }
+  }
+
+  private syncCentralizedToConfigs() {
+    const fleetIds: FareVehicleId[] = [
+      'sedan-4-1',
+      'suv-6-1',
+      'innova',
+      'innova-crysta',
+      'tempo-traveller-12-1',
+    ];
+
+    fleetIds.forEach((vid) => {
+      const existing = this.configs.get(vid);
+      if (existing) {
+        const local = this.centralizedConfig.local[vid];
+        const oneWay = this.centralizedConfig.oneWay[vid];
+        const roundTrip = this.centralizedConfig.roundTrip[vid];
+        const airport = this.centralizedConfig.airport[vid];
+
+        if (local && existing.pricingByBookingType.LOCAL) {
+          existing.pricingByBookingType.LOCAL.baseFare = local.baseFare;
+          existing.pricingByBookingType.LOCAL.driverAllowance = local.driverAllowance;
+          existing.pricingByBookingType.LOCAL.perKmRate = local.perKmRate;
+          existing.pricingByBookingType.LOCAL.hourlyRate = local.perHourRate;
+          existing.pricingByBookingType.LOCAL.extraPerKmRate = local.extraPerKmRate;
+          existing.pricingByBookingType.LOCAL.extraPerHourRate = local.extraPerHourRate;
+          existing.pricingByBookingType.LOCAL.includedKm = local.includedKm;
+          existing.pricingByBookingType.LOCAL.includedHours = local.includedHours;
+          existing.pricingByBookingType.LOCAL.discountType = local.discountType;
+          existing.pricingByBookingType.LOCAL.discountValue = local.discountValue;
+        }
+
+        if (oneWay && existing.pricingByBookingType.ONE_WAY) {
+          existing.pricingByBookingType.ONE_WAY.baseFare = oneWay.baseFare;
+          existing.pricingByBookingType.ONE_WAY.driverAllowance = oneWay.driverAllowance;
+          existing.pricingByBookingType.ONE_WAY.perKmRate = oneWay.perKmRate;
+          existing.pricingByBookingType.ONE_WAY.extraPerKmRate = oneWay.extraPerKmRate;
+          existing.pricingByBookingType.ONE_WAY.includedKm = oneWay.includedKm;
+          existing.pricingByBookingType.ONE_WAY.discountType = oneWay.discountType;
+          existing.pricingByBookingType.ONE_WAY.discountValue = oneWay.discountValue;
+        }
+
+        if (roundTrip && existing.pricingByBookingType.ROUND_TRIP) {
+          existing.pricingByBookingType.ROUND_TRIP.driverAllowance = roundTrip.driverAllowance;
+          existing.pricingByBookingType.ROUND_TRIP.perKmRate = roundTrip.perKmRate;
+          existing.pricingByBookingType.ROUND_TRIP.dailyMinimumKm = roundTrip.dailyMinimumKm;
+          existing.pricingByBookingType.ROUND_TRIP.includedKm = roundTrip.dailyMinimumKm;
+          existing.pricingByBookingType.ROUND_TRIP.discountType = roundTrip.discountType;
+          existing.pricingByBookingType.ROUND_TRIP.discountValue = roundTrip.discountValue;
+        }
+
+        if (airport && existing.pricingByBookingType.AIRPORT_TRANSFER) {
+          existing.pricingByBookingType.AIRPORT_TRANSFER.baseFare = airport.baseFare;
+          existing.pricingByBookingType.AIRPORT_TRANSFER.driverAllowance = airport.driverAllowance;
+          existing.pricingByBookingType.AIRPORT_TRANSFER.perKmRate = airport.perKmRate;
+          existing.pricingByBookingType.AIRPORT_TRANSFER.extraPerKmRate = airport.extraPerKmRate;
+          existing.pricingByBookingType.AIRPORT_TRANSFER.discountType = airport.discountType;
+          existing.pricingByBookingType.AIRPORT_TRANSFER.discountValue = airport.discountValue;
+        }
+
+        this.configs.set(vid, existing);
+      }
+    });
+
+    if (this.centralizedConfig.interStateOneWay) {
+      try {
+        const { serverInterStateStore } = require("./interstateOneWayStore");
+        fleetIds.forEach((vid) => {
+          const isow = this.centralizedConfig.interStateOneWay?.[vid];
+          if (isow && serverInterStateStore) {
+            serverInterStateStore.updateRate(
+              vid,
+              {
+                baseFare: isow.baseFare,
+                perKmRate: isow.perKmRate,
+                extraPerKmRate: isow.extraPerKmRate,
+                driverAllowance: isow.driverAllowance,
+                minimumKm: isow.minimumBillableKm || 149,
+              },
+              "Fare Engine Sync"
+            );
+          }
+        });
+      } catch (e) {
+        // ignore
+      }
+    }
+  }
+
+  public getCentralizedConfig(): CentralizedFareConfig {
+    return JSON.parse(JSON.stringify(this.centralizedConfig));
+  }
+
+  public updateCentralizedConfig(
+    updated: CentralizedFareConfig,
+    updatedBy: string = "Administrator"
+  ): CentralizedFareConfig {
+    const newVersion = (this.centralizedConfig.version || 1) + 1;
+    const now = new Date().toISOString();
+    const todayStr = now.slice(0, 10);
+    const versionCode = updated.versionCode || `${todayStr}-${String(newVersion).padStart(3, '0')}`;
+    const dateFormatted = new Date().toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+    const timeFormatted = new Date().toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    this.centralizedConfig = {
+      ...updated,
+      version: newVersion,
+      versionCode,
+      status: 'ACTIVE',
+      lastUpdatedFormatted: `${dateFormatted}, ${timeFormatted}`,
+      updatedAt: now,
+      updatedBy: updatedBy || "Administrator",
+    };
+
+    this.syncCentralizedToConfigs();
+    this.saveConfigToFile(this.centralizedConfig);
+
+    this.addAuditLog({
+      user: updatedBy,
+      action: "UPDATE_CONFIG",
+      vehicleId: "all",
+      pricingVersion: newVersion,
+      summary: `Centralized Fare & Price Engine updated to Version ${versionCode}`,
+      changes: updated,
+    });
+
+    return this.getCentralizedConfig();
+  }
+
+  public resetCentralizedConfig(
+    updatedBy: string = "Administrator"
+  ): CentralizedFareConfig {
+    this.centralizedConfig = JSON.parse(JSON.stringify(DEFAULT_CENTRALIZED_FARE_CONFIG));
+    this.syncCentralizedToConfigs();
+    this.saveConfigToFile(this.centralizedConfig);
+
+    this.addAuditLog({
+      user: updatedBy,
+      action: "RESET_ALL",
+      vehicleId: "all",
+      summary: `Restored Fare & Price Engine to baseline default values`,
+    });
+
+    return this.getCentralizedConfig();
   }
 
   public getAllConfigs(): VehicleDynamicPricingConfig[] {
@@ -191,6 +381,10 @@ class PricingStore {
     );
   }
 
+  public clearAuditLogs(): void {
+    this.auditLogs = [];
+  }
+
   public addAuditLog(entry: Omit<FareAuditLogEntry, "id" | "timestamp">): void {
     const log: FareAuditLogEntry = {
       ...entry,
@@ -246,7 +440,6 @@ class PricingStore {
       this.configs.get("sedan-4-1") ||
       DEFAULT_VEHICLE_CONFIGS["sedan-4-1"];
 
-    const engineToUse = input.engineType || this.activeEngine;
     const resolvedInput: DynamicFareCalculationInput = {
       ...input,
       customPricingConfig: vehicleConfig,
@@ -254,40 +447,45 @@ class PricingStore {
       distanceRounding: input.distanceRounding || this.distanceRounding,
     };
 
-    if (engineToUse === "ENGINE_B") {
-      return calculateEngineBFare(resolvedInput);
-    }
-    return calculateEngineAFare(resolvedInput);
+    return calculateDynamicFare(resolvedInput);
   }
 
   public calculateDualFare(
     input: DynamicFareCalculationInput
   ): DualEngineFareComparison {
-    const vehicleConfig =
-      this.configs.get(input.vehicleId) ||
-      DEFAULT_VEHICLE_CONFIGS[input.vehicleId] ||
-      (input.vehicleId === "innova-6-1" || input.vehicleId === "innova-7-1"
-        ? this.configs.get("innova") || DEFAULT_VEHICLE_CONFIGS["innova"]
-        : undefined) ||
-      this.configs.get("sedan-4-1") ||
-      DEFAULT_VEHICLE_CONFIGS["sedan-4-1"];
-
-    return calculateDualEngineFare({
-      ...input,
-      customPricingConfig: vehicleConfig,
-      statePairRules: input.statePairRules || this.statePairRules,
-      distanceRounding: input.distanceRounding || this.distanceRounding,
-    });
+    const authoritative = this.calculateAuthoritativeFare(input);
+    return {
+      engineA: authoritative,
+      engineB: authoritative,
+      activeEngine: "ENGINE_A",
+      recommendedEngine: "ENGINE_A",
+      metrics: {
+        distanceMeters: Math.round(authoritative.distanceKm * 1000),
+        distanceKm: authoritative.distanceKm,
+        durationSeconds: authoritative.durationMinutes * 60,
+        durationMinutes: authoritative.durationMinutes,
+        durationFormatted: authoritative.durationFormatted,
+        tollEstimate: authoritative.tolls || 0,
+      },
+      fareDifference: 0,
+      percentageDifference: 0,
+      summary: "Authoritative Centralized Fare Engine is active.",
+    };
   }
 
   public calculateDualAllVehicles(
     input: Omit<DynamicFareCalculationInput, "vehicleId">
   ): DualEngineVehicleComparison[] {
-    return calculateDualEngineAllVehicles({
-      ...input,
-      statePairRules: input.statePairRules || this.statePairRules,
-      distanceRounding: input.distanceRounding || this.distanceRounding,
-    });
+    const all = this.calculateAllVehicles(input);
+    return Object.values(all).map((res) => ({
+      vehicleId: res.vehicleId,
+      vehicleName: res.vehicleName,
+      engineAFare: res.totalFare,
+      engineBFare: res.totalFare,
+      difference: 0,
+      engineAResult: res,
+      engineBResult: res,
+    }));
   }
 
   public calculateAllVehicles(
@@ -296,7 +494,6 @@ class PricingStore {
     const results: Record<string, DynamicFareCalculationResult> = {};
     for (const [vehicleId, config] of this.configs.entries()) {
       if (config.active !== false) {
-        const engineToUse = input.engineType || this.activeEngine;
         const vInput = {
           ...input,
           vehicleId,
@@ -304,9 +501,7 @@ class PricingStore {
           statePairRules: input.statePairRules || this.statePairRules,
           distanceRounding: input.distanceRounding || this.distanceRounding,
         };
-        results[vehicleId] = engineToUse === "ENGINE_B"
-          ? calculateEngineBFare(vInput)
-          : calculateEngineAFare(vInput);
+        results[vehicleId] = calculateDynamicFare(vInput);
       }
     }
     return results;

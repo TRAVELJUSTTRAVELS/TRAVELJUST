@@ -20,9 +20,42 @@ export default defineConfig(() => {
           theme_color: '#032014',
           background_color: '#032014',
           display: 'standalone',
-          orientation: 'portrait',
+          display_override: ['window-controls-overlay', 'standalone', 'minimal-ui'],
+          orientation: 'any',
           start_url: '/',
           scope: '/',
+          categories: ['travel', 'transportation', 'navigation'],
+          prefer_related_applications: false,
+          shortcuts: [
+            {
+              name: 'Book One-Way Cab',
+              short_name: 'One-Way',
+              description: 'Point-to-point one-way outstation taxi drop',
+              url: '/#booking-search-section',
+              icons: [{ src: '/pwa-192x192.png', sizes: '192x192' }],
+            },
+            {
+              name: 'Airport Taxi Transfer',
+              short_name: 'Airport',
+              description: 'Mysuru to Bengaluru Kempegowda Airport (BLR) Cabs',
+              url: '/#booking-search-section',
+              icons: [{ src: '/pwa-192x192.png', sizes: '192x192' }],
+            },
+            {
+              name: 'Local Hourly Package',
+              short_name: 'Local Cab',
+              description: 'Hourly rental cabs in Mysuru (4h, 8h, 12h)',
+              url: '/#booking-search-section',
+              icons: [{ src: '/pwa-192x192.png', sizes: '192x192' }],
+            },
+            {
+              name: 'Round Trip Outstation',
+              short_name: 'Round Trip',
+              description: 'Outstation cabs for family holidays and return trips',
+              url: '/#booking-search-section',
+              icons: [{ src: '/pwa-192x192.png', sizes: '192x192' }],
+            },
+          ],
           icons: [
             {
               src: '/pwa-192x192.png',
@@ -45,6 +78,7 @@ export default defineConfig(() => {
           ],
         },
         workbox: {
+          importScripts: ['/sw-push.js'],
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
           runtimeCaching: [
             {
@@ -75,11 +109,55 @@ export default defineConfig(() => {
                 },
               },
             },
+            {
+              urlPattern: /^\/api\/fare\/.*/i,
+              handler: 'NetworkFirst',
+              options: {
+                cacheName: 'tj-fare-api-cache',
+                networkTimeoutSeconds: 3,
+                expiration: {
+                  maxEntries: 50,
+                  maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
+                },
+                cacheableResponse: {
+                  statuses: [0, 200],
+                },
+              },
+            },
+            {
+              urlPattern: /^\/api\/maps\/.*/i,
+              handler: 'NetworkFirst',
+              options: {
+                cacheName: 'tj-maps-api-cache',
+                networkTimeoutSeconds: 3,
+                expiration: {
+                  maxEntries: 50,
+                  maxAgeSeconds: 60 * 60 * 24 * 7,
+                },
+                cacheableResponse: {
+                  statuses: [0, 200],
+                },
+              },
+            },
+            {
+              urlPattern: /^\/api\/search\/.*/i,
+              handler: 'NetworkFirst',
+              options: {
+                cacheName: 'tj-search-results-cache-v1',
+                networkTimeoutSeconds: 3,
+                expiration: {
+                  maxEntries: 50,
+                  maxAgeSeconds: 60 * 60 * 24 * 7,
+                },
+                cacheableResponse: {
+                  statuses: [0, 200],
+                },
+              },
+            },
           ],
         },
         devOptions: {
-          enabled: true,
-          type: 'module',
+          enabled: false,
         },
       }),
     ],

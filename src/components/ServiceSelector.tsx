@@ -17,19 +17,19 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({
 }) => {
   const options: ServiceOption[] = [
     { type: 'local', label: 'LOCAL' },
-    { type: 'oneway', label: 'ONE WAY' },
+    { type: 'oneway', label: 'ONEWAY' },
     { type: 'roundtrip', label: 'ROUND TRIP' },
-    { type: 'airport', label: 'Airport' },
+    { type: 'airport', label: 'AIRPORT' },
   ];
 
   return (
     <div className="w-full flex justify-center" id="service-type-selector-wrapper">
-      {/* Centered White Pill Container with Service Tabs */}
+      {/* Centered Service Tabs matching rrrr.jpeg capsule shape */}
       <div
         id="service-selector-segmented-bar"
-        className="inline-flex flex-wrap items-center justify-center bg-white rounded-xl sm:rounded-2xl p-1 sm:p-1.5 shadow-sm border border-slate-200/90 gap-1 sm:gap-1.5"
+        className="inline-flex items-center justify-center gap-1.5 sm:gap-2.5 max-w-full flex-wrap"
         role="tablist"
-        aria-label="Trip Service Type"
+        aria-label="Trip Travel Modes"
       >
         {options.map((option) => {
           const isSelected = selectedService === option.type;
@@ -41,21 +41,20 @@ export const ServiceSelector: React.FC<ServiceSelectorProps> = ({
               aria-selected={isSelected}
               id={`service-tab-${option.type}`}
               onClick={() => onSelectService(option.type)}
-              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-150 cursor-pointer select-none flex items-center gap-1.5 sm:gap-2 ${
+              className={`rounded-full px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-[13px] font-bold tracking-tight transition-all duration-150 cursor-pointer select-none flex items-center justify-center focus-visible:outline-none ${
                 isSelected
-                  ? 'bg-[#ECFDF5] text-[#0f2441] border border-emerald-300/80 shadow-2xs font-semibold'
-                  : 'bg-transparent text-slate-700 hover:text-slate-900 hover:bg-slate-100/70'
+                  ? 'bg-[#5D70D6] text-white border border-[#5D70D6] shadow-xs'
+                  : 'bg-white text-slate-800 border border-slate-300 hover:bg-slate-50 active:bg-slate-100 shadow-xs'
               }`}
             >
-              {/* Radio circle matching screenshot 8 */}
               <span
-                className={`w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0 transition-colors ${
-                  isSelected ? 'border-2 border-emerald-700' : 'border-2 border-slate-400'
+                className={`w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border-2 flex items-center justify-center mr-1.5 sm:mr-2 shrink-0 transition-colors ${
+                  isSelected ? 'border-white' : 'border-slate-600'
                 }`}
               >
-                {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-emerald-700" />}
+                {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
               </span>
-              <span className="whitespace-nowrap">{option.label}</span>
+              <span className="whitespace-nowrap uppercase">{option.label}</span>
             </button>
           );
         })}

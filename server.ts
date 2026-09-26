@@ -23,10 +23,12 @@ async function startServer() {
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    // HMR is disabled in AI Studio environment to prevent iframe WebSocket connection errors
+    const isHmrDisabled = process.env.DISABLE_HMR !== "false";
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
-        hmr: { server },
+        hmr: isHmrDisabled ? false : { server },
       },
       appType: "spa",
     });

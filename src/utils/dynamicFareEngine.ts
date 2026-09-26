@@ -13,6 +13,19 @@ import {
   VehicleDynamicPricingConfig,
 } from '../types/dynamicPricing';
 
+export {
+  calculateLocalFare,
+  calculateOneWayFare,
+  calculateRoundTripFare,
+  calculateAirportFare,
+  calculateDiscount,
+  calculateExtraKm,
+  calculateExtraHours,
+  calculateFinalFare,
+  calculateMasterFare,
+  DEFAULT_CENTRALIZED_FARE_CONFIG,
+} from './centralFareEngine';
+
 export const DEFAULT_STATE_PAIR_RULES: StatePairPricingRule[] = [
   {
     id: 'sp_ka_tn',
@@ -261,7 +274,7 @@ export const DEFAULT_VEHICLE_CONFIGS: Record<string, VehicleDynamicPricingConfig
     pricingByBookingType: {
       ONE_WAY: {
         baseFare: 500,
-        perKmRate: 14,
+        perKmRate: 13,
         includedKm: 0,
         extraPerKmRate: 13,
         includedHours: 0,
@@ -303,7 +316,7 @@ export const DEFAULT_VEHICLE_CONFIGS: Record<string, VehicleDynamicPricingConfig
       },
       LOCAL: {
         baseFare: 500,
-        perKmRate: 14,
+        perKmRate: 13,
         includedKm: 80,
         extraPerKmRate: 13,
         includedHours: 8,
@@ -324,7 +337,7 @@ export const DEFAULT_VEHICLE_CONFIGS: Record<string, VehicleDynamicPricingConfig
       },
       AIRPORT_TRANSFER: {
         baseFare: 699,
-        perKmRate: 14,
+        perKmRate: 13,
         includedKm: 0,
         extraPerKmRate: 13,
         includedHours: 0,
@@ -1093,17 +1106,23 @@ export function calculateDynamicFare(input: DynamicFareCalculationInput): Dynami
   let billableKm = distanceKm;
   let distanceFare = 0;
   let extraDistanceFare = 0;
+  let rtDailyMinKm: number | undefined = undefined;
 
   if (bookingType === 'ROUND_TRIP') {
-    // For round trip: road distance is doubled, with minimum per day included
+    // For round trip: road distance is doubled, with daily minimum included
     const days = Math.max(1, roundTripDays);
-    const minIncluded = (pricingRule.minimumKm || 300) * days;
+    rtDailyMinKm = pricingRule.dailyMinimumKm || pricingRule.minimumKm || 300;
+    const minIncluded = rtDailyMinKm * days;
     const actualRtKm = distanceKm * 2;
     billableKm = Math.max(actualRtKm, minIncluded);
     includedKm = minIncluded;
 
     const perKm = pricingRule.perKmRate;
     distanceFare = billableKm * perKm;
+    const extraRtKm = Math.max(0, actualRtKm - minIncluded);
+    if (extraRtKm > 0 && (pricingRule.extraPerKmRate || 0) > 0) {
+      extraDistanceFare = extraRtKm * pricingRule.extraPerKmRate;
+    }
   } else {
     // One-Way / Airport / Local / Outstation
     const perKmRate =
@@ -1120,20 +1139,23 @@ export function calculateDynamicFare(input: DynamicFareCalculationInput): Dynami
       includedKm = 150;
       baseFare = 0;
       distanceFare = 2900;
+      billableKm = Math.max(distanceKm, 150);
       if (distanceKm > 150) {
         const extraKm = distanceKm - 150;
         extraDistanceFare = extraKm * (pricingRule.extraPerKmRate || 13);
       }
-    } else if (includedKm > 0) {
-      if (distanceKm <= includedKm) {
-        distanceFare = distanceKm * perKmRate;
-      } else {
-        distanceFare = includedKm * perKmRate;
-        const extraKm = distanceKm - includedKm;
-        extraDistanceFare = extraKm * extraPerKmRate;
-      }
     } else {
-      distanceFare = distanceKm * perKmRate;
+      const minKm = pricingRule.minimumKm || 0;
+      billableKm = Math.max(distanceKm, minKm);
+      const kmThreshold = includedKm > 0 ? includedKm : minKm;
+
+      if (kmThreshold > 0 && billableKm > kmThreshold && (extraPerKmRate || 0) > 0) {
+        distanceFare = kmThreshold * perKmRate;
+        const extraKm = billableKm - kmThreshold;
+        extraDistanceFare = extraKm * extraPerKmRate;
+      } else {
+        distanceFare = billableKm * perKmRate;
+      }
     }
   }
 
@@ -1152,18 +1174,16 @@ export function calculateDynamicFare(input: DynamicFareCalculationInput): Dynami
   const includedHours = pricingRule.includedHours;
 
   if (chargesDuration) {
-    billableHours = roundedDurationHours;
+    const minHours = pricingRule.minimumHours || 0;
+    billableHours = Math.max(roundedDurationHours, minHours);
     const hourlyRate = pricingRule.hourlyRate;
     const extraPerHourRate = pricingRule.extraPerHourRate;
+    const hourThreshold = includedHours > 0 ? includedHours : minHours;
 
-    if (includedHours > 0) {
-      if (billableHours <= includedHours) {
-        hourlyFare = billableHours * hourlyRate;
-      } else {
-        hourlyFare = includedHours * hourlyRate;
-        const extraHours = billableHours - includedHours;
-        extraHourFare = extraHours * extraPerHourRate;
-      }
+    if (hourThreshold > 0 && billableHours > hourThreshold && (extraPerHourRate || 0) > 0) {
+      hourlyFare = hourThreshold * hourlyRate;
+      const extraHours = billableHours - hourThreshold;
+      extraHourFare = extraHours * extraPerHourRate;
     } else {
       hourlyFare = billableHours * hourlyRate;
     }
@@ -1307,9 +1327,25 @@ export function calculateDynamicFare(input: DynamicFareCalculationInput): Dynami
     permits +
     viaStopsCharge;
 
+  // 17c: Apply Configured Discount (Percentage or Fixed)
+  let discountAmount = 0;
+  let discountLabel = '';
+  const discountType = pricingRule.discountType || 'NONE';
+  const discountValue = pricingRule.discountValue || 0;
+
+  if (discountType === 'PERCENTAGE' && discountValue > 0) {
+    discountAmount = Math.round(subtotalBeforeMin * (discountValue / 100));
+    discountLabel = `${discountValue}% Promotional Discount`;
+  } else if (discountType === 'FIXED' && discountValue > 0) {
+    discountAmount = Math.min(subtotalBeforeMin, discountValue);
+    discountLabel = `₹${discountValue} Instant Discount`;
+  }
+
+  const subtotalAfterDiscount = Math.max(0, subtotalBeforeMin - discountAmount);
+
   // 18: Apply Minimum Fare constraint
   let minimumFareApplied = false;
-  let runningTotal = subtotalBeforeMin;
+  let runningTotal = subtotalAfterDiscount;
   const minFare = isMysoreOotySedan ? 2900 : (pricingRule.minimumFare || 0);
   if (runningTotal < minFare) {
     runningTotal = minFare;
@@ -1357,7 +1393,7 @@ export function calculateDynamicFare(input: DynamicFareCalculationInput): Dynami
       breakdown.push({
         label: `Round Trip Road Distance (${Math.round(billableKm)} km billed · ${days} Day${days > 1 ? 's' : ''})`,
         amount: Math.round(distanceFare),
-        detail: `Min. ${includedKm} km included`,
+        detail: `Min. ${rtDailyMinKm || 300} km/day included (${includedKm} km total)`,
       });
     } else if (distanceFare > 0) {
       const kmLabel = includedKm > 0 ? `${includedKm} km included` : `${distanceKm} km`;
@@ -1445,6 +1481,14 @@ export function calculateDynamicFare(input: DynamicFareCalculationInput): Dynami
     });
   }
 
+  if (discountAmount > 0) {
+    breakdown.push({
+      label: discountLabel,
+      amount: -discountAmount,
+      detail: `Discount deducted from gross fare`,
+    });
+  }
+
   if (taxes > 0) {
     breakdown.push({
       label: `GST (${pricingRule.taxPercentage}%)`,
@@ -1455,7 +1499,7 @@ export function calculateDynamicFare(input: DynamicFareCalculationInput): Dynami
   if (minimumFareApplied) {
     breakdown.push({
       label: `Minimum Fare Adjustment`,
-      amount: Math.max(0, totalFare - subtotalBeforeMin),
+      amount: Math.max(0, totalFare - subtotalAfterDiscount),
     });
   }
 
@@ -1484,12 +1528,18 @@ export function calculateDynamicFare(input: DynamicFareCalculationInput): Dynami
     interStateAppliedRule,
     additionalCharges: Math.round(nightCharge + tolls + parking + permits + taxes + viaStopsCharge + interStateCharge),
     subtotal: Math.round(subtotalBeforeMin),
+    discountType: discountType !== 'NONE' ? discountType : undefined,
+    discountValue: discountValue > 0 ? discountValue : undefined,
+    discountAmount: discountAmount > 0 ? discountAmount : undefined,
+    originalFare: Math.round(subtotalBeforeMin),
     roundingAdjustment: Math.round(totalFare - unroundedFare),
     totalFare,
     pricingVersion: vehicleConfig.pricingVersion,
     currency: 'INR',
     timestamp,
     pricingModel,
+    roundTripDays: bookingType === 'ROUND_TRIP' ? roundTripDays : undefined,
+    dailyMinimumKm: rtDailyMinKm,
   };
 
   return {
@@ -1526,6 +1576,11 @@ export function calculateDynamicFare(input: DynamicFareCalculationInput): Dynami
     permits: Math.round(permits),
     additionalCharges: Math.round(nightCharge + tolls + parking + permits + taxes + viaStopsCharge + interStateCharge),
     subtotal: Math.round(subtotalBeforeMin),
+    discountType: discountType !== 'NONE' ? discountType : undefined,
+    discountValue: discountValue > 0 ? discountValue : undefined,
+    discountAmount: discountAmount > 0 ? discountAmount : undefined,
+    discountLabel: discountLabel || undefined,
+    originalFare: Math.round(subtotalBeforeMin),
     minimumFareApplied,
     unroundedFare,
     roundingAdjustment: Math.round(totalFare - unroundedFare),
@@ -1534,5 +1589,7 @@ export function calculateDynamicFare(input: DynamicFareCalculationInput): Dynami
     fareBreakdown: breakdown,
     timestamp,
     fareSnapshot,
+    roundTripDays: bookingType === 'ROUND_TRIP' ? roundTripDays : undefined,
+    dailyMinimumKm: rtDailyMinKm,
   };
 }

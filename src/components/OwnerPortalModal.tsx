@@ -31,13 +31,23 @@ import {
   Compass,
   Trash2,
   Loader2,
+  Film,
 } from 'lucide-react';
 import { BookingRequest } from '../types';
+import { fareService } from '../services/fareService';
+import { VehicleDynamicPricingConfig } from '../types/dynamicPricing';
+import { CentralizedFareConfig } from '../types/fareEngine';
+import { AdvancedFareEngine } from './AdvancedFareEngine';
 
 export interface OwnerPortalModalProps {
   isOpen: boolean;
   onClose: () => void;
   onExitOwnerMode: () => void;
+  onOpenFareEngine?: () => void;
+  onOpenSimpleFareEngine?: () => void;
+  onOpenAdvancedFareEngine?: () => void;
+  onOpenTravelStudio?: (initialTab?: 'video' | 'create-image' | 'edit-image') => void;
+  onFareSaved?: (config: CentralizedFareConfig) => void;
 }
 
 export interface FleetVehicle {
@@ -100,10 +110,121 @@ export const OwnerPortalModal: React.FC<OwnerPortalModalProps> = ({
   isOpen,
   onClose,
   onExitOwnerMode,
+  onOpenFareEngine,
+  onOpenSimpleFareEngine,
+  onOpenAdvancedFareEngine,
+  onOpenTravelStudio,
+  onFareSaved,
 }) => {
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'bookings' | 'fleet' | 'chauffeurs' | 'customers' | 'communications' | 'audit'
+    'dashboard' | 'bookings' | 'fleet' | 'chauffeurs' | 'customers' | 'communications' | 'audit' | 'fare-engine'
   >('dashboard');
+
+  // Fare Engine State
+  const [vehicleConfigs, setVehicleConfigs] = useState<Record<string, VehicleDynamicPricingConfig>>(() => {
+    const initial: Record<string, VehicleDynamicPricingConfig> = {};
+    const ids = ['sedan-4-1', 'suv-6-1', 'innova', 'innova-crysta', 'tempo-traveller-12-1'];
+    ids.forEach((id) => {
+      initial[id] = fareService.getConfigSync(id);
+    });
+    return initial;
+  });
+  const [savingVehicles, setSavingVehicles] = useState(false);
+  const [fareSaveSuccessMsg, setFareSaveSuccessMsg] = useState<string | null>(null);
+
+  const loadFareConfigs = async () => {
+    try {
+      const configs = await fareService.getConfigs();
+      const map: Record<string, VehicleDynamicPricingConfig> = {};
+      configs.forEach((c) => {
+        map[c.vehicleId] = c;
+      });
+      const ids = ['sedan-4-1', 'suv-6-1', 'innova', 'innova-crysta', 'tempo-traveller-12-1'];
+      const filtered: Record<string, VehicleDynamicPricingConfig> = {};
+      ids.forEach((id) => {
+        filtered[id] = map[id] || fareService.getConfigSync(id);
+      });
+      setVehicleConfigs(filtered);
+    } catch (e) {
+      console.warn('Error loading fare configs:', e);
+    }
+  };
+
+  const handleUpdateVehicleField = (
+    vehicleId: string,
+    bookingType: 'ONE_WAY' | 'ROUND_TRIP' | 'LOCAL' | 'AIRPORT_TRANSFER',
+    field: string,
+    val: number
+  ) => {
+    setVehicleConfigs((prev) => {
+      const existing = prev[vehicleId] || fareService.getConfigSync(vehicleId);
+      return {
+        ...prev,
+        [vehicleId]: {
+          ...existing,
+          pricingByBookingType: {
+            ...existing.pricingByBookingType,
+            [bookingType]: {
+              ...existing.pricingByBookingType[bookingType],
+              [field]: val,
+            },
+          },
+        },
+      };
+    });
+  };
+
+  const handleUpdateVehicleConfig = (
+    vehicleId: string,
+    updatedConfig: VehicleDynamicPricingConfig
+  ) => {
+    setVehicleConfigs((prev) => ({
+      ...prev,
+      [vehicleId]: updatedConfig,
+    }));
+  };
+
+  const handleSaveAllFares = async () => {
+    setSavingVehicles(true);
+    try {
+      for (const [id, cfg] of Object.entries(vehicleConfigs)) {
+        await fareService.updateConfig(id, cfg, 'Owner Portal Administrator');
+      }
+      const successMsg = 'Fare updated successfully. New pricing is now active across the website and mobile app.';
+      setFareSaveSuccessMsg(successMsg);
+      setTimeout(() => setFareSaveSuccessMsg(null), 4000);
+      showFeedback(successMsg, 'success');
+      // Add audit log
+      setAuditLogs((prev) => [
+        {
+          id: `audit_${Date.now()}`,
+          actor: 'Owner Administrator',
+          action: 'PUBLISH_FARES',
+          details: 'Published new fare pricing across all 5 vehicle categories and services',
+          timestamp: new Date().toISOString(),
+        },
+        ...prev,
+      ]);
+    } catch (e: any) {
+      showFeedback(`Failed saving rates: ${e.message}`, 'error');
+    } finally {
+      setSavingVehicles(false);
+    }
+  };
+
+  const handleResetVehicle = async (vehicleId: string) => {
+    try {
+      await fareService.resetToDefaults(vehicleId);
+      const updated = fareService.getConfigSync(vehicleId);
+      setVehicleConfigs((prev) => ({
+        ...prev,
+        [vehicleId]: updated,
+      }));
+      showFeedback(`Reset ${vehicleId} rates to default factory values.`, 'success');
+    } catch (e: any) {
+      showFeedback(`Reset failed: ${e.message}`, 'error');
+    }
+  };
 
   // Core Data Stores
   const [bookings, setBookings] = useState<BookingRequest[]>([]);
@@ -148,6 +269,24 @@ export const OwnerPortalModal: React.FC<OwnerPortalModalProps> = ({
 
   const [bookingToDelete, setBookingToDelete] = useState<{ referenceId: string; passengerName: string } | null>(null);
   const [isDeletingBooking, setIsDeletingBooking] = useState(false);
+
+  const [purgeConfirmOpen, setPurgeConfirmOpen] = useState(false);
+  const [isPurgingData, setIsPurgingData] = useState(false);
+
+  const handlePurgeUnnecessaryData = async () => {
+    setIsPurgingData(true);
+    try {
+      await fareService.purgeUnnecessaryData();
+      await refreshAllData();
+      await loadFareConfigs();
+      setPurgeConfirmOpen(false);
+      showFeedback('All unnecessary data, mock communications, and stale logs successfully purged.', 'success');
+    } catch (e: any) {
+      showFeedback(`Purge failed: ${e.message}`, 'error');
+    } finally {
+      setIsPurgingData(false);
+    }
+  };
 
   const [feedbackMessage, setFeedbackMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
 
@@ -266,6 +405,7 @@ export const OwnerPortalModal: React.FC<OwnerPortalModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       refreshAllData();
+      loadFareConfigs();
     }
   }, [isOpen]);
 
@@ -631,6 +771,29 @@ export const OwnerPortalModal: React.FC<OwnerPortalModalProps> = ({
             <div className="flex items-center gap-2">
               <button
                 type="button"
+                id="portal-header-fare-engine-btn"
+                onClick={onOpenFareEngine || onOpenSimpleFareEngine || onOpenAdvancedFareEngine}
+                className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95"
+                title="Open Dedicated Fare & Price Engine (Local, One Way, Round Trip, Airport)"
+              >
+                <Zap className="w-3.5 h-3.5 fill-slate-950 text-slate-950" />
+                <span>FARE & PRICE ENGINE</span>
+              </button>
+
+              {onOpenTravelStudio && (
+                <button
+                  type="button"
+                  onClick={() => onOpenTravelStudio('video')}
+                  className="px-3 py-1.5 bg-[#032014] hover:bg-[#073826] text-[#14CD03] border border-emerald-700/60 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  title="Launch Travel Studio (Veo 3.1 Video & Destination Imagery)"
+                >
+                  <Film className="w-3.5 h-3.5" />
+                  <span>Travel Studio (AI)</span>
+                </button>
+              )}
+
+              <button
+                type="button"
                 onClick={refreshAllData}
                 disabled={isLoading}
                 className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors text-xs flex items-center gap-1.5 font-bold cursor-pointer"
@@ -745,6 +908,19 @@ export const OwnerPortalModal: React.FC<OwnerPortalModalProps> = ({
             >
               <ShieldCheck className="w-4 h-4" />
               <span>Audit Log</span>
+            </button>
+
+            <button
+              id="owner-tab-fare-engine"
+              onClick={() => setActiveTab('fare-engine')}
+              className={`px-3.5 py-2 rounded-xl font-extrabold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer shadow-xs ${
+                activeTab === 'fare-engine'
+                  ? 'bg-amber-400 text-slate-950 shadow-md ring-2 ring-amber-300'
+                  : 'text-amber-300 hover:text-white hover:bg-white/10 bg-amber-500/10 border border-amber-500/30'
+              }`}
+            >
+              <Zap className="w-4 h-4 fill-current" />
+              <span>Fare Engine & Rates</span>
             </button>
           </div>
         </div>
@@ -919,6 +1095,42 @@ export const OwnerPortalModal: React.FC<OwnerPortalModalProps> = ({
                         Operational
                       </span>
                     </div>
+
+                    {/* Price & Fare Engine Quick Access Card */}
+                    <div className="p-3.5 rounded-xl bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-950 text-white border border-emerald-700/50 space-y-2.5 shadow-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-extrabold text-xs text-white flex items-center gap-1.5">
+                          <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+                          PRICE and FARE ENGINE
+                        </span>
+                        <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-bold px-1.5 py-0.5 rounded border border-emerald-500/40">
+                          5 Vehicles • 4 Trip Types
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-300 leading-snug">
+                        SEDAN (4+1), SUV (6+1), INNOVA, INNOVA CRYSTA, and TEMPO TRAVELLER (12+1) with distinct pricing across LOCAL, ONE WAY, ROUND TRIP, and AIRPORT.
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <button
+                          type="button"
+                          id="portal-dashboard-simple-fare-btn"
+                          onClick={onOpenSimpleFareEngine || onOpenFareEngine}
+                          className="py-2 px-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                        >
+                          <Zap className="w-3.5 h-3.5 fill-current text-amber-300" />
+                          <span>Simple Fare</span>
+                        </button>
+                        <button
+                          type="button"
+                          id="portal-dashboard-advanced-fare-btn"
+                          onClick={onOpenAdvancedFareEngine || onOpenFareEngine}
+                          className="py-2 px-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                        >
+                          <Sliders className="w-3.5 h-3.5 text-indigo-200" />
+                          <span>Advanced Fare</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="pt-2">
@@ -930,6 +1142,131 @@ export const OwnerPortalModal: React.FC<OwnerPortalModalProps> = ({
                       <span>Manage Live Bookings & Dispatch</span>
                     </button>
                   </div>
+                </div>
+              </div>
+
+              {/* ONE-WAY FIXED PRICE CORRIDORS (OWNER PORTAL EXCLUSIVE) */}
+              <div className="bg-white rounded-2xl border border-emerald-200 p-5 shadow-xs space-y-4 bg-gradient-to-br from-emerald-50/40 via-teal-50/20 to-white">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-100 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-700 text-white flex items-center justify-center font-black text-base shadow-xs">
+                      ₹
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-extrabold text-sm text-slate-900">
+                          One-Way Fixed Price Corridors
+                        </h3>
+                        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300 shadow-2xs">
+                          Active & Guaranteed
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        Owner-only pricing overview for designated point-to-point one-way routes (isolated from dynamic engine comparison)
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab('fare-engine')}
+                    className="text-xs font-bold text-emerald-800 hover:text-emerald-950 flex items-center gap-1 cursor-pointer bg-white px-3 py-1.5 rounded-xl border border-emerald-200 shadow-2xs hover:bg-emerald-50 transition-colors"
+                  >
+                    <span>Fare Engine Settings</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Corridor 1: Mysuru <-> Kempegowda Airport T1 or T2 */}
+                  {(() => {
+                    const c1 = fareService.getCentralizedConfigSync().fixedCorridors?.MYSURU_KIA_AIRPORT;
+                    const c2 = fareService.getCentralizedConfigSync().fixedCorridors?.MYSURU_BENGALURU_CITY;
+                    const c1Rates = c1?.rates || {
+                      'sedan-4-1': 2899,
+                      'suv-6-1': 3910,
+                      'innova': 4299,
+                      'innova-crysta': 4610,
+                    };
+                    const c2Rates = c2?.rates || {
+                      'sedan-4-1': 2599,
+                      'suv-6-1': 3519,
+                      'innova': 3799,
+                      'innova-crysta': 4119,
+                    };
+                    return (
+                      <>
+                        <div className="p-4 rounded-xl bg-white border border-emerald-200 shadow-2xs space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <MapPin className="w-4 h-4 text-emerald-700 shrink-0" />
+                              <h4 className="text-xs font-extrabold text-slate-900">
+                                Mysuru ⇄ Kempegowda Airport (T1 / T2)
+                              </h4>
+                            </div>
+                            <span className="text-[10px] font-black text-emerald-850 bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded-md">
+                              DISTANCE~182 km
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 leading-relaxed">
+                            Terminal 1 & Terminal 2 direct transfers. Applies equally in both directions (Mysuru ⇄ KIA).
+                          </p>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                            <div className="bg-slate-50 border border-slate-200 p-2 rounded-lg text-center">
+                              <div className="text-[10px] text-slate-500 font-bold uppercase">Sedan (4+1)</div>
+                              <div className="text-sm font-black text-emerald-900 mt-0.5">₹{c1Rates['sedan-4-1']?.toLocaleString('en-IN')}</div>
+                            </div>
+                            <div className="bg-slate-50 border border-slate-200 p-2 rounded-lg text-center">
+                              <div className="text-[10px] text-slate-500 font-bold uppercase">SUV (6+1)</div>
+                              <div className="text-sm font-black text-emerald-900 mt-0.5">₹{c1Rates['suv-6-1']?.toLocaleString('en-IN')}</div>
+                            </div>
+                            <div className="bg-slate-50 border border-slate-200 p-2 rounded-lg text-center">
+                              <div className="text-[10px] text-slate-500 font-bold uppercase">INNOVA</div>
+                              <div className="text-sm font-black text-emerald-900 mt-0.5">₹{c1Rates['innova']?.toLocaleString('en-IN')}</div>
+                            </div>
+                            <div className="bg-slate-50 border border-slate-200 p-2 rounded-lg text-center">
+                              <div className="text-[10px] text-slate-500 font-bold uppercase">CRYSTA</div>
+                              <div className="text-sm font-black text-emerald-900 mt-0.5">₹{c1Rates['innova-crysta']?.toLocaleString('en-IN')}</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Corridor 2: Mysuru <-> Bengaluru City */}
+                        <div className="p-4 rounded-xl bg-white border border-emerald-200 shadow-2xs space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <MapPin className="w-4 h-4 text-emerald-700 shrink-0" />
+                              <h4 className="text-xs font-extrabold text-slate-900">
+                                Mysuru ⇄ Bengaluru City
+                              </h4>
+                            </div>
+                            <span className="text-[10px] font-black text-emerald-850 bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded-md">
+                              DISTANCE~149 km limit
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 leading-relaxed">
+                            Bengaluru city limits (Majestic, MG Road, etc.). Applies equally in both directions (Mysuru ⇄ Bengaluru).
+                          </p>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                            <div className="bg-slate-50 border border-slate-200 p-2 rounded-lg text-center">
+                              <div className="text-[10px] text-slate-500 font-bold uppercase">Sedan (4+1)</div>
+                              <div className="text-sm font-black text-emerald-900 mt-0.5">₹{c2Rates['sedan-4-1']?.toLocaleString('en-IN')}</div>
+                            </div>
+                            <div className="bg-slate-50 border border-slate-200 p-2 rounded-lg text-center">
+                              <div className="text-[10px] text-slate-500 font-bold uppercase">SUV (6+1)</div>
+                              <div className="text-sm font-black text-emerald-900 mt-0.5">₹{c2Rates['suv-6-1']?.toLocaleString('en-IN')}</div>
+                            </div>
+                            <div className="bg-slate-50 border border-slate-200 p-2 rounded-lg text-center">
+                              <div className="text-[10px] text-slate-500 font-bold uppercase">INNOVA</div>
+                              <div className="text-sm font-black text-emerald-900 mt-0.5">₹{c2Rates['innova']?.toLocaleString('en-IN')}</div>
+                            </div>
+                            <div className="bg-slate-50 border border-slate-200 p-2 rounded-lg text-center">
+                              <div className="text-[10px] text-slate-500 font-bold uppercase">CRYSTA</div>
+                              <div className="text-sm font-black text-emerald-900 mt-0.5">₹{c2Rates['innova-crysta']?.toLocaleString('en-IN')}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
@@ -1634,6 +1971,13 @@ export const OwnerPortalModal: React.FC<OwnerPortalModalProps> = ({
               </div>
             </div>
           )}
+
+          {/* TAB 9: FARE ENGINE & RATE CARDS */}
+          {activeTab === 'fare-engine' && (
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden min-h-[600px] flex flex-col">
+              <AdvancedFareEngine isOwner={true} onFareSaved={onFareSaved} />
+            </div>
+          )}
         </div>
 
         {/* Chauffeur Delete Confirmation Modal */}
@@ -1765,6 +2109,57 @@ export const OwnerPortalModal: React.FC<OwnerPortalModalProps> = ({
                     <Trash2 className="w-3.5 h-3.5" />
                   )}
                   <span>{isDeletingBooking ? 'Deleting...' : 'Confirm Delete'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Purge Unnecessary Data Confirmation Modal */}
+        {purgeConfirmOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 animate-in fade-in">
+            <div className="bg-white rounded-2xl max-w-sm w-full p-5 border border-slate-200 shadow-xl space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-sm text-slate-900">Purge Unnecessary Data?</h4>
+                  <p className="text-xs text-slate-500">Clean database & reset stale logs</p>
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs text-slate-700 leading-relaxed space-y-2">
+                <p>This action will:</p>
+                <ul className="list-disc list-inside space-y-1 text-slate-600">
+                  <li>Wipe obsolete mock communications and logs</li>
+                  <li>Clear old test customer accounts and stale OTPs</li>
+                  <li>Reset all fare engine rates to authoritative defaults</li>
+                  <li>Purge temporary browser cached rates</li>
+                </ul>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  disabled={isPurgingData}
+                  onClick={() => setPurgeConfirmOpen(false)}
+                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isPurgingData}
+                  onClick={handlePurgeUnnecessaryData}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white rounded-xl font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-60"
+                >
+                  {isPurgingData ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-3.5 h-3.5" />
+                  )}
+                  <span>{isPurgingData ? 'Purging...' : 'Confirm Purge'}</span>
                 </button>
               </div>
             </div>

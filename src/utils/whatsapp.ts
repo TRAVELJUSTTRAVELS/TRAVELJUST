@@ -395,7 +395,10 @@ export function formatBookingConfirmationMessage(payload: BookingWhatsAppPayload
     `   • *Vehicle:* ${selectedVehicle.name} (${selectedVehicle.category})`,
     `   • *Est. Distance:* ${distanceStr}`,
     `   • *Est. Duration:* ${durationStr}`,
-    `   • *Estimated Fare:* ₹${fareStr}${fareDiscountNote}`,
+    `   • *Estimated Fare:* ₹${fareStr}${fareDiscountNote}${estimatedFare?.isFixedPrice ? ' (Guaranteed Fixed Rate)' : ''}`,
+    ...(estimatedFare?.isFixedPrice && estimatedFare.fixedRouteName
+      ? [`   • *Rate Type:* Special One-Way Fixed Price (${estimatedFare.fixedRouteName})`]
+      : []),
     '4. *You receive Chauffeur Details & Cab details on WhatsApp.*',
     '5. *Cab arrives at your pickup point at scheduled time.*',
     '',

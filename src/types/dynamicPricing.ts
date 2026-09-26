@@ -33,7 +33,9 @@ export type PricingModel =
   | 'TIME_ONLY'
   | 'DISTANCE_AND_TIME'
   | 'BASE_PLUS_DISTANCE'
-  | 'BASE_PLUS_TIME';
+  | 'BASE_PLUS_TIME'
+  | 'INTER_STATE_ONE_WAY'
+  | 'ONE_WAY_FIXED_CORRIDOR';
 
 export type RoundingRule = 'EXACT' | 'NEAREST_1' | 'NEAREST_10' | 'NEAREST_50';
 
@@ -87,10 +89,14 @@ export interface VehicleBookingPricing {
   extraPerKmRate: number;
   includedHours: number;
   hourlyRate: number;
+  perHourRate?: number;
   extraPerHourRate: number;
   driverAllowance: number;
   minimumKm: number;
+  minimumHours?: number; // Minimum hours for local booking
+  dailyMinimumKm?: number; // Daily minimum km for round trip booking (defaults to minimumKm or 300)
   minimumFare: number;
+  active?: boolean;
   pricingModel: PricingModel;
   timeRounding: TimeRoundingMethod;
   tollPolicy: PolicyType;
@@ -100,6 +106,10 @@ export interface VehicleBookingPricing {
   permitPolicy: PolicyType;
   permitFixedAmount: number;
   taxPercentage: number; // e.g. 5% GST
+  // Discount configuration
+  discountType?: 'PERCENTAGE' | 'FIXED' | 'NONE';
+  discountValue?: number; // e.g. 10 for 10% or 200 for ₹200
+  discountAmount?: number;
   // Dedicated INTER-STATE column/rule exclusively for ONE WAY bookings
   interStateCharge?: number; // e.g. ₹500 for Sedan, ₹700 for SUV
   interStatePerKmRate?: number; // e.g. ₹3/km for PER_KM mode
@@ -195,6 +205,10 @@ export interface FareSnapshot {
   durationHours: number;
   additionalCharges: number;
   subtotal?: number;
+  discountType?: 'PERCENTAGE' | 'FIXED' | 'NONE';
+  discountValue?: number;
+  discountAmount?: number;
+  originalFare?: number;
   roundingAdjustment?: number;
   totalFare: number;
   pricingVersion: number;
@@ -207,6 +221,8 @@ export interface FareSnapshot {
   interStateCharge?: number;
   interStateRate?: number;
   interStateAppliedRule?: string;
+  roundTripDays?: number;
+  dailyMinimumKm?: number;
 }
 
 export interface DynamicFareCalculationResult {
@@ -243,6 +259,11 @@ export interface DynamicFareCalculationResult {
   permits: number;
   additionalCharges: number;
   subtotal?: number;
+  discountType?: 'PERCENTAGE' | 'FIXED' | 'NONE';
+  discountValue?: number;
+  discountAmount?: number;
+  discountLabel?: string;
+  originalFare?: number;
   minimumFareApplied: boolean;
   unroundedFare: number;
   roundingAdjustment?: number;
@@ -254,6 +275,8 @@ export interface DynamicFareCalculationResult {
   engineType?: FareEngineType;
   engineName?: string;
   engineDescription?: string;
+  roundTripDays?: number;
+  dailyMinimumKm?: number;
 }
 
 export interface DualEngineFareComparison {

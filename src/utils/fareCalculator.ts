@@ -1,7 +1,17 @@
 import { BookingSearchState, Vehicle, PricingConfig, FareEstimate } from '../types';
 import { BookingTypeCategory } from '../types/dynamicPricing';
-import { calculateDynamicFare } from './dynamicFareEngine';
+import { calculateDynamicFare, detectIndianState } from './dynamicFareEngine';
 import { fareService } from '../services/fareService';
+import {
+  calculateInterStateFare,
+  DEFAULT_CENTRALIZED_FARE_CONFIG,
+  getVehicleMeta,
+} from './centralFareEngine';
+import { FareVehicleId } from '../types/fareEngine';
+import {
+  matchOneWayFixedCorridor,
+  calculateOneWayFixedFare,
+} from './oneWayFixedCorridors';
 
 /**
  * Calculates the inclusive number of days for a round trip.
@@ -67,6 +77,16 @@ export function calculateFare(
     bookingType = 'AIRPORT_TRANSFER';
   }
 
+  // CRITICAL REQUIREMENT:
+  // ONLY IN ONE WAY fixed prices for mentioned destinations (Mysuru, Kempegowda International Airport Terminal 1, Terminal 2, Bengaluru city)
+  // "dont compare with FARE & PRICE ENGINE"
+  if (search.serviceType === 'oneway') {
+    const matchedCorridor = matchOneWayFixedCorridor(search);
+    if (matchedCorridor) {
+      return calculateOneWayFixedFare(matchedCorridor, vehicle, search);
+    }
+  }
+
   const hasRouteInfo =
     (search.routeInfo &&
       typeof search.routeInfo.distanceKm === 'number' &&
@@ -129,8 +149,98 @@ export function calculateFare(
     ? `${search.dropLocationObj.formattedAddress || ''} ${search.dropLocationObj.city || ''} ${search.dropLocationObj.state || ''}`
     : undefined;
 
-  const originState = search.pickupLocationObj?.state || search.routeInfo?.interstateStates?.fromState;
-  const destinationState = search.dropLocationObj?.state || search.routeInfo?.interstateStates?.toState;
+  const detectedOriginState =
+    search.pickupLocationObj?.state ||
+    search.routeInfo?.interstateStates?.fromState ||
+    detectIndianState(search.pickupLocation, search.pickupLocationObj);
+  const detectedDestinationState =
+    search.dropLocationObj?.state ||
+    search.routeInfo?.interstateStates?.toState ||
+    detectIndianState(search.dropLocation, search.dropLocationObj);
+
+  const originState = detectedOriginState || undefined;
+  const destinationState = detectedDestinationState || undefined;
+
+  // STRICT PRIORITY RULE:
+  // IF Trip Type = ONE-WAY or INTER-STATE:
+  //     IF Trip Type = INTER-STATE OR (Pickup State ≠ Drop State):
+  //         USE INTER-STATE ONE-WAY FARE ENGINE
+  //     ELSE:
+  //         USE NORMAL ONE-WAY FARE ENGINE
+  const isInterStateOneWay =
+    search.serviceType === 'oneway' &&
+    Boolean(detectedOriginState && detectedDestinationState && detectedOriginState !== detectedDestinationState);
+
+  if (isInterStateOneWay) {
+    const centralized = fareService.getCentralizedConfigSync();
+    const vId = vehicle.id as FareVehicleId;
+    const isPricing =
+      centralized.interStateOneWay?.[vId] ||
+      DEFAULT_CENTRALIZED_FARE_CONFIG.interStateOneWay[vId] ||
+      DEFAULT_CENTRALIZED_FARE_CONFIG.interStateOneWay['sedan-4-1'];
+
+    const calc = calculateInterStateFare(
+      isPricing,
+      distanceKm,
+      getVehicleMeta(vehicle.id),
+      detectedOriginState,
+      detectedDestinationState
+    );
+
+    return {
+      estimatedDistanceKm: Math.round(calc.distanceKm),
+      exactDistanceKm: distanceKm,
+      estimatedDurationHours: Math.round((durationMinutes / 60) * 10) / 10,
+      baseFareAmount: calc.baseFare,
+      distanceFareAmount: calc.kmCharge + calc.extraKmCharge,
+      durationFareAmount: calc.driverAllowance,
+      driverAllowanceAmount: calc.driverAllowance,
+      tollEstimate: isPricing.includeTolls ? isPricing.tollCharges : 0,
+      interstatePermitEstimate: isPricing.includePermit ? isPricing.permitStateTaxCharges : 0,
+      nightChargeAmount: 0,
+      passengerSurchargeAmount: 0,
+      airportSurchargeAmount: 0,
+      totalEstimatedFare: calc.finalFare,
+      originalFare: calc.originalFare !== calc.finalFare ? calc.originalFare : undefined,
+      discountPercentage: isPricing.discountType === 'PERCENTAGE' ? isPricing.discountValue : undefined,
+      discountAmount: calc.discountAmount > 0 ? calc.discountAmount : undefined,
+      discountLabel: calc.discountLabel,
+      includedMinKm: isPricing.minimumBillableKm,
+      isValid: true,
+      breakdown: calc.breakdown.map((b) => ({ label: b.label, amount: b.amount })),
+      isInterState: true,
+      originState: detectedOriginState,
+      destinationState: detectedDestinationState,
+      pricingModel: 'INTER_STATE_ONE_WAY',
+      fareSnapshot: {
+        vehicleId: vehicle.id,
+        vehicleType: vehicle.name,
+        pricingVersion: 2,
+        pricingModel: 'INTER_STATE_ONE_WAY',
+        baseFare: calc.baseFare,
+        perKmRate: isPricing.perKmRate,
+        extraPerKmRate: isPricing.extraPerKmRate,
+        includedKm: isPricing.includedKm || 0,
+        includedHours: 0,
+        hourlyRate: 0,
+        extraPerHourRate: 0,
+        driverAllowance: calc.driverAllowance,
+        distanceKm: calc.distanceKm,
+        durationMinutes: 0,
+        durationHours: 0,
+        additionalCharges:
+          (isPricing.includeTolls ? isPricing.tollCharges : 0) +
+          (isPricing.includePermit ? isPricing.permitStateTaxCharges : 0) +
+          (isPricing.includeStateEntry ? isPricing.stateEntryCharges : 0) +
+          (isPricing.includeOtherCharges ? isPricing.otherCharges : 0),
+        totalFare: calc.finalFare,
+        currency: 'INR',
+        timestamp: new Date().toISOString(),
+        originState: detectedOriginState,
+        destinationState: detectedDestinationState,
+      },
+    };
+  }
 
   // Execute the authoritative Dynamic Fare Engine
   const result = calculateDynamicFare({

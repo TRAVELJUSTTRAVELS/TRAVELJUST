@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, ShieldCheck, Clock, Award, CheckCircle2, Sparkles, Plane } from 'lucide-react';
+import { ArrowRight, ShieldCheck, IndianRupee, Award, CheckCircle2, Sparkles, Plane, Car } from 'lucide-react';
 
 interface HeroProps {
   onBookRideClick: () => void;
@@ -8,7 +8,10 @@ interface HeroProps {
 
 export const Hero: React.FC<HeroProps> = ({ onBookRideClick, onGetQuoteClick }) => {
   return (
-    <section id="home" className="relative pt-28 pb-12 md:pt-36 md:pb-16 bg-gradient-to-b from-emerald-50/60 via-slate-50/50 to-white overflow-hidden">
+    <section
+      id="home"
+      className="relative pt-28 pb-12 md:pt-36 md:pb-16 bg-gradient-to-b from-emerald-50/60 via-slate-50/50 to-white overflow-hidden scroll-mt-0"
+    >
       {/* Decorative subtle background grid elements */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#04785708_1px,transparent_1px),linear-gradient(to_bottom,#04785708_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none" />
 
@@ -32,8 +35,8 @@ export const Hero: React.FC<HeroProps> = ({ onBookRideClick, onGetQuoteClick }) 
             </div>
 
             <div className="flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold text-slate-700 bg-[#ECFDF5] py-2.5 px-3 rounded-lg border border-emerald-100 shadow-2xs">
-              <Clock className="w-4 h-4 text-emerald-800 shrink-0" />
-              <span>Punctual Service</span>
+              <IndianRupee className="w-4 h-4 text-emerald-800 shrink-0" />
+              <span>Transparent Pricing</span>
             </div>
 
             <div className="flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold text-slate-700 bg-[#ECFDF5] py-2.5 px-3 rounded-lg border border-emerald-100 shadow-2xs">
@@ -42,8 +45,8 @@ export const Hero: React.FC<HeroProps> = ({ onBookRideClick, onGetQuoteClick }) 
             </div>
 
             <div className="flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold text-slate-700 bg-[#ECFDF5] py-2.5 px-3 rounded-lg border border-emerald-100 shadow-2xs">
-              <Plane className="w-4 h-4 text-emerald-800 shrink-0" />
-              <span>Airport Transfers</span>
+              <Car className="w-4 h-4 text-emerald-800 shrink-0" />
+              <span>Doorstep Pickup</span>
             </div>
           </div>
         </div>

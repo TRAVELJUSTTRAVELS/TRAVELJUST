@@ -29,6 +29,7 @@ import {
   Printer,
   ChevronDown,
   ChevronUp,
+  Film,
 } from 'lucide-react';
 import {
   GroundedPlace,
@@ -108,11 +109,13 @@ const CATEGORY_PROMPTS = [
 interface ContactAIChatProps {
   onBookRideClick?: () => void;
   onApplyBookingPlan?: (plan: BookingDraftPlan) => void;
+  onOpenTravelStudio?: (initialTab?: 'video' | 'create-image' | 'edit-image') => void;
 }
 
 export const ContactAIChat: React.FC<ContactAIChatProps> = ({
   onBookRideClick,
   onApplyBookingPlan,
+  onOpenTravelStudio,
 }) => {
   const [selectedCategoryIndex, setSelectedCategoryIndex] = useState(0);
   const [modelTier, setModelTier] = useState<AIModelTier>('auto');
@@ -633,6 +636,19 @@ Ask about any itinerary, real-time expressway toll rates, or upload a ticket for
 
           {/* Quick Toolbar */}
           <div className="flex items-center gap-1.5 shrink-0">
+            {/* Travel Studio Button */}
+            {onOpenTravelStudio && (
+              <button
+                type="button"
+                onClick={() => onOpenTravelStudio('video')}
+                className="px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 bg-[#0ef10e] hover:bg-[#0cf00c] text-[#0a4d3c] shadow-2xs cursor-pointer select-none"
+                title="Open Travel Studio: Generate Veo Videos and AI Destination Posters"
+              >
+                <Film className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span className="hidden sm:inline">Studio</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => setShowConfigDrawer((v) => !v)}
@@ -678,39 +694,54 @@ Ask about any itinerary, real-time expressway toll rates, or upload a ticket for
               <label className="text-[10px] uppercase font-bold text-emerald-300 block mb-1">
                 Gemini Model Tier
               </label>
-              <div className="grid grid-cols-3 gap-1">
+              <div className="grid grid-cols-4 gap-1">
                 <button
                   type="button"
                   onClick={() => setModelTier('auto')}
-                  className={`py-1 px-1.5 rounded text-[10px] font-bold text-center transition-all ${
+                  className={`py-1 px-1 rounded text-[9px] font-bold text-center transition-all ${
                     modelTier === 'auto'
                       ? 'bg-emerald-400 text-slate-950 shadow-2xs'
                       : 'bg-emerald-900/60 text-emerald-200 hover:bg-emerald-800'
                   }`}
+                  title="Auto router selects the best model based on task complexity"
                 >
                   ⚡ Auto
                 </button>
                 <button
                   type="button"
                   onClick={() => setModelTier('gemini-3.1-pro-preview')}
-                  className={`py-1 px-1.5 rounded text-[10px] font-bold text-center transition-all ${
+                  className={`py-1 px-1 rounded text-[9px] font-bold text-center transition-all ${
                     modelTier === 'gemini-3.1-pro-preview'
                       ? 'bg-emerald-400 text-slate-950 shadow-2xs'
                       : 'bg-emerald-900/60 text-emerald-200 hover:bg-emerald-800'
                   }`}
+                  title="Gemini 3.1 Pro Preview: For complex itineraries and deep reasoning"
                 >
                   🧠 3.1 Pro
                 </button>
                 <button
                   type="button"
-                  onClick={() => setModelTier('gemini-3.8-flash')}
-                  className={`py-1 px-1.5 rounded text-[10px] font-bold text-center transition-all ${
-                    modelTier === 'gemini-3.8-flash'
+                  onClick={() => setModelTier('gemini-3.5-flash')}
+                  className={`py-1 px-1 rounded text-[9px] font-bold text-center transition-all ${
+                    modelTier === 'gemini-3.5-flash'
                       ? 'bg-emerald-400 text-slate-950 shadow-2xs'
                       : 'bg-emerald-900/60 text-emerald-200 hover:bg-emerald-800'
                   }`}
+                  title="Gemini 3.5 Flash: For general queries and search/maps grounding"
                 >
-                  ⚡ Flash
+                  ✨ 3.5 Flash
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModelTier('gemini-3.1-flash-lite')}
+                  className={`py-1 px-1 rounded text-[9px] font-bold text-center transition-all ${
+                    modelTier === 'gemini-3.1-flash-lite'
+                      ? 'bg-emerald-400 text-slate-950 shadow-2xs'
+                      : 'bg-emerald-900/60 text-emerald-200 hover:bg-emerald-800'
+                  }`}
+                  title="Gemini 3.1 Flash Lite: Ultra-fast responsive answers"
+                >
+                  ⚡ Lite
                 </button>
               </div>
             </div>

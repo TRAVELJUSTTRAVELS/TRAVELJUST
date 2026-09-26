@@ -1,5 +1,5 @@
 import React from 'react';
-import { Compass, ShieldCheck, Phone, Mail, Lock, Database, User, Car, Globe, MessageSquare, Zap } from 'lucide-react';
+import { Compass, ShieldCheck, Phone, Mail, Lock, Database, User, Globe, MessageSquare, Zap } from 'lucide-react';
 import { siteConfig } from '../config/siteConfig';
 import { CustomerUser } from '../types';
 
@@ -133,22 +133,10 @@ export const Footer: React.FC<FooterProps> = ({
                   </button>
                 </li>
               )}
-              {onOpenPartnerDrawer && (
-                <li>
-                  <button
-                    type="button"
-                    onClick={onOpenPartnerDrawer}
-                    className="text-emerald-400 hover:text-emerald-300 font-semibold transition-colors flex items-center gap-1.5 text-left cursor-pointer w-full"
-                  >
-                    <Car className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Attach Cab / Partner With Us</span>
-                  </button>
-                </li>
-              )}
             </ul>
           </div>
 
-          {/* Services Offered & Driver Partner Card */}
+          {/* Services Offered */}
           <div className="lg:col-span-4 space-y-4">
             <div className="space-y-3">
               <h4 className="font-bold text-white text-xs uppercase tracking-wider">Services</h4>
@@ -171,34 +159,6 @@ export const Footer: React.FC<FooterProps> = ({
                 </li>
               </ul>
             </div>
-
-            {/* Driver Partner Callout Banner */}
-            {onOpenPartnerDrawer && (
-              <div className="bg-emerald-950/70 border border-emerald-800/80 rounded-2xl p-3.5 space-y-2.5">
-                <div className="flex items-start gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-emerald-800 text-emerald-300 flex items-center justify-center shrink-0 mt-0.5">
-                    <Car className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="text-white font-bold text-xs block">
-                      Drive With TRAVEL JUST
-                    </span>
-                    <span className="text-[11px] text-emerald-200/80 leading-relaxed block">
-                      Attach your commercial cab in Mysore, Bangalore & across Karnataka.
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={onOpenPartnerDrawer}
-                  className="w-full bg-[#0a4d3c] hover:bg-[#07382c] text-emerald-300 border border-emerald-600/50 font-extrabold text-xs py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
-                >
-                  <Car className="w-3.5 h-3.5" />
-                  <span>Attach Your Cab / Partner</span>
-                </button>
-              </div>
-            )}
           </div>
         </div>
 

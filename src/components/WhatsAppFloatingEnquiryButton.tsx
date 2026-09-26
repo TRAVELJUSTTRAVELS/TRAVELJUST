@@ -27,6 +27,7 @@ import {
   WhatsAppBookingEnquiryPayload,
 } from '../utils/whatsapp';
 import { vehiclesData } from '../data/vehicles';
+import { isTimeInPastForDate } from '../utils/timeValidation';
 
 export interface WhatsAppFloatingEnquiryButtonProps {
   searchState: BookingSearchState | null;
@@ -132,6 +133,15 @@ export const WhatsAppFloatingEnquiryButton: React.FC<WhatsAppFloatingEnquiryButt
       triggerValidationError(
         'Pickup Time',
         'Please select your pickup time before contacting TRAVEL JUST on WhatsApp.',
+        'pickup-time-select'
+      );
+      return;
+    }
+
+    if (isTimeInPastForDate(travelDate, pickupTime)) {
+      triggerValidationError(
+        'Pickup Time',
+        'Pickup time cannot be in the past for today. Please select an upcoming pickup time.',
         'pickup-time-select'
       );
       return;

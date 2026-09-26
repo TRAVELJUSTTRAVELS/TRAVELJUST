@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import { DbBookingRecord } from '../components/RecentTripsSection';
+import { DbBookingRecord } from '../types';
 
 export function generateTripInvoicePdf(trip: DbBookingRecord) {
   const doc = new jsPDF({

@@ -6,6 +6,7 @@ import {
   ArrowRight,
   User,
   MapPin,
+  Film,
 } from 'lucide-react';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
@@ -22,17 +23,25 @@ import { LegalModal } from './components/LegalModal';
 import { OwnerAuthModal } from './components/OwnerAuthModal';
 import { CustomerPortalModal } from './components/CustomerPortalModal';
 import { OwnerPortalModal } from './components/OwnerPortalModal';
+import { FareEngineModal } from './components/FareEngineModal';
 import { DriverPartnerDrawer } from './components/DriverPartnerDrawer';
 import { DownloadAppModal } from './components/DownloadAppModal';
 import { CustomerAuthModal } from './components/CustomerAuthModal';
 import { TravelExpertPopupModal } from './components/TravelExpertPopupModal';
 import { MobileInstallBanner } from './components/MobileInstallBanner';
+import { InAppPushNotificationBanner } from './components/InAppPushNotificationBanner';
+import { ContactAIChat } from './components/ContactAIChat';
+import { TravelStudioModal } from './components/TravelStudioModal';
+import { OfflineIndicator } from './components/OfflineIndicator';
+import { saveSearchToServiceWorkerCache } from './services/searchCacheService';
 import { calculateRouteDistance } from './services/googleMapsService';
 import { getStoredCustomer, clearCustomerSession, saveCustomerSession } from './services/customerAuthService';
+import { auth, signOut, onAuthStateChanged, syncUserProfile } from './lib/firebase';
 import { calculateFare } from './utils/fareCalculator';
 import { saveBookingToSupabase } from './services/supabaseService';
 import { formatBookingConfirmationMessage, openWhatsAppChat } from './utils/whatsapp';
 import { siteConfig } from './config/siteConfig';
+import { fareService } from './services/fareService';
 import {
   BookingSearchState,
   Vehicle,
@@ -42,6 +51,7 @@ import {
   PassengerDetails,
   PlaceSuggestion,
   CustomerUser,
+  BookingDraftPlan,
 } from './types';
 import { defaultPricingConfig } from './config/siteConfig';
 import { vehiclesData } from './data/vehicles';
@@ -54,27 +64,11 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && parsed.vehiclePricing) {
-          if (!parsed.vehiclePricing['sedan-4-1']) {
-            parsed.vehiclePricing['sedan-4-1'] = defaultPricingConfig.vehiclePricing['sedan-4-1'];
-          }
-          if (!parsed.vehiclePricing['innova']) {
-            parsed.vehiclePricing['innova'] = defaultPricingConfig.vehiclePricing['innova'];
-          }
-          if (parsed.vehiclePricing['sedan-4-1']?.localPerKmRate === 12) {
-            parsed.vehiclePricing['sedan-4-1'].localPerKmRate = 13.0;
-            parsed.vehiclePricing['sedan-4-1'].perKmFare = 13.0;
-          }
-          if (parsed.vehiclePricing['toyota-etios']?.localPerKmRate === 12) {
-            parsed.vehiclePricing['toyota-etios'].localPerKmRate = 13.0;
-            parsed.vehiclePricing['toyota-etios'].perKmFare = 13.0;
-          }
-          if (parsed.vehiclePricing['swift-desire']?.localPerKmRate === 12) {
-            parsed.vehiclePricing['swift-desire'].localPerKmRate = 13.0;
-            parsed.vehiclePricing['swift-desire'].perKmFare = 13.0;
-          }
-          if (parsed.perKmFare === 12) {
-            parsed.perKmFare = 13.0;
-          }
+          Object.keys(defaultPricingConfig.vehiclePricing).forEach((vid) => {
+            if (!parsed.vehiclePricing[vid]) {
+              parsed.vehiclePricing[vid] = defaultPricingConfig.vehiclePricing[vid];
+            }
+          });
           return parsed;
         }
       }
@@ -106,20 +100,20 @@ export default function App() {
 
   const [ownerAuthModalOpen, setOwnerAuthModalOpen] = useState(false);
   const [ownerPortalModalOpen, setOwnerPortalModalOpen] = useState(false);
+  const [fareEngineModalOpen, setFareEngineModalOpen] = useState(false);
+  const [fareEngineInitialMode, setFareEngineInitialMode] = useState<'SIMPLE' | 'ADVANCED'>('SIMPLE');
   const [fareUpdateTrigger, setFareUpdateTrigger] = useState(0);
 
-  // Clear any residual fare engine data from storage
-  useEffect(() => {
-    try {
-      localStorage.removeItem('tj_dynamic_pricing_configs_v1');
-      localStorage.removeItem('tj_state_pair_rules_v1');
-      localStorage.removeItem('tj_fare_settings_v1');
-      localStorage.removeItem('tj_active_fare_engine');
-      localStorage.removeItem('tj_fare_audit_logs_v1');
-    } catch (e) {
-      // ignore
-    }
-  }, []);
+  const handleOpenSimpleFareEngine = () => {
+    setFareEngineInitialMode('SIMPLE');
+    setFareEngineModalOpen(true);
+  };
+
+  const handleOpenAdvancedFareEngine = () => {
+    setFareEngineInitialMode('ADVANCED');
+    setFareEngineModalOpen(true);
+  };
+
   const [searchState, setSearchState] = useState<BookingSearchState | null>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
@@ -128,6 +122,112 @@ export default function App() {
   const [downloadAppModalOpen, setDownloadAppModalOpen] = useState(false);
   const [customerAuthModalOpen, setCustomerAuthModalOpen] = useState(false);
   const [travelExpertModalOpen, setTravelExpertModalOpen] = useState(false);
+  const [travelStudioModalOpen, setTravelStudioModalOpen] = useState(false);
+  const [travelStudioInitialTab, setTravelStudioInitialTab] = useState<'video' | 'create-image' | 'edit-image'>('video');
+
+  const handleOpenTravelStudio = (tab: 'video' | 'create-image' | 'edit-image' = 'video') => {
+    setTravelStudioInitialTab(tab);
+    setTravelStudioModalOpen(true);
+  };
+
+  const handleApplyBookingPlan = (plan: BookingDraftPlan) => {
+    const today = new Date().toISOString().split('T')[0];
+    const serviceType: ServiceType = (plan.serviceType as ServiceType) || 'airport';
+    const draftState: BookingSearchState = {
+      serviceType,
+      pickupLocation: plan.pickupLocation || 'Mysuru, Karnataka',
+      dropLocation: plan.dropLocation || 'Kempegowda International Airport (BLR)',
+      travelDate: plan.travelDate || today,
+      pickupDate: plan.travelDate || today,
+      dropDate: today,
+      returnDate: today,
+      pickupTime: plan.pickupTime || '07:00 AM',
+      durationHours: plan.durationHours || 8,
+      airportTransferType: 'pickup',
+      passengers: plan.passengers || 2,
+      vehicleType: plan.vehicleType || 'all',
+    };
+    setSearchState(draftState);
+    handleScrollToBookingSearch();
+  };
+
+  // Listen for Live Instant Fare & Price Engine updates across all tabs & components
+  useEffect(() => {
+    const applyLiveFareUpdate = (updatedConfig: any) => {
+      setPricingConfig((prev) => {
+        const next = fareService.syncCentralizedToSitePricingConfig(updatedConfig, prev);
+        try {
+          localStorage.setItem('tj_pricing_config', JSON.stringify(next));
+        } catch (e) {
+          // ignore
+        }
+        return next;
+      });
+      setFareUpdateTrigger((prev) => prev + 1);
+    };
+
+    // Initial sync from fareService centralized config
+    const currentCentral = fareService.getCentralizedConfigSync();
+    if (currentCentral) {
+      applyLiveFareUpdate(currentCentral);
+    }
+
+    // Immediately fetch latest authoritative config from server/cloud (no-store cache)
+    fareService.getCentralizedConfig().then((fresh) => {
+      if (fresh) {
+        applyLiveFareUpdate(fresh);
+      }
+    }).catch(() => {});
+
+    // Subscribe to fareService directly
+    const unsubscribe = fareService.subscribe(applyLiveFareUpdate);
+
+    // Also listen to window custom event for cross-component triggers
+    const windowListener = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail) {
+        applyLiveFareUpdate(customEvent.detail);
+      } else {
+        const fresh = fareService.getCentralizedConfigSync();
+        applyLiveFareUpdate(fresh);
+      }
+    };
+    window.addEventListener('tj_fares_updated', windowListener);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('tj_fares_updated', windowListener);
+    };
+  }, []);
+
+  // Synchronize Firebase Auth state
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          const profile = await syncUserProfile(firebaseUser);
+          setCustomer((prev) => {
+            if (prev && prev.id === firebaseUser.uid) return prev;
+            const phoneDigits = firebaseUser.phoneNumber ? firebaseUser.phoneNumber.replace(/\D/g, '').slice(-10) : '';
+            const cUser: CustomerUser = {
+              id: firebaseUser.uid,
+              fullName: firebaseUser.displayName || profile.displayName || prev?.fullName || 'Google Passenger',
+              mobileNumber: phoneDigits || prev?.mobileNumber || '9876543210',
+              email: firebaseUser.email || profile.email || prev?.email || undefined,
+              createdAt: prev?.createdAt || new Date().toISOString(),
+              lastLoginAt: new Date().toISOString(),
+            };
+            saveCustomerSession(cUser);
+            return cUser;
+          });
+        } catch (err) {
+          console.warn('Firebase profile sync error:', err);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   // Trigger 24x7 Travel Expert popup after 30 seconds of website opening
   useEffect(() => {
@@ -148,6 +248,27 @@ export default function App() {
     }, 30000); // 30 seconds
 
     return () => clearTimeout(timer);
+  }, []);
+
+  // When app opens, ensure section#home is shown first
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if ('scrollRestoration' in window.history) {
+        window.history.scrollRestoration = 'manual';
+      }
+      if (window.location.hash && window.location.hash !== '#home') {
+        try {
+          window.history.replaceState(null, '', window.location.pathname);
+        } catch {
+          // ignore
+        }
+      }
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      const homeElem = document.getElementById('home');
+      if (homeElem) {
+        homeElem.scrollIntoView({ behavior: 'instant', block: 'start' });
+      }
+    }
   }, []);
 
   const handleCloseTravelExpertModal = () => {
@@ -180,6 +301,7 @@ export default function App() {
   };
 
   const handleCustomerLogout = () => {
+    signOut(auth).catch(() => {});
     clearCustomerSession();
     setCustomer(null);
     setCustomerPortalModalOpen(false);
@@ -204,7 +326,22 @@ export default function App() {
 
   const handleSearchSubmit = useCallback((state: BookingSearchState) => {
     setSearchState(state);
+    // Cache search details and pre-calculated fares to Service Worker Cache
+    saveSearchToServiceWorkerCache(state, pricingConfig).catch((err) => {
+      console.warn('Service Worker background search caching error:', err);
+    });
     // Smooth scroll to search results
+    setTimeout(() => {
+      const resultsElem = document.getElementById('search-results-anchor');
+      if (resultsElem) {
+        resultsElem.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 100);
+  }, [pricingConfig]);
+
+  const handleSelectCachedSearch = useCallback((cachedSearch: BookingSearchState) => {
+    setSearchState(cachedSearch);
+    setSelectedVehicle(null);
     setTimeout(() => {
       const resultsElem = document.getElementById('search-results-anchor');
       if (resultsElem) {
@@ -321,7 +458,7 @@ export default function App() {
       pickupDate: today,
       dropDate: today,
       returnDate: today,
-      pickupTime: '09:00',
+      pickupTime: '07:00 AM',
       durationHours: 8,
       airportTransferType: 'pickup',
       passengers: 2,
@@ -338,24 +475,35 @@ export default function App() {
     const vehicle = vehiclesData.find((v) => v.id === vehicleId) || vehiclesData[0];
     setSelectedVehicle(vehicle);
     const today = new Date().toISOString().split('T')[0];
+    const defaultServiceType =
+      vehicle.suitableServices && !vehicle.suitableServices.includes('oneway')
+        ? vehicle.suitableServices[0]
+        : 'oneway';
+
     if (!searchState) {
       setSearchState({
-        serviceType: 'oneway',
+        serviceType: defaultServiceType,
         pickupLocation: '',
         dropLocation: '',
         travelDate: today,
         pickupDate: today,
         dropDate: today,
         returnDate: today,
-        pickupTime: '09:00',
+        pickupTime: '07:00 AM',
         durationHours: 8,
         airportTransferType: 'pickup',
         passengers: Math.min(2, vehicle.seatingCapacity),
         vehicleType: vehicle.id,
       });
     } else {
+      const activeServiceType =
+        vehicle.suitableServices && !vehicle.suitableServices.includes(searchState.serviceType)
+          ? vehicle.suitableServices[0]
+          : searchState.serviceType;
+
       setSearchState({
         ...searchState,
+        serviceType: activeServiceType,
         vehicleType: vehicle.id,
       });
     }
@@ -401,7 +549,7 @@ export default function App() {
       pickupDate: today,
       dropDate: pastSearch.dropDate || today,
       returnDate: pastSearch.returnDate || today,
-      pickupTime: pastSearch.pickupTime || '09:00',
+      pickupTime: pastSearch.pickupTime || '07:00 AM',
       durationHours: pastSearch.durationHours || 8,
       airportTransferType: pastSearch.airportTransferType || 'pickup',
       passengers: pastSearch.passengers || 2,
@@ -430,6 +578,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans antialiased selection:bg-emerald-800 selection:text-white flex flex-col">
+      {/* Real-time PWA Offline Network Banner */}
+      <OfflineIndicator />
+
       {/* Header with Customer & Owner access */}
       <Header
         isOwner={isOwner}
@@ -437,6 +588,8 @@ export default function App() {
         onOpenOwnerLogin={() => setOwnerAuthModalOpen(true)}
         onExitOwnerMode={handleExitOwnerMode}
         onOpenFareEngine={() => setOwnerPortalModalOpen(true)}
+        onOpenSimpleFareEngine={handleOpenSimpleFareEngine}
+        onOpenAdvancedFareEngine={handleOpenAdvancedFareEngine}
         onOpenLegal={(type) => setLegalModalType(type)}
         customer={customer}
         onOpenCustomerPortal={() => setCustomerPortalModalOpen(true)}
@@ -444,6 +597,7 @@ export default function App() {
         onOpenDownloadApp={() => setDownloadAppModalOpen(true)}
         onOpenCustomerAuth={() => setCustomerAuthModalOpen(true)}
         onCustomerLogout={handleCustomerLogout}
+        onOpenTravelStudio={handleOpenTravelStudio}
       />
 
       {/* Main Page Layout */}
@@ -482,6 +636,7 @@ export default function App() {
                 }}
                 onProceedToBooking={() => handleDirectConfirmBooking()}
                 onClearSearch={handleResetSearch}
+                onSelectCachedSearch={handleSelectCachedSearch}
               />
             </section>
           )}
@@ -495,6 +650,48 @@ export default function App() {
 
         {/* Top Outstation & Airport Taxi Routes Directory Section */}
         <TopRoutesDirectorySection />
+
+        {/* AI Travel Concierge & Real-time Grounded Assistant Section - Visible ONLY in Owner Portal */}
+        {isOwner && (
+          <section id="ai-travel-concierge-section" className="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto scroll-mt-20">
+            <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-[#032014] text-[#14CD03] border border-emerald-700/60 shadow-2xs">
+                    Owner Portal Exclusive
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-900 border border-emerald-300">
+                    Google Search & Maps Grounding
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-purple-100 text-purple-900 border border-purple-300">
+                    Veo Video & Gemini 3.1 Studio
+                  </span>
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                  AI Travel Concierge & Creative Studio
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
+                  Chat with our real-time assistant powered by Gemini 3.1 Pro, 3.5 Flash, and 3.1 Flash Lite. Verify 2026 expressway tolls, plan multi-day Karnataka trips, or generate cinematic Veo videos and travel imagery.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleOpenTravelStudio('video')}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-[#0a4d3c] to-[#07382c] hover:brightness-110 text-white font-extrabold text-xs sm:text-sm shadow-md transition-all cursor-pointer shrink-0"
+              >
+                <Film className="w-4 h-4 text-[#0ef10e]" />
+                <span>Launch Travel Studio</span>
+              </button>
+            </div>
+
+            <ContactAIChat
+              onBookRideClick={handleScrollToBookingSearch}
+              onApplyBookingPlan={handleApplyBookingPlan}
+              onOpenTravelStudio={handleOpenTravelStudio}
+            />
+          </section>
+        )}
 
         {/* Why Choose Us Section */}
         <WhyChooseUs onOpenPartnerDrawer={() => setPartnerDrawerOpen(true)} />
@@ -587,6 +784,27 @@ export default function App() {
         isOpen={isOwner && ownerPortalModalOpen}
         onClose={() => setOwnerPortalModalOpen(false)}
         onExitOwnerMode={handleExitOwnerMode}
+        onOpenFareEngine={handleOpenSimpleFareEngine}
+        onOpenSimpleFareEngine={handleOpenSimpleFareEngine}
+        onOpenAdvancedFareEngine={handleOpenAdvancedFareEngine}
+        onOpenTravelStudio={handleOpenTravelStudio}
+        onFareSaved={(updated) => {
+          setPricingConfig((prev) => fareService.syncCentralizedToSitePricingConfig(updated, prev));
+          setFareUpdateTrigger((c) => c + 1);
+        }}
+      />
+
+      {/* Live Dynamic Fare Engine Modal (Accessible to Owner & Preview) */}
+      <FareEngineModal
+        isOpen={fareEngineModalOpen}
+        onClose={() => setFareEngineModalOpen(false)}
+        isOwner={isOwner}
+        initialMode={fareEngineInitialMode}
+        onOpenOwnerAuth={() => setOwnerAuthModalOpen(true)}
+        onFareSaved={(updated) => {
+          setPricingConfig((prev) => fareService.syncCentralizedToSitePricingConfig(updated, prev));
+          setFareUpdateTrigger((c) => c + 1);
+        }}
       />
 
       {/* 24x7 Travel Expert Popup Modal (opens after 30 seconds) */}
@@ -599,6 +817,20 @@ export default function App() {
       {/* Floating 1-Tap Mobile App Install Banner */}
       <MobileInstallBanner
         onOpenDetailedModal={() => setDownloadAppModalOpen(true)}
+      />
+
+      {/* Real-time Push Notification Alert Toast / Banner */}
+      <InAppPushNotificationBanner
+        onOpenRideDetails={() => {
+          setCustomerPortalModalOpen(true);
+        }}
+      />
+
+      {/* AI Creative Studio Modal (Veo 3.1 & Gemini Image Preview) */}
+      <TravelStudioModal
+        isOpen={travelStudioModalOpen}
+        onClose={() => setTravelStudioModalOpen(false)}
+        initialTab={travelStudioInitialTab}
       />
     </div>
   );

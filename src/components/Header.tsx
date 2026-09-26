@@ -15,6 +15,9 @@ import {
   UserCheck,
   Smartphone,
   Zap,
+  Sliders,
+  Film,
+  Sparkles,
 } from 'lucide-react';
 import { siteConfig } from '../config/siteConfig';
 import { CustomerUser } from '../types';
@@ -26,12 +29,15 @@ interface HeaderProps {
   onOpenOwnerLogin?: () => void;
   onExitOwnerMode?: () => void;
   onOpenFareEngine?: () => void;
+  onOpenSimpleFareEngine?: () => void;
+  onOpenAdvancedFareEngine?: () => void;
   customer?: CustomerUser | null;
   onOpenCustomerPortal?: () => void;
   onOpenPartnerDrawer?: () => void;
   onOpenDownloadApp?: () => void;
   onOpenCustomerAuth?: () => void;
   onCustomerLogout?: () => void;
+  onOpenTravelStudio?: (initialTab?: 'video' | 'create-image' | 'edit-image') => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -41,12 +47,15 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenOwnerLogin,
   onExitOwnerMode,
   onOpenFareEngine,
+  onOpenSimpleFareEngine,
+  onOpenAdvancedFareEngine,
   customer = null,
   onOpenCustomerPortal,
   onOpenPartnerDrawer,
   onOpenDownloadApp,
   onOpenCustomerAuth,
   onCustomerLogout,
+  onOpenTravelStudio,
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -78,10 +87,8 @@ export const Header: React.FC<HeaderProps> = ({
   const navLinks = isOwner
     ? [
         { name: 'Home', href: '#home' },
-        { name: 'Routes & Outstation', href: '#popular-routes-section' },
         { name: 'Services', href: '#services' },
         { name: 'Fleet', href: '#fleet' },
-        { name: 'About', href: '#about' },
         { name: 'FAQ', href: '#faq' },
       ]
     : [];
@@ -154,16 +161,16 @@ export const Header: React.FC<HeaderProps> = ({
             {!isOwner && (
               <>
                 {/* Download App Button (White Pill with Blue Smartphone Icon) */}
-            <button
-              id="desktop-download-app-btn"
-              type="button"
-              onClick={onOpenDownloadApp}
-              className="flex items-center gap-2 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-900 border border-slate-200/90 hover:border-slate-300 rounded-xl font-bold text-sm shadow-2xs hover:shadow-xs transition-all duration-150 cursor-pointer select-none"
-              title="Download TRAVEL JUST Mobile App"
-            >
-              <Smartphone className="w-4 h-4 text-[#14CD03] shrink-0" />
-              <span>Download App</span>
-            </button>
+                <button
+                  id="desktop-download-app-btn"
+                  type="button"
+                  onClick={onOpenDownloadApp}
+                  className="flex items-center gap-2 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-900 border border-slate-200/90 hover:border-slate-300 rounded-xl font-bold text-sm shadow-2xs hover:shadow-xs transition-all duration-150 cursor-pointer select-none"
+                  title="Download TRAVEL JUST Mobile App"
+                >
+                  <Smartphone className="w-4 h-4 text-[#14CD03] shrink-0" />
+                  <span>Download App</span>
+                </button>
 
             {/* Customer Login Button with Circular Avatar Icon */}
             <div className="relative" ref={accountDropdownRef}>
@@ -305,14 +312,27 @@ export const Header: React.FC<HeaderProps> = ({
               </>
             )}
 
-            {/* Exit Owner Mode - ONLY visible to OWNER */}
+            {/* Owner Mode Actions - ONLY visible to OWNER in Owner Portal mode */}
             {isOwner && (
-              <div className="flex items-center gap-1.5 bg-amber-50/80 p-1 rounded-2xl border border-amber-200 ml-1">
+              <div className="flex items-center gap-2">
+                {/* Fare & Price Engine Button - Shown ONLY in Owner Portal mode */}
+                <button
+                  id="header-fare-price-engine-btn"
+                  type="button"
+                  onClick={() => {
+                    (onOpenSimpleFareEngine || onOpenFareEngine)?.();
+                  }}
+                  className="flex items-center gap-2 px-3.5 py-2 bg-[#032014] hover:bg-[#073826] active:bg-[#0a4832] text-white border border-emerald-700/60 hover:border-emerald-500 rounded-xl font-bold text-sm shadow-2xs hover:shadow-xs transition-all duration-150 cursor-pointer select-none active:scale-[0.98]"
+                  title="Live Dynamic Fare & Price Engine (Owner Portal)"
+                >
+                  <Zap className="w-4 h-4 text-[#14CD03] fill-[#14CD03]/30 shrink-0" />
+                  <span>Fare & Price Engine</span>
+                </button>
                 {onExitOwnerMode && (
                   <button
                     type="button"
                     onClick={onExitOwnerMode}
-                    className="p-1.5 text-slate-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-colors cursor-pointer flex items-center gap-1 text-xs font-bold"
+                    className="px-2.5 py-2 text-slate-600 hover:text-red-700 hover:bg-red-50 bg-white border border-slate-200/90 hover:border-slate-300 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-bold shadow-2xs"
                     title="Exit Owner Mode"
                     aria-label="Exit Owner Mode"
                   >
@@ -326,17 +346,31 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Mobile Hamburger & Controls */}
           <div className="flex items-center gap-1.5 md:hidden">
+            {/* Quick Mobile Fare & Price Engine Button - Shown ONLY in Owner Mode / Portal */}
+            {isOwner && (
+              <button
+                type="button"
+                id="mobile-quick-fare-engine-btn"
+                onClick={() => (onOpenSimpleFareEngine || onOpenFareEngine)?.()}
+                className="flex items-center gap-1 px-2.5 py-1.5 bg-[#032014] text-[#14CD03] border border-emerald-800 rounded-xl text-xs font-extrabold shadow-2xs active:scale-95 transition-all cursor-pointer"
+                title="Dynamic Fare & Price Engine (Owner Mode)"
+              >
+                <Zap className="w-3.5 h-3.5 text-[#14CD03] fill-[#14CD03]/30" />
+                <span className="text-[11px] text-white">Fare Engine</span>
+              </button>
+            )}
+
             {/* Quick Mobile App Install / Download Icon Button */}
             {!isOwner && (
               <button
                 type="button"
                 id="mobile-quick-download-btn"
                 onClick={onOpenDownloadApp}
-                className="flex items-center gap-1 px-2.5 py-1.5 bg-[#032014] text-[#14CD03] border border-emerald-800 rounded-xl text-xs font-extrabold shadow-2xs active:scale-95 transition-all"
+                className="flex items-center gap-1 px-2.5 py-1.5 bg-white text-slate-800 border border-slate-200 rounded-xl text-xs font-bold shadow-2xs active:scale-95 transition-all"
                 title="Download / Install Mobile App"
               >
                 <Smartphone className="w-3.5 h-3.5 text-[#14CD03]" />
-                <span className="text-[11px] text-white">App</span>
+                <span className="text-[11px] text-slate-800">App</span>
               </button>
             )}
 
@@ -527,6 +561,79 @@ export const Header: React.FC<HeaderProps> = ({
                   <span>{customer ? customer.fullName : 'Customer Login'}</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-slate-400" />
+              </button>
+            </div>
+          )}
+
+          {/* Fare & Price Engine & Owner Tools in Mobile Menu - ONLY in Owner Portal mode */}
+          {isOwner && (
+            <div className="space-y-2">
+              <div className="p-3 bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-950 rounded-2xl border border-emerald-800/60 space-y-2 text-white shadow-xs">
+                <div className="text-[11px] font-bold text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-[#14CD03] fill-[#14CD03]/30" />
+                  <span>Centralized Pricing Console</span>
+                </div>
+                <button
+                  type="button"
+                  id="mobile-fare-price-engine-btn"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    (onOpenSimpleFareEngine || onOpenFareEngine)?.();
+                  }}
+                  className="w-full py-2.5 px-3.5 bg-emerald-600 hover:bg-emerald-500 text-slate-950 rounded-xl text-xs font-black flex items-center justify-between cursor-pointer shadow-xs active:scale-[0.98] transition-all"
+                >
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4 fill-slate-950 text-slate-900" />
+                    <span>Fare & Price Engine</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-900" />
+                </button>
+              </div>
+
+              {/* Travel Studio Button in Mobile Menu - Owner Portal Only */}
+              <button
+                type="button"
+                id="mobile-travel-studio-btn"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenTravelStudio?.('video');
+                }}
+                className="w-full flex items-center justify-between px-3.5 py-2.5 bg-[#032014] hover:bg-[#073826] text-white border border-emerald-700/60 rounded-2xl font-bold text-xs cursor-pointer shadow-2xs"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-xl bg-emerald-900/80 flex items-center justify-center text-[#14CD03] shrink-0 border border-emerald-700/60">
+                    <Film className="w-4 h-4" />
+                  </div>
+                  <div className="text-left">
+                    <span className="block leading-tight font-extrabold text-white">Travel Studio (AI Media)</span>
+                    <span className="text-[10px] text-emerald-300 font-semibold">Veo Videos & Gemini Destination Art</span>
+                  </div>
+                </div>
+                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-[#14CD03] text-[#032014]">
+                  Owner
+                </span>
+              </button>
+            </div>
+          )}
+
+          {/* Owner Quick Access in Mobile Menu */}
+          {isOwner && (
+            <div className="p-3 bg-amber-50 rounded-2xl border border-amber-200 space-y-2">
+              <div className="text-[11px] font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5 text-amber-600 fill-amber-600" />
+                <span>Authoritative Pricing</span>
+              </div>
+              <button
+                type="button"
+                id="mobile-fare-engine-btn"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  (onOpenFareEngine || onOpenSimpleFareEngine || onOpenAdvancedFareEngine)?.();
+                }}
+                className="w-full py-2 px-3 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+              >
+                <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
+                <span>FARE & PRICE ENGINE</span>
               </button>
             </div>
           )}

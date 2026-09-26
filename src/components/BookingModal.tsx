@@ -23,7 +23,9 @@ import {
 import { calculateFare } from '../utils/fareCalculator';
 import { siteConfig } from '../config/siteConfig';
 import { saveBookingToSupabase, SaveBookingResult } from '../services/supabaseService';
+import { saveBookingToFirestore } from '../lib/firebase';
 import { formatBookingConfirmationMessage, openWhatsAppChat } from '../utils/whatsapp';
+import { RidePushSubscriptionCard } from './RidePushSubscriptionCard';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -34,6 +36,24 @@ interface BookingModalProps {
   onCompleteBooking: (booking: BookingRequest) => void;
   customer?: CustomerUser | null;
 }
+
+// Helper to convert date to "Fri, Sep 25" display format matching screenshots
+const formatDateDisplay = (isoDate?: string): string => {
+  if (!isoDate) return '';
+  const parts = isoDate.split('-');
+  if (parts.length === 3) {
+    const year = parseInt(parts[0], 10);
+    const monthIndex = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    const dateObj = new Date(year, monthIndex, day);
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const dayOfWeek = dayNames[dateObj.getDay()];
+    const monthName = monthNames[monthIndex] || parts[1];
+    return `${dayOfWeek}, ${monthName} ${day}`;
+  }
+  return isoDate;
+};
 
 export const BookingModal: React.FC<BookingModalProps> = ({
   isOpen,
@@ -103,6 +123,25 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       saveBookingToSupabase(newBooking)
         .then((res) => setDbSaveResult(res))
         .catch((err) => console.warn('Booking save error:', err));
+
+      // Persist to Cloud Firestore
+      saveBookingToFirestore({
+        id: refId,
+        userId: customer?.id,
+        customerName: passengerDetails.fullName,
+        customerPhone: passengerDetails.mobileNumber,
+        customerEmail: passengerDetails.email || undefined,
+        tripType: searchDetails.serviceType,
+        pickupLocation: searchDetails.pickupLocation,
+        dropLocation: searchDetails.dropLocation,
+        pickupDate: searchDetails.pickupDate,
+        pickupTime: searchDetails.pickupTime,
+        vehicleType: selectedVehicle.id,
+        estimatedFare: fareEstimate.totalEstimatedFare,
+        distanceKm: fareEstimate.exactDistanceKm || searchDetails.routeInfo?.distanceKm,
+        status: 'PENDING',
+        createdAt: new Date().toISOString(),
+      }).catch((err) => console.warn('Firestore booking save error:', err));
 
       onCompleteBooking(newBooking);
 
@@ -240,6 +279,15 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             </button>
           </div>
 
+          {/* Live Push Notification Subscription for Ride Status */}
+          {bookingRef && (
+            <RidePushSubscriptionCard
+              referenceId={bookingRef}
+              customerPhone={passengerDetails.mobileNumber}
+              customerEmail={passengerDetails.email}
+            />
+          )}
+
           {/* Ride & Trip Summary Card */}
           <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3.5">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -306,10 +354,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   Pickup Schedule
                 </span>
                 <span className="font-bold text-slate-900 block mt-0.5">
-                  {searchDetails.pickupDate || searchDetails.travelDate}
+                  {formatDateDisplay(searchDetails.pickupDate || searchDetails.travelDate)}
                 </span>
                 <span className="text-slate-600 text-[11px] font-medium">
-                  {searchDetails.pickupTime || '09:00 AM'}
+                  {searchDetails.pickupTime || '7:00 AM'}
                 </span>
               </div>
 
@@ -319,12 +367,14 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     Return Schedule
                   </span>
                   <span className="font-bold text-slate-900 block mt-0.5">
-                    {searchDetails.dropDate ||
-                      searchDetails.returnDate ||
-                      searchDetails.pickupDate}
+                    {formatDateDisplay(
+                      searchDetails.dropDate ||
+                        searchDetails.returnDate ||
+                        searchDetails.pickupDate
+                    )}
                   </span>
                   <span className="text-slate-600 text-[11px] font-medium">
-                    {searchDetails.returnTime || searchDetails.pickupTime || '09:00 PM'}
+                    {searchDetails.returnTime || searchDetails.pickupTime || '9:00 PM'}
                   </span>
                 </div>
               )}
