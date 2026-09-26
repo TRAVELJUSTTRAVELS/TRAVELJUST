@@ -131,7 +131,7 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
     initialState?.returnTime ? formatTo12Hour(initialState.returnTime) : '9:00 PM'
   );
 
-  const [durationHours, setDurationHours] = useState<number>(initialState?.durationHours || 4);
+  const [durationHours, setDurationHours] = useState<number>(initialState?.durationHours || 12);
   const [airportTransferType, setAirportTransferType] = useState<AirportTransferType>(
     initialState?.airportTransferType || 'pickup'
   );
@@ -491,10 +491,10 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
     const activeRoute =
       serviceType === 'local'
         ? {
-            distanceKm: (durationHours || 8) * 10,
-            durationMinutes: (durationHours || 8) * 60,
-            durationText: `${durationHours || 8} Hours`,
-            routeSummary: `Mysuru Local Hourly Rental (${durationHours || 8} Hrs / ${(durationHours || 8) * 10} Km Package)`,
+            distanceKm: (durationHours || 12) * 10,
+            durationMinutes: (durationHours || 12) * 60,
+            durationText: `${durationHours || 12} Hours`,
+            routeSummary: `Mysuru Local Hourly Rental (${durationHours || 12} Hrs / ${(durationHours || 12) * 10} Km Package)`,
             highwayCorridor: 'Mysuru City & Local Sightseeing Coverage',
             tollEstimate: 0,
             recommendedService: 'local' as const,
@@ -526,7 +526,7 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
       pickupTime: formatTo12Hour(pickupTime),
       dropTime: serviceType === 'roundtrip' ? formatTo12Hour(returnTime) : undefined,
       returnTime: serviceType === 'roundtrip' ? formatTo12Hour(returnTime) : undefined,
-      durationHours: serviceType === 'local' ? durationHours : 8,
+      durationHours: serviceType === 'local' ? (durationHours || 12) : 8,
       airportTransferType,
       passengers,
       vehicleType: 'all',
@@ -1454,7 +1454,7 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                   <div className="relative flex items-center">
                     <select
                       id="local-duration-select"
-                      value={durationHours || 4}
+                      value={durationHours || 12}
                       onChange={(e) => {
                         registerUserActivity();
                         setDurationHours(Number(e.target.value));
@@ -1462,14 +1462,14 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                       className="w-full bg-transparent border-none p-0 text-slate-900 font-semibold text-sm sm:text-base focus:outline-none appearance-none cursor-pointer pr-5"
                       aria-label="Select packages"
                     >
-                      <option value={4} className="text-slate-900 font-semibold py-1">
-                        4 HRS  40 KM
-                      </option>
-                      <option value={8} className="text-slate-900 font-semibold py-1">
-                        8 HRS  80 KM
-                      </option>
                       <option value={12} className="text-slate-900 font-semibold py-1">
                         12 HRS 120 KM
+                      </option>
+                      <option value={8} className="text-slate-900 font-semibold py-1">
+                        8 HRS 80 KM
+                      </option>
+                      <option value={4} className="text-slate-900 font-semibold py-1">
+                        4 HRS 40 KM
                       </option>
                     </select>
                     <ChevronDown className="w-3.5 h-3.5 text-[#90A1B9] absolute right-0 pointer-events-none transition-colors" />
