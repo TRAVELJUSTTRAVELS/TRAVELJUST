@@ -217,7 +217,12 @@ export const AdvancedFareEngine: React.FC<AdvancedFareEngineProps> = ({
         setErrorMessage(`One-Way rates for ${vm.name} cannot be negative.`);
         return false;
       }
-      if (rt.perKmRate < 0 || rt.driverAllowance < 0 || rt.dailyMinimumKm < 0) {
+      if (
+        rt.perKmRate < 0 ||
+        (rt.extraPerKmRate !== undefined && rt.extraPerKmRate < 0) ||
+        rt.driverAllowance < 0 ||
+        rt.dailyMinimumKm < 0
+      ) {
         setErrorMessage(`Round-Trip rates for ${vm.name} cannot be negative.`);
         return false;
       }
@@ -1676,7 +1681,7 @@ export const AdvancedFareEngine: React.FC<AdvancedFareEngineProps> = ({
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 {/* Per KM Rate */}
                 <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
                   <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -1698,6 +1703,38 @@ export const AdvancedFareEngine: React.FC<AdvancedFareEngineProps> = ({
                     className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   />
                   <p className="text-[11px] text-slate-500 mt-1">Charged on billable KM</p>
+                </div>
+
+                {/* Extra Per KM Rate */}
+                <div className="bg-amber-50/70 p-3.5 rounded-xl border border-amber-200/90 shadow-2xs">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-amber-950">
+                      Extra Per KM Rate (₹/km)
+                    </label>
+                    <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">
+                      ₹/km
+                    </span>
+                  </div>
+                  <input
+                    id="roundtrip-extra-per-km-input"
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    value={
+                      config.roundTrip[selectedVehicleId]?.extraPerKmRate ??
+                      config.roundTrip[selectedVehicleId]?.perKmRate ??
+                      13
+                    }
+                    onChange={(e) =>
+                      handleRoundTripFieldChange(
+                        selectedVehicleId,
+                        'extraPerKmRate',
+                        Number(e.target.value)
+                      )
+                    }
+                    className="w-full px-3 py-2 bg-white border border-amber-300 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                  />
+                  <p className="text-[11px] text-amber-800 mt-1">Charged on excess KM beyond minimum</p>
                 </div>
 
                 {/* Driver Allowance */}
@@ -1786,11 +1823,97 @@ export const AdvancedFareEngine: React.FC<AdvancedFareEngineProps> = ({
                 </div>
               </div>
 
-              <div className="mt-5 p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 leading-relaxed font-mono">
+              {/* Extra Per KM Rate Across All Vehicle Types Quick-Edit Grid */}
+              <div className="mt-5 p-4 bg-amber-50/50 border border-amber-200 rounded-2xl">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-amber-950 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Round Trip Extra Per KM Rate (₹/km) — All Vehicle Types</span>
+                    </h4>
+                    <p className="text-[11px] text-amber-800">
+                      Configure the excess kilometer charge for each fleet category when travel distance exceeds the daily minimum
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const currentVal =
+                        config.roundTrip[selectedVehicleId]?.extraPerKmRate ??
+                        config.roundTrip[selectedVehicleId]?.perKmRate ??
+                        13;
+                      setConfig((prev) => {
+                        const updatedRoundTrip = { ...prev.roundTrip };
+                        (Object.keys(updatedRoundTrip) as FareVehicleId[]).forEach((vKey) => {
+                          updatedRoundTrip[vKey] = {
+                            ...updatedRoundTrip[vKey],
+                            extraPerKmRate: currentVal,
+                          };
+                        });
+                        return { ...prev, roundTrip: updatedRoundTrip };
+                      });
+                    }}
+                    className="text-[11px] font-bold text-amber-900 hover:text-amber-950 bg-amber-100 hover:bg-amber-200 px-2.5 py-1 rounded-lg border border-amber-300 transition-colors cursor-pointer"
+                    title="Copy current vehicle's Extra Per KM Rate to all 5 vehicle types"
+                  >
+                    ⚡ Apply ₹{config.roundTrip[selectedVehicleId]?.extraPerKmRate ?? config.roundTrip[selectedVehicleId]?.perKmRate ?? 13}/km to All 5 Vehicles
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+                  {FARE_VEHICLES_META.map((vm) => {
+                    const vid = vm.id;
+                    const isSelected = selectedVehicleId === vid;
+                    const val = config.roundTrip[vid]?.extraPerKmRate ?? config.roundTrip[vid]?.perKmRate ?? 13;
+                    const baseRate = config.roundTrip[vid]?.perKmRate ?? 13;
+                    return (
+                      <div
+                        key={vid}
+                        onClick={() => setSelectedVehicleId(vid)}
+                        className={`p-2.5 rounded-xl border transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-white border-amber-500 ring-2 ring-amber-400/40 shadow-xs'
+                            : 'bg-white/80 border-slate-200 hover:border-amber-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[11px] font-bold text-slate-800 truncate" title={vm.name}>
+                            {vm.name}
+                          </span>
+                          {isSelected && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs font-bold text-slate-500">₹</span>
+                          <input
+                            id={`rt-extra-km-grid-${vid}`}
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            value={val}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) =>
+                              handleRoundTripFieldChange(vid, 'extraPerKmRate', Number(e.target.value))
+                            }
+                            className="w-full px-1.5 py-0.5 bg-slate-50 border border-slate-300 rounded text-xs font-bold text-slate-900 focus:bg-white focus:ring-1 focus:ring-amber-500"
+                          />
+                          <span className="text-[10px] text-slate-400 font-semibold shrink-0">/km</span>
+                        </div>
+                        <div className="text-[10px] text-slate-400 mt-1 flex items-center justify-between">
+                          <span>Base: ₹{baseRate}/km</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="mt-4 p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 leading-relaxed font-mono">
                 <span className="font-bold text-slate-800 font-sans">Formula: </span>
-                Billable KM = MAX(Actual Total KM, Daily Minimum KM * Number of Days)
+                Minimum Included KM = Daily Minimum KM * Number of Days
                 <br />
-                ROUND-TRIP TOTAL = (Billable KM * Per KM Rate) + (Driver Allowance * Number of Days) - Discount
+                ROUND-TRIP TOTAL = (Min Included KM * Per KM Rate) + (MAX(0, Actual Total KM - Min Included KM) * Extra Per KM Rate) + (Driver Allowance * Number of Days) - Discount
               </div>
 
               {/* Dedicated In-Card Save Bar */}

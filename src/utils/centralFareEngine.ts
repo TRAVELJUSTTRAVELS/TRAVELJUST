@@ -180,6 +180,7 @@ export const DEFAULT_CENTRALIZED_FARE_CONFIG: CentralizedFareConfig = {
     'sedan-4-1': {
       driverAllowance: 300,
       perKmRate: 13,
+      extraPerKmRate: 13,
       dailyMinimumKm: 300,
       discountType: 'NONE',
       discountValue: 0,
@@ -187,6 +188,7 @@ export const DEFAULT_CENTRALIZED_FARE_CONFIG: CentralizedFareConfig = {
     'suv-6-1': {
       driverAllowance: 350,
       perKmRate: 16,
+      extraPerKmRate: 16,
       dailyMinimumKm: 300,
       discountType: 'NONE',
       discountValue: 0,
@@ -194,6 +196,7 @@ export const DEFAULT_CENTRALIZED_FARE_CONFIG: CentralizedFareConfig = {
     'innova': {
       driverAllowance: 400,
       perKmRate: 17.5,
+      extraPerKmRate: 17.5,
       dailyMinimumKm: 300,
       discountType: 'NONE',
       discountValue: 0,
@@ -201,6 +204,7 @@ export const DEFAULT_CENTRALIZED_FARE_CONFIG: CentralizedFareConfig = {
     'innova-crysta': {
       driverAllowance: 450,
       perKmRate: 19,
+      extraPerKmRate: 19,
       dailyMinimumKm: 300,
       discountType: 'NONE',
       discountValue: 0,
@@ -208,6 +212,7 @@ export const DEFAULT_CENTRALIZED_FARE_CONFIG: CentralizedFareConfig = {
     'tempo-traveller-12-1': {
       driverAllowance: 700,
       perKmRate: 28,
+      extraPerKmRate: 28,
       dailyMinimumKm: 300,
       discountType: 'NONE',
       discountValue: 0,
@@ -648,7 +653,16 @@ export function calculateRoundTripFare(
   const minIncludedKm = dailyMinKm * days;
   const billableKm = Math.max(actualTotalKm, minIncludedKm);
 
-  const kmCharge = Math.round(billableKm * (pricing.perKmRate || 0));
+  const extraKm = Math.max(0, actualTotalKm - minIncludedKm);
+  const extraRate =
+    pricing.extraPerKmRate !== undefined && pricing.extraPerKmRate > 0
+      ? pricing.extraPerKmRate
+      : (pricing.perKmRate || 0);
+
+  const baseKmCharge = Math.round(minIncludedKm * (pricing.perKmRate || 0));
+  const extraKmCharge = extraKm > 0 ? Math.round(extraKm * extraRate) : 0;
+  const kmCharge = extraKm > 0 ? baseKmCharge + extraKmCharge : Math.round(billableKm * (pricing.perKmRate || 0));
+
   const driverAllowanceTotal = Math.round((pricing.driverAllowance || 0) * days);
 
   const originalFare = kmCharge + driverAllowanceTotal;
@@ -661,17 +675,32 @@ export function calculateRoundTripFare(
   const finalFare = calculateFinalFare(originalFare, discountAmount);
 
   const breakdown: FareBreakdownLine[] = [
+    ...(extraKm > 0
+      ? [
+          {
+            label: `Base Minimum Distance (${minIncludedKm} km [${dailyMinKm} km/day x ${days} day${days > 1 ? 's' : ''}] @ ₹${pricing.perKmRate}/km)`,
+            amount: baseKmCharge,
+            type: 'km' as const,
+          },
+          {
+            label: `Extra Distance (${Math.round(extraKm)} km @ ₹${extraRate}/km)`,
+            amount: extraKmCharge,
+            type: 'km' as const,
+          },
+        ]
+      : [
+          {
+            label: `Round Trip Distance (${billableKm} km ${
+              billableKm > actualTotalKm ? `[Min ${dailyMinKm} km/day x ${days} day${days > 1 ? 's' : ''}]` : ''
+            } @ ₹${pricing.perKmRate}/km)`,
+            amount: kmCharge,
+            type: 'km' as const,
+          },
+        ]),
     {
-      label: `Round Trip Distance (${billableKm} km ${
-        billableKm > actualTotalKm ? `[Min ${dailyMinKm} km/day x ${days} days]` : ''
-      } @ ₹${pricing.perKmRate}/km)`,
-      amount: kmCharge,
-      type: 'km',
-    },
-    {
-      label: `Driver Allowance (₹${pricing.driverAllowance}/day x ${days} days)`,
+      label: `Driver Allowance (₹${pricing.driverAllowance}/day x ${days} day${days > 1 ? 's' : ''})`,
       amount: driverAllowanceTotal,
-      type: 'driver',
+      type: 'driver' as const,
     },
   ];
 
@@ -696,7 +725,7 @@ export function calculateRoundTripFare(
     baseFare: 0,
     driverAllowance: driverAllowanceTotal,
     kmCharge,
-    extraKmCharge: 0,
+    extraKmCharge,
     hourCharge: 0,
     extraHourCharge: 0,
     originalFare,

@@ -88,7 +88,7 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({
         return central.oneWay[vid].extraPerKmRate || central.oneWay[vid].perKmRate;
       }
       if (searchDetails?.serviceType === 'roundtrip' && central.roundTrip[vid]) {
-        return central.roundTrip[vid].perKmRate;
+        return central.roundTrip[vid].extraPerKmRate || central.roundTrip[vid].perKmRate;
       }
       if (searchDetails?.serviceType === 'airport' && central.airport[vid]) {
         return central.airport[vid].extraPerKmRate || central.airport[vid].perKmRate;

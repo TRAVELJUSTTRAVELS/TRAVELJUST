@@ -94,6 +94,7 @@ export interface OneWayPricing {
 export interface RoundTripPricing {
   driverAllowance: number;
   perKmRate: number;
+  extraPerKmRate?: number;
   dailyMinimumKm: number;
   discountType: DiscountType;
   discountValue: number;

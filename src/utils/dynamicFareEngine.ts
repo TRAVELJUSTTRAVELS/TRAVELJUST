@@ -1118,10 +1118,18 @@ export function calculateDynamicFare(input: DynamicFareCalculationInput): Dynami
     includedKm = minIncluded;
 
     const perKm = pricingRule.perKmRate;
-    distanceFare = billableKm * perKm;
     const extraRtKm = Math.max(0, actualRtKm - minIncluded);
-    if (extraRtKm > 0 && (pricingRule.extraPerKmRate || 0) > 0) {
-      extraDistanceFare = extraRtKm * pricingRule.extraPerKmRate;
+    const extraRate =
+      pricingRule.extraPerKmRate !== undefined && pricingRule.extraPerKmRate > 0
+        ? pricingRule.extraPerKmRate
+        : perKm;
+
+    if (extraRtKm > 0) {
+      distanceFare = minIncluded * perKm;
+      extraDistanceFare = extraRtKm * extraRate;
+    } else {
+      distanceFare = minIncluded * perKm;
+      extraDistanceFare = 0;
     }
   } else {
     // One-Way / Airport / Local / Outstation
@@ -1390,11 +1398,29 @@ export function calculateDynamicFare(input: DynamicFareCalculationInput): Dynami
 
     if (bookingType === 'ROUND_TRIP') {
       const days = Math.max(1, roundTripDays);
-      breakdown.push({
-        label: `Round Trip Road Distance (${Math.round(billableKm)} km billed · ${days} Day${days > 1 ? 's' : ''})`,
-        amount: Math.round(distanceFare),
-        detail: `Min. ${rtDailyMinKm || 300} km/day included (${includedKm} km total)`,
-      });
+      const actualRtKm = distanceKm * 2;
+      const extraRtKm = Math.max(0, actualRtKm - includedKm);
+      const extraRate =
+        pricingRule.extraPerKmRate !== undefined && pricingRule.extraPerKmRate > 0
+          ? pricingRule.extraPerKmRate
+          : pricingRule.perKmRate;
+
+      if (extraRtKm > 0) {
+        breakdown.push({
+          label: `Base Minimum Distance (${includedKm} km [${rtDailyMinKm || 300} km/day x ${days} Day${days > 1 ? 's' : ''}] @ ₹${pricingRule.perKmRate}/km)`,
+          amount: Math.round(distanceFare),
+        });
+        breakdown.push({
+          label: `Extra Distance (${Math.round(extraRtKm)} km @ ₹${extraRate}/km)`,
+          amount: Math.round(extraDistanceFare),
+        });
+      } else {
+        breakdown.push({
+          label: `Round Trip Road Distance (${Math.round(billableKm)} km billed · ${days} Day${days > 1 ? 's' : ''} @ ₹${pricingRule.perKmRate}/km)`,
+          amount: Math.round(distanceFare),
+          detail: `Min. ${rtDailyMinKm || 300} km/day included (${includedKm} km total)`,
+        });
+      }
     } else if (distanceFare > 0) {
       const kmLabel = includedKm > 0 ? `${includedKm} km included` : `${distanceKm} km`;
       breakdown.push({
@@ -1403,7 +1429,7 @@ export function calculateDynamicFare(input: DynamicFareCalculationInput): Dynami
       });
     }
 
-    if (extraDistanceFare > 0) {
+    if (bookingType !== 'ROUND_TRIP' && extraDistanceFare > 0) {
       const extraKm = Math.max(0, distanceKm - includedKm);
       breakdown.push({
         label: `Extra Distance (${extraKm.toFixed(1)} km)`,
@@ -1517,9 +1543,12 @@ export function calculateDynamicFare(input: DynamicFareCalculationInput): Dynami
     hourlyRate: pricingRule.hourlyRate,
     extraPerHourRate: pricingRule.extraPerHourRate,
     driverAllowance,
-    distanceKm,
-    durationMinutes,
-    durationHours: Number(rawDurationHours.toFixed(2)),
+    distanceKm: bookingType === 'ROUND_TRIP' ? distanceKm * 2 : distanceKm,
+    durationMinutes: bookingType === 'ROUND_TRIP' ? durationMinutes * 2 : durationMinutes,
+    durationHours:
+      bookingType === 'ROUND_TRIP'
+        ? Number((rawDurationHours * 2).toFixed(2))
+        : Number(rawDurationHours.toFixed(2)),
     routeCategory,
     originState,
     destinationState,
@@ -1543,9 +1572,12 @@ export function calculateDynamicFare(input: DynamicFareCalculationInput): Dynami
   };
 
   return {
-    distanceKm,
-    durationMinutes,
-    durationHours: Number(rawDurationHours.toFixed(2)),
+    distanceKm: bookingType === 'ROUND_TRIP' ? distanceKm * 2 : distanceKm,
+    durationMinutes: bookingType === 'ROUND_TRIP' ? durationMinutes * 2 : durationMinutes,
+    durationHours:
+      bookingType === 'ROUND_TRIP'
+        ? Number((rawDurationHours * 2).toFixed(2))
+        : Number(rawDurationHours.toFixed(2)),
     durationFormatted,
     vehicleId: vehicleConfig.vehicleId,
     vehicleName: vehicleConfig.vehicleName,

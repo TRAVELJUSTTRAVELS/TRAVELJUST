@@ -301,6 +301,7 @@ class FareService {
         if (roundTrip && existing.pricingByBookingType.ROUND_TRIP) {
           existing.pricingByBookingType.ROUND_TRIP.driverAllowance = roundTrip.driverAllowance;
           existing.pricingByBookingType.ROUND_TRIP.perKmRate = roundTrip.perKmRate;
+          existing.pricingByBookingType.ROUND_TRIP.extraPerKmRate = roundTrip.extraPerKmRate ?? roundTrip.perKmRate;
           existing.pricingByBookingType.ROUND_TRIP.dailyMinimumKm = roundTrip.dailyMinimumKm;
           existing.pricingByBookingType.ROUND_TRIP.includedKm = roundTrip.dailyMinimumKm;
           existing.pricingByBookingType.ROUND_TRIP.discountType = roundTrip.discountType;
@@ -647,6 +648,29 @@ class FareService {
             saveStatus: 'SUCCESS',
             pricingVersion: versionCode,
             notes: `${vName} Round Trip Per KM Rate updated: ₹${prevRT.perKmRate}/km ➔ ₹${curRT.perKmRate}/km`,
+          });
+        }
+        if (
+          curRT.extraPerKmRate !== undefined &&
+          (prevRT.extraPerKmRate ?? prevRT.perKmRate) !== curRT.extraPerKmRate
+        ) {
+          const prevVal = prevRT.extraPerKmRate ?? prevRT.perKmRate;
+          auditEntries.push({
+            user: updatedBy,
+            serviceType: 'ROUND_TRIP',
+            vehicleId: vid,
+            vehicleName: vName,
+            fareCategory: 'ROUND TRIP — Extra Per KM Rate',
+            field: 'Extra Per KM Rate',
+            previousPrice: prevVal,
+            newPrice: curRT.extraPerKmRate,
+            action: 'UPDATE',
+            previousValue: `₹${prevVal}/km`,
+            newValue: `₹${curRT.extraPerKmRate}/km`,
+            updateStatus: 'SUCCESS',
+            saveStatus: 'SUCCESS',
+            pricingVersion: versionCode,
+            notes: `${vName} Round Trip Extra Per KM Rate updated: ₹${prevVal}/km ➔ ₹${curRT.extraPerKmRate}/km`,
           });
         }
         if (prevRT.driverAllowance !== curRT.driverAllowance) {
