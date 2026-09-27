@@ -1306,7 +1306,7 @@ export function createApiRouter(): Router {
     try {
       const { data, error } = await serverSupabase
         .from("bookings")
-        .select("id, reference_id")
+        .select("id")
         .limit(1);
 
       if (!error) {
@@ -2079,7 +2079,12 @@ export function createApiRouter(): Router {
           .order("created_at", { ascending: false })
           .limit(50);
         if (!error && Array.isArray(data) && data.length > 0) {
-          return res.json({ success: true, source: "supabase", bookings: data });
+          const normalized = data.map((b) => ({
+            ...b,
+            reference_id: b.reference_id || b["BOOKING ID"] || b.id,
+            referenceId: b.reference_id || b["BOOKING ID"] || b.id,
+          }));
+          return res.json({ success: true, source: "supabase", bookings: normalized });
         }
       } catch (err) {
         // Fallback to in-memory buffer
@@ -2166,17 +2171,24 @@ export function createApiRouter(): Router {
       let savedToSupabase = false;
       if (serverSupabase) {
         try {
+          const rowWithBookingId = { ...rowData, "BOOKING ID": rowData.reference_id };
           const { data, error } = await serverSupabase
             .from("bookings")
-            .upsert([rowData], { onConflict: "reference_id" })
+            .insert([rowWithBookingId])
             .select();
           if (!error && data) {
             savedToSupabase = true;
-          } else if (error) {
-            console.warn("Supabase bookings upsert notice:", error.message);
+          } else {
+            const { data: d2, error: e2 } = await serverSupabase
+              .from("bookings")
+              .insert([rowData])
+              .select();
+            if (!e2 && d2) {
+              savedToSupabase = true;
+            }
           }
         } catch (sbErr) {
-          console.warn("Supabase upsert error:", sbErr);
+          console.warn("Supabase insert error:", sbErr);
         }
       }
 

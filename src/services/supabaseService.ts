@@ -98,9 +98,9 @@ export async function saveBookingToSupabase(booking: BookingRequest): Promise<Sa
     console.warn('Could not save to localStorage:', storageErr);
   }
 
-  // 2. Prepare structured database row
-  const rowData = {
-    reference_id: booking.referenceId,
+  // 2. Prepare structured database row supporting both 'BOOKING ID' and 'reference_id'
+  const rowDataWithBookingId: Record<string, any> = {
+    'BOOKING ID': booking.referenceId,
     full_name: booking.passengerDetails?.fullName || 'Guest Customer',
     mobile_number: booking.passengerDetails?.mobileNumber || '',
     email: booking.passengerDetails?.email || '',
@@ -138,15 +138,26 @@ export async function saveBookingToSupabase(booking: BookingRequest): Promise<Sa
   // 3. Insert directly into Supabase database if client is configured
   if (supabase) {
     try {
-      const { data, error } = await supabase.from('bookings').insert([rowData]).select();
+      // First try inserting with user's 'BOOKING ID' column
+      const { data, error } = await supabase.from('bookings').insert([rowDataWithBookingId]).select();
       if (!error) {
         savedToRemote = true;
         remoteData = data;
         remoteMessage = 'Successfully saved booking directly to Supabase cloud database.';
         console.log('✅ Supabase booking insert succeeded:', data);
       } else {
-        console.warn('⚠️ Supabase insert notice:', error.message, error.code);
-        remoteMessage = `Supabase notice: ${error.message}`;
+        // Fallback with reference_id column if schema uses reference_id
+        const fallbackRow = { ...rowDataWithBookingId, reference_id: booking.referenceId };
+        delete fallbackRow['BOOKING ID'];
+        const fallbackResult = await supabase.from('bookings').insert([fallbackRow]).select();
+        if (!fallbackResult.error) {
+          savedToRemote = true;
+          remoteData = fallbackResult.data;
+          remoteMessage = 'Successfully saved booking to Supabase cloud database.';
+        } else {
+          console.warn('⚠️ Supabase insert notice:', error.message, error.code);
+          remoteMessage = `Supabase notice: ${error.message}`;
+        }
       }
     } catch (sbErr: any) {
       console.warn('⚠️ Supabase client error:', sbErr);
@@ -159,7 +170,7 @@ export async function saveBookingToSupabase(booking: BookingRequest): Promise<Sa
     fetch('/api/bookings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...booking, ...rowData }),
+      body: JSON.stringify({ ...booking, ...rowDataWithBookingId }),
     }).catch(() => {});
   } catch {
     // Network background send fallback
@@ -332,7 +343,7 @@ export async function testSupabaseConnection(): Promise<{
   }
 
   try {
-    const { data, error } = await supabase.from('bookings').select('id, reference_id').limit(1);
+    const { data, error } = await supabase.from('bookings').select('id').limit(1);
     if (!error) {
       return {
         connected: true,
