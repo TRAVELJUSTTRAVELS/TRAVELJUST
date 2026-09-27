@@ -455,7 +455,7 @@ export const DEFAULT_VEHICLE_CONFIGS: Record<string, VehicleDynamicPricingConfig
         baseFare: 700,
         perKmRate: 18,
         includedKm: 80,
-        extraPerKmRate: 15,
+        extraPerKmRate: 16,
         includedHours: 8,
         hourlyRate: 350,
         extraPerHourRate: 200,

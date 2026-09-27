@@ -73,6 +73,10 @@ class PricingStore {
         const raw = fs.readFileSync(CACHE_FILE_PATH, "utf-8");
         const parsed = JSON.parse(raw);
         if (parsed && parsed.local && parsed.oneWay && parsed.roundTrip && parsed.airport) {
+          if (parsed.local['suv-6-1'] && (parsed.local['suv-6-1'].extraPerKmRate === 156 || parsed.local['suv-6-1'].extraPerKmRate > 100)) {
+            parsed.local['suv-6-1'].extraPerKmRate = 16;
+            this.saveConfigToFile(parsed);
+          }
           return parsed;
         }
       }

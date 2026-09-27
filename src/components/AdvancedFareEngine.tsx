@@ -1013,7 +1013,7 @@ export const AdvancedFareEngine: React.FC<AdvancedFareEngineProps> = ({
                     type="number"
                     min="0"
                     step="0.5"
-                    value={config.local[selectedVehicleId]?.extraPerKmRate ?? 13}
+                    value={config.local[selectedVehicleId]?.extraPerKmRate ?? (selectedVehicleId === 'suv-6-1' ? 16 : 13)}
                     onChange={(e) =>
                       handleLocalFieldChange(
                         selectedVehicleId,

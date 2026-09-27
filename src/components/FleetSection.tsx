@@ -71,22 +71,24 @@ export const FleetSection: React.FC<FleetSectionProps> = ({ onSelectVehicleForBo
                 </div>
 
                 {/* Features Tag List */}
-                <div className="mb-6">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
-                    Included Amenities
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {vehicle.features.map((feat) => (
-                      <span
-                        key={feat}
-                        className="text-[11px] font-medium text-slate-700 bg-emerald-50/60 border border-emerald-100 px-2 py-0.5 rounded-md flex items-center gap-1"
-                      >
-                        <Check className="w-3 h-3 text-emerald-800" />
-                        {feat}
-                      </span>
-                    ))}
+                {vehicle.features && vehicle.features.length > 0 && (
+                  <div className="mb-6">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                      Included Amenities
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {vehicle.features.map((feat) => (
+                        <span
+                          key={feat}
+                          className="text-[11px] font-medium text-slate-700 bg-emerald-50/60 border border-emerald-100 px-2 py-0.5 rounded-md flex items-center gap-1"
+                        >
+                          <Check className="w-3 h-3 text-emerald-800" />
+                          {feat}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               <button

@@ -80,7 +80,7 @@ export const DEFAULT_CENTRALIZED_FARE_CONFIG: CentralizedFareConfig = {
       driverAllowance: 499,
       perKmRate: 14,
       perHourRate: 75,
-      extraPerKmRate: 156,
+      extraPerKmRate: 16,
       extraPerHourRate: 175,
       includedKm: 80,
       includedHours: 8,

@@ -212,6 +212,14 @@ class FareService {
                 parsed.fixedCorridors.MYSURU_BENGALURU_CITY ||
                 JSON.parse(JSON.stringify(DEFAULT_CENTRALIZED_FARE_CONFIG.fixedCorridors!.MYSURU_BENGALURU_CITY));
             }
+            if (parsed.local && parsed.local['suv-6-1']) {
+              if (parsed.local['suv-6-1'].extraPerKmRate === 156 || parsed.local['suv-6-1'].extraPerKmRate > 100) {
+                parsed.local['suv-6-1'].extraPerKmRate = 16;
+                try {
+                  window.localStorage.setItem(CENTRALIZED_CONFIG_KEY, JSON.stringify(parsed));
+                } catch {}
+              }
+            }
             return parsed;
           }
         }
