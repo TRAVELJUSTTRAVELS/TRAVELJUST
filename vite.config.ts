@@ -78,6 +78,7 @@ export default defineConfig(() => {
           ],
         },
         workbox: {
+          maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
           importScripts: ['/sw-push.js'],
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
           runtimeCaching: [
@@ -164,6 +165,23 @@ export default defineConfig(() => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
+      },
+    },
+    build: {
+      chunkSizeWarningLimit: 3000,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('firebase')) return 'firebase';
+              if (id.includes('@google/genai')) return 'genai';
+              if (id.includes('jspdf')) return 'jspdf';
+              if (id.includes('lucide-react')) return 'lucide';
+              if (id.includes('motion')) return 'motion';
+              return 'vendor';
+            }
+          },
+        },
       },
     },
     server: {
