@@ -98,12 +98,68 @@ export async function saveBookingToSupabase(booking: BookingRequest): Promise<Sa
     console.warn('Could not save to localStorage:', storageErr);
   }
 
-  // 2. Prepare structured database row and send to backend API
+  // 2. Prepare structured database row
+  const rowData = {
+    reference_id: booking.referenceId,
+    full_name: booking.passengerDetails?.fullName || 'Guest Customer',
+    mobile_number: booking.passengerDetails?.mobileNumber || '',
+    email: booking.passengerDetails?.email || '',
+    service_type: booking.searchDetails?.serviceType || 'One Way Trip',
+    pickup_location: booking.searchDetails?.pickupLocation || '',
+    drop_location: booking.searchDetails?.dropLocation || '',
+    travel_date: booking.searchDetails?.travelDate || '',
+    pickup_time: booking.searchDetails?.pickupTime || '',
+    return_date: booking.searchDetails?.returnDate || null,
+    return_time: booking.searchDetails?.returnTime || null,
+    duration_hours: booking.searchDetails?.durationHours || 8,
+    airport_transfer_type: booking.searchDetails?.airportTransferType || null,
+    passengers_count: booking.passengerDetails?.passengersCount || 2,
+    vehicle_id: booking.selectedVehicle?.id || '',
+    vehicle_name: booking.selectedVehicle?.name || '',
+    vehicle_category: booking.selectedVehicle?.category || '',
+    special_instructions: booking.passengerDetails?.specialInstructions || '',
+    total_estimated_fare: booking.estimatedFare?.totalEstimatedFare || 0,
+    currency: 'INR',
+    status: booking.status || 'Pending Confirmation',
+    driver_name: (booking as any).driver_name || null,
+    driver_phone: (booking as any).driver_phone || null,
+    driver_vehicle_plate: (booking as any).driver_vehicle_plate || null,
+    search_details: booking.searchDetails || {},
+    estimated_fare: booking.estimatedFare || {},
+    fare_snapshot: (booking as any).fare_snapshot || booking.estimatedFare?.fareSnapshot || null,
+    pricing_version: (booking as any).pricing_version || booking.estimatedFare?.pricingVersion || 1,
+    created_at: booking.createdAt || new Date().toISOString(),
+  };
+
+  let savedToRemote = false;
+  let remoteData: any = null;
+  let remoteMessage = '';
+
+  // 3. Insert directly into Supabase database if client is configured
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.from('bookings').insert([rowData]).select();
+      if (!error) {
+        savedToRemote = true;
+        remoteData = data;
+        remoteMessage = 'Successfully saved booking directly to Supabase cloud database.';
+        console.log('✅ Supabase booking insert succeeded:', data);
+      } else {
+        console.warn('⚠️ Supabase insert notice:', error.message, error.code);
+        remoteMessage = `Supabase notice: ${error.message}`;
+      }
+    } catch (sbErr: any) {
+      console.warn('⚠️ Supabase client error:', sbErr);
+      remoteMessage = `Supabase client error: ${sbErr?.message || 'Network error'}`;
+    }
+  }
+
+  // 4. Send to server backend endpoint as secondary sync guarantee
   try {
     fetch('/api/bookings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(booking),
+      body: JSON.stringify({ ...booking, ...rowData }),
     }).catch(() => {});
   } catch {
     // Network background send fallback
@@ -111,8 +167,11 @@ export async function saveBookingToSupabase(booking: BookingRequest): Promise<Sa
 
   return {
     success: true,
-    savedToRemote: false,
-    message: 'Booking appointment confirmed and securely stored in dispatch registry.',
+    savedToRemote,
+    data: remoteData,
+    message: savedToRemote
+      ? remoteMessage
+      : 'Booking appointment confirmed and securely registered in dispatch system.',
   };
 }
 
@@ -257,12 +316,62 @@ export async function assignDriverToBooking(
 
 export async function testSupabaseConnection(): Promise<{
   connected: boolean;
-  message: string;
   tableExists: boolean;
+  message: string;
+  projectId: string;
+  supabaseUrl: string;
 }> {
-  return {
-    connected: false,
-    tableExists: false,
-    message: 'Supabase integration disabled. Operating in local storage mode.',
-  };
+  if (!supabase) {
+    return {
+      connected: false,
+      tableExists: false,
+      message: 'Supabase client not initialized. Check your credentials.',
+      projectId: SUPABASE_PROJECT_ID,
+      supabaseUrl: SUPABASE_URL,
+    };
+  }
+
+  try {
+    const { data, error } = await supabase.from('bookings').select('id, reference_id').limit(1);
+    if (!error) {
+      return {
+        connected: true,
+        tableExists: true,
+        message: 'Successfully connected! The "bookings" table is active and receiving reservations.',
+        projectId: SUPABASE_PROJECT_ID,
+        supabaseUrl: SUPABASE_URL,
+      };
+    }
+
+    if (
+      error.code === 'PGRST205' ||
+      error.message?.includes('not find the table') ||
+      error.message?.includes('schema cache')
+    ) {
+      return {
+        connected: true,
+        tableExists: false,
+        message: 'Connected to Supabase project! Please run the SQL schema script in Supabase SQL Editor to initialize the "bookings" table.',
+        projectId: SUPABASE_PROJECT_ID,
+        supabaseUrl: SUPABASE_URL,
+      };
+    }
+
+    return {
+      connected: false,
+      tableExists: false,
+      message: `Supabase status: ${error.message} (${error.code || 'ERR'})`,
+      projectId: SUPABASE_PROJECT_ID,
+      supabaseUrl: SUPABASE_URL,
+    };
+  } catch (err: any) {
+    return {
+      connected: false,
+      tableExists: false,
+      message: `Connection failed: ${err?.message || 'Network error'}`,
+      projectId: SUPABASE_PROJECT_ID,
+      supabaseUrl: SUPABASE_URL,
+    };
+  }
 }
+

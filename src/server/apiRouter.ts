@@ -1,5 +1,6 @@
 import express, { Router } from "express";
 import { GoogleGenAI, ThinkingLevel, GenerateVideosOperation } from "@google/genai";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { AIRPORT_LOCATIONS } from "../data/locations/airports";
 import { MYSURU_LOCAL_LOCATIONS } from "../data/locations/mysuruLocal";
 import { COORG_WAYANAD_OOTY_LOCATIONS } from "../data/locations/coorgWayanadOoty";
@@ -12,6 +13,25 @@ import { runFareEngineTestSuite } from "./fareEngine/fareEngineTests";
 import { serverInterStateStore } from "./fareEngine/interstateOneWayStore";
 import { runInterStateOneWayTests } from "./fareEngine/interstateOneWayTests";
 import { detectIndianState } from "../utils/dynamicFareEngine";
+
+const SUPABASE_PROJECT_ID =
+  process.env.SUPABASE_PROJECT_ID || process.env.VITE_SUPABASE_PROJECT_ID || "xzegetvmatgoszohniwb";
+const SUPABASE_URL =
+  process.env.SUPABASE_URL ||
+  process.env.VITE_SUPABASE_URL ||
+  `https://${SUPABASE_PROJECT_ID}.supabase.co`;
+const SUPABASE_ANON_KEY =
+  process.env.SUPABASE_ANON_KEY ||
+  process.env.VITE_SUPABASE_ANON_KEY ||
+  "sb_publishable_jqBK6TBVmFn0M5mf3x6ijQ_y82mLZ1D";
+
+const serverSupabase: SupabaseClient | null =
+  SUPABASE_URL && SUPABASE_ANON_KEY
+    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: { persistSession: false, autoRefreshToken: false },
+      })
+    : null;
+
 
 const POPULAR_LOCATIONS = [
   ...AIRPORT_LOCATIONS,
@@ -1273,12 +1293,68 @@ export function createApiRouter(): Router {
   });
 
   // API route to get or check Supabase status
-  router.get("/supabase-status", (req, res) => {
-    return res.json({
-      success: false,
-      configured: false,
-      status: "Disabled (Local Storage & Server Registry Mode)",
-    });
+  router.get("/supabase-status", async (req, res) => {
+    if (!serverSupabase) {
+      return res.json({
+        success: false,
+        configured: false,
+        status: "Supabase client not initialized",
+        projectId: SUPABASE_PROJECT_ID,
+      });
+    }
+
+    try {
+      const { data, error } = await serverSupabase
+        .from("bookings")
+        .select("id, reference_id")
+        .limit(1);
+
+      if (!error) {
+        return res.json({
+          success: true,
+          configured: true,
+          tableExists: true,
+          status: "Connected & Active",
+          projectId: SUPABASE_PROJECT_ID,
+          supabaseUrl: SUPABASE_URL,
+          message: "Connected to Supabase cloud database. Table 'bookings' is active and receiving reservations.",
+        });
+      }
+
+      if (
+        error.code === "PGRST205" ||
+        error.message?.includes("not find the table") ||
+        error.message?.includes("schema cache")
+      ) {
+        return res.json({
+          success: true,
+          configured: true,
+          tableExists: false,
+          status: "Connected (Table Pending Creation)",
+          projectId: SUPABASE_PROJECT_ID,
+          supabaseUrl: SUPABASE_URL,
+          message: "Supabase project connected! Table 'bookings' needs to be created in Supabase SQL editor.",
+        });
+      }
+
+      return res.json({
+        success: false,
+        configured: true,
+        tableExists: false,
+        status: `Notice: ${error.message}`,
+        projectId: SUPABASE_PROJECT_ID,
+        supabaseUrl: SUPABASE_URL,
+        message: error.message,
+      });
+    } catch (e: any) {
+      return res.json({
+        success: false,
+        configured: true,
+        status: `Error: ${e?.message}`,
+        projectId: SUPABASE_PROJECT_ID,
+        supabaseUrl: SUPABASE_URL,
+      });
+    }
   });
 
   // Google Maps Platform: Config & API Key status
@@ -1994,7 +2070,21 @@ export function createApiRouter(): Router {
   });
 
   // API route to get recent bookings
-  router.get("/bookings", (req, res) => {
+  router.get("/bookings", async (req, res) => {
+    if (serverSupabase) {
+      try {
+        const { data, error } = await serverSupabase
+          .from("bookings")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(50);
+        if (!error && Array.isArray(data) && data.length > 0) {
+          return res.json({ success: true, source: "supabase", bookings: data });
+        }
+      } catch (err) {
+        // Fallback to in-memory buffer
+      }
+    }
     return res.json({ success: true, source: "server_memory", bookings: serverBookingsBuffer });
   });
 
@@ -2051,6 +2141,9 @@ export function createApiRouter(): Router {
         total_estimated_fare: booking.estimatedFare?.totalEstimatedFare || 0,
         currency: "INR",
         status: booking.status || "Pending Confirmation",
+        driver_name: booking.driver_name || null,
+        driver_phone: booking.driver_phone || null,
+        driver_vehicle_plate: booking.driver_vehicle_plate || null,
         search_details: booking.searchDetails || {},
         estimated_fare: booking.estimatedFare || {},
         fare_snapshot: fareSnapshot,
@@ -2058,7 +2151,7 @@ export function createApiRouter(): Router {
         created_at: booking.createdAt || new Date().toISOString(),
       };
 
-      // Always preserve in server memory buffer as resilient guarantee
+      // 1. Always preserve in server memory buffer as resilient guarantee
       const existingIdx = serverBookingsBuffer.findIndex(
         (b) => b.reference_id === rowData.reference_id
       );
@@ -2069,11 +2162,31 @@ export function createApiRouter(): Router {
         if (serverBookingsBuffer.length > 50) serverBookingsBuffer.pop();
       }
 
+      // 2. Persist to Supabase if client is configured
+      let savedToSupabase = false;
+      if (serverSupabase) {
+        try {
+          const { data, error } = await serverSupabase
+            .from("bookings")
+            .upsert([rowData], { onConflict: "reference_id" })
+            .select();
+          if (!error && data) {
+            savedToSupabase = true;
+          } else if (error) {
+            console.warn("Supabase bookings upsert notice:", error.message);
+          }
+        } catch (sbErr) {
+          console.warn("Supabase upsert error:", sbErr);
+        }
+      }
+
       return res.status(200).json({
         success: true,
-        savedToRemote: false,
+        savedToRemote: savedToSupabase,
         data: [rowData],
-        message: "Booking received & securely queued in dispatch registry",
+        message: savedToSupabase
+          ? "Booking received & saved directly to Supabase cloud database"
+          : "Booking received & securely queued in dispatch registry",
       });
     } catch (err: any) {
       return res.status(200).json({
@@ -2161,6 +2274,20 @@ export function createApiRouter(): Router {
         }
       }
 
+      // Sync updates to Supabase if configured
+      if (serverSupabase) {
+        serverSupabase
+          .from("bookings")
+          .update(updates)
+          .eq("reference_id", referenceId)
+          .then(
+            ({ error }) => {
+              if (error) console.warn("Supabase booking update notice:", error.message);
+            },
+            (e) => console.warn("Supabase update error:", e)
+          );
+      }
+
       return res.json({
         success: true,
         booking: serverBookingsBuffer[index],
@@ -2193,6 +2320,21 @@ export function createApiRouter(): Router {
         details: `Booking #${referenceId} permanently deleted from active bookings registry.`,
         timestamp: new Date().toISOString(),
       });
+
+      // Sync deletion to Supabase if configured
+      if (serverSupabase) {
+        serverSupabase
+          .from("bookings")
+          .delete()
+          .eq("reference_id", referenceId)
+          .then(
+            ({ error }) => {
+              if (error) console.warn("Supabase booking delete notice:", error.message);
+            },
+            (e) => console.warn("Supabase delete error:", e)
+          );
+      }
+
       return res.json({
         success: true,
         deleted: deleted[0],
@@ -2285,6 +2427,23 @@ export function createApiRouter(): Router {
         });
       }
 
+      // Sync status to Supabase if configured
+      if (serverSupabase) {
+        serverSupabase
+          .from("bookings")
+          .update({
+            status,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("reference_id", referenceId)
+          .then(
+            ({ error }) => {
+              if (error) console.warn("Supabase status update notice:", error.message);
+            },
+            (e) => console.warn("Supabase status error:", e)
+          );
+      }
+
       return res.json({
         success: true,
         booking: serverBookingsBuffer[index],
@@ -2346,6 +2505,27 @@ export function createApiRouter(): Router {
         details: `Assigned Chauffeur ${chauffeurName} & Cab ${regNumber} to #${referenceId}`,
         timestamp: new Date().toISOString(),
       });
+
+      // Sync driver assignment to Supabase if configured
+      if (serverSupabase) {
+        serverSupabase
+          .from("bookings")
+          .update({
+            status: "Driver Assigned",
+            driver_name: chauffeurName,
+            driver_phone: chauffeurPhone,
+            driver_vehicle_plate: regNumber,
+            driver_assigned_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("reference_id", referenceId)
+          .then(
+            ({ error }) => {
+              if (error) console.warn("Supabase driver assignment update notice:", error.message);
+            },
+            (e) => console.warn("Supabase assign error:", e)
+          );
+      }
 
       return res.json({
         success: true,

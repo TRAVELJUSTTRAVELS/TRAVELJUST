@@ -32,12 +32,24 @@ import {
   Trash2,
   Loader2,
   Film,
+  Database,
+  Copy,
+  ExternalLink,
+  Check,
 } from 'lucide-react';
 import { BookingRequest } from '../types';
 import { fareService } from '../services/fareService';
 import { VehicleDynamicPricingConfig } from '../types/dynamicPricing';
 import { CentralizedFareConfig } from '../types/fareEngine';
 import { AdvancedFareEngine } from './AdvancedFareEngine';
+import {
+  testSupabaseConnection,
+  SUPABASE_TABLE_SCHEMA_SQL,
+  SUPABASE_PROJECT_ID,
+  SUPABASE_URL,
+  saveBookingToSupabase,
+} from '../services/supabaseService';
+import { supabase } from '../services/supabaseClient';
 
 export interface OwnerPortalModalProps {
   isOpen: boolean;
@@ -117,8 +129,80 @@ export const OwnerPortalModal: React.FC<OwnerPortalModalProps> = ({
   onFareSaved,
 }) => {
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'bookings' | 'fleet' | 'chauffeurs' | 'customers' | 'communications' | 'audit' | 'fare-engine'
+    'dashboard' | 'bookings' | 'fleet' | 'chauffeurs' | 'customers' | 'communications' | 'audit' | 'fare-engine' | 'database'
   >('dashboard');
+
+  // Supabase Database State
+  const [supabaseTestStatus, setSupabaseTestStatus] = useState<{
+    tested: boolean;
+    loading: boolean;
+    connected: boolean;
+    tableExists: boolean;
+    message: string;
+  }>({
+    tested: false,
+    loading: false,
+    connected: false,
+    tableExists: false,
+    message: '',
+  });
+  const [sqlCopied, setSqlCopied] = useState(false);
+  const [isSyncingSupabase, setIsSyncingSupabase] = useState(false);
+  const [syncResultMsg, setSyncResultMsg] = useState('');
+
+  const handleTestSupabase = async () => {
+    setSupabaseTestStatus((prev) => ({ ...prev, loading: true }));
+    try {
+      const result = await testSupabaseConnection();
+      setSupabaseTestStatus({
+        tested: true,
+        loading: false,
+        connected: result.connected,
+        tableExists: result.tableExists,
+        message: result.message,
+      });
+    } catch (err: any) {
+      setSupabaseTestStatus({
+        tested: true,
+        loading: false,
+        connected: false,
+        tableExists: false,
+        message: err?.message || 'Connection test failed',
+      });
+    }
+  };
+
+  const handleCopySql = () => {
+    navigator.clipboard.writeText(SUPABASE_TABLE_SCHEMA_SQL);
+    setSqlCopied(true);
+    setTimeout(() => setSqlCopied(false), 3000);
+  };
+
+  const handleSyncAllToSupabase = async () => {
+    if (bookings.length === 0) {
+      setSyncResultMsg('No bookings available to sync.');
+      return;
+    }
+    setIsSyncingSupabase(true);
+    setSyncResultMsg('Syncing bookings to Supabase cloud...');
+    let successCount = 0;
+    try {
+      for (const b of bookings) {
+        try {
+          const res = await saveBookingToSupabase(b);
+          if (res.success) successCount++;
+        } catch {
+          // Continue
+        }
+      }
+      setSyncResultMsg(`Successfully processed ${successCount} of ${bookings.length} bookings for Supabase cloud.`);
+      refreshAllData();
+    } catch (e: any) {
+      setSyncResultMsg(`Sync completed with notice: ${e?.message}`);
+    } finally {
+      setIsSyncingSupabase(false);
+    }
+  };
 
   // Fare Engine State
   const [vehicleConfigs, setVehicleConfigs] = useState<Record<string, VehicleDynamicPricingConfig>>(() => {
@@ -921,6 +1005,24 @@ export const OwnerPortalModal: React.FC<OwnerPortalModalProps> = ({
             >
               <Zap className="w-4 h-4 fill-current" />
               <span>Fare Engine & Rates</span>
+            </button>
+
+            <button
+              id="owner-tab-database"
+              onClick={() => {
+                setActiveTab('database');
+                if (!supabaseTestStatus.tested && !supabaseTestStatus.loading) {
+                  handleTestSupabase();
+                }
+              }}
+              className={`px-3.5 py-2 rounded-xl font-extrabold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer shadow-xs ${
+                activeTab === 'database'
+                  ? 'bg-emerald-500 text-white shadow-md ring-2 ring-emerald-300'
+                  : 'text-emerald-300 hover:text-white hover:bg-white/10 bg-emerald-500/10 border border-emerald-500/30'
+              }`}
+            >
+              <Database className="w-4 h-4" />
+              <span>Supabase Cloud DB</span>
             </button>
           </div>
         </div>
@@ -1976,6 +2078,259 @@ export const OwnerPortalModal: React.FC<OwnerPortalModalProps> = ({
           {activeTab === 'fare-engine' && (
             <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden min-h-[600px] flex flex-col">
               <AdvancedFareEngine isOwner={true} onFareSaved={onFareSaved} />
+            </div>
+          )}
+
+          {/* TAB 10: SUPABASE CLOUD DATABASE */}
+          {activeTab === 'database' && (
+            <div className="space-y-6">
+              {/* Header Banner */}
+              <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-900 p-6 rounded-3xl text-white border border-emerald-500/20 shadow-lg relative overflow-hidden">
+                <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+                  <div>
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-bold mb-3">
+                      <Database className="w-3.5 h-3.5" />
+                      <span>Cloud Database & Remote Storage</span>
+                    </div>
+                    <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+                      Supabase Database Integration
+                    </h2>
+                    <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                      All online taxi bookings, passenger records, and dispatch statuses are synchronized and saved in your Supabase account (Project: <code className="text-emerald-300 font-mono font-bold">{SUPABASE_PROJECT_ID}</code>).
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <button
+                      onClick={handleTestSupabase}
+                      disabled={supabaseTestStatus.loading}
+                      className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-2 transition-all shadow-md cursor-pointer disabled:opacity-50"
+                    >
+                      {supabaseTestStatus.loading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-4 h-4" />
+                      )}
+                      <span>Test Connection</span>
+                    </button>
+
+                    <a
+                      href={`https://supabase.com/dashboard/project/${SUPABASE_PROJECT_ID}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl flex items-center gap-2 transition-all border border-slate-700 cursor-pointer"
+                    >
+                      <ExternalLink className="w-4 h-4 text-emerald-400" />
+                      <span>Open Supabase</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status & Diagnostic Cards Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Project Card */}
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    Project Reference
+                  </div>
+                  <div className="font-mono font-black text-slate-900 text-base break-all">
+                    {SUPABASE_PROJECT_ID}
+                  </div>
+                  <div className="text-xs text-slate-500 break-all font-mono">
+                    {SUPABASE_URL}
+                  </div>
+                </div>
+
+                {/* API Auth Card */}
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    Authentication Key
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      Publishable Key Configured
+                    </span>
+                  </div>
+                  <div className="font-mono text-xs text-slate-500 truncate">
+                    sb_publishable_jqBK6TBVmFn...
+                  </div>
+                </div>
+
+                {/* Connection Status Card */}
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    Connection Health
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="font-black text-slate-900 text-sm">
+                      {supabaseTestStatus.tested
+                        ? (supabaseTestStatus.connected ? 'Online & Authenticated' : 'Check Status')
+                        : 'Credentials Active'}
+                    </span>
+                  </div>
+                  <div className="text-xs text-slate-600">
+                    {supabaseTestStatus.tested
+                      ? supabaseTestStatus.message
+                      : 'Click "Test Connection" to perform live ping to Supabase gateway.'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Table Schema & Activation Instructions */}
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                  <div>
+                    <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                      <Layers className="w-4 h-4 text-emerald-600" />
+                      <span>Supabase Database Schema (`public.bookings`)</span>
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Ensure the bookings table exists in your Supabase project so reservations save seamlessly.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleCopySql}
+                      className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      {sqlCopied ? (
+                        <>
+                          <Check className="w-4 h-4 text-emerald-600" />
+                          <span className="text-emerald-700">SQL Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4" />
+                          <span>Copy SQL Script</span>
+                        </>
+                      )}
+                    </button>
+
+                    <a
+                      href={`https://supabase.com/dashboard/project/${SUPABASE_PROJECT_ID}/sql/new`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-xs rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      <span>Open SQL Editor</span>
+                    </a>
+                  </div>
+                </div>
+
+                <div className="bg-slate-900 rounded-2xl p-4 text-slate-300 font-mono text-xs overflow-x-auto max-h-64 border border-slate-800">
+                  <pre>{SUPABASE_TABLE_SCHEMA_SQL}</pre>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                  <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1">
+                    <div className="font-extrabold text-slate-900 flex items-center gap-1.5">
+                      <span className="w-5 h-5 rounded-full bg-emerald-600 text-white inline-flex items-center justify-center text-[10px] font-bold">1</span>
+                      <span>Copy SQL</span>
+                    </div>
+                    <p className="text-slate-600 text-[11px] leading-relaxed">
+                      Click the "Copy SQL Script" button above to copy the table creation and RLS policy script.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1">
+                    <div className="font-extrabold text-slate-900 flex items-center gap-1.5">
+                      <span className="w-5 h-5 rounded-full bg-emerald-600 text-white inline-flex items-center justify-center text-[10px] font-bold">2</span>
+                      <span>Paste & Run in Supabase</span>
+                    </div>
+                    <p className="text-slate-600 text-[11px] leading-relaxed">
+                      Click "Open SQL Editor", paste the script into the query editor, and click "Run".
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1">
+                    <div className="font-extrabold text-slate-900 flex items-center gap-1.5">
+                      <span className="w-5 h-5 rounded-full bg-emerald-600 text-white inline-flex items-center justify-center text-[10px] font-bold">3</span>
+                      <span>Automatic Sync</span>
+                    </div>
+                    <p className="text-slate-600 text-[11px] leading-relaxed">
+                      All new bookings immediately save to your Supabase table with real-time updates!
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Data Sync & Current Registry Status */}
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                      <CalendarCheck2 className="w-4 h-4 text-emerald-600" />
+                      <span>Sync Dispatch Registry to Supabase</span>
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {bookings.length} total booking{bookings.length === 1 ? '' : 's'} currently in dispatch registry.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={handleSyncAllToSupabase}
+                    disabled={isSyncingSupabase || bookings.length === 0}
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50 shadow-xs"
+                  >
+                    {isSyncingSupabase ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-4 h-4" />
+                    )}
+                    <span>Sync Bookings to Supabase</span>
+                  </button>
+                </div>
+
+                {syncResultMsg && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl text-xs font-semibold">
+                    {syncResultMsg}
+                  </div>
+                )}
+
+                {/* Recent Bookings List */}
+                <div className="border border-slate-200 rounded-2xl overflow-hidden divide-y divide-slate-100 max-h-72 overflow-y-auto">
+                  {bookings.length === 0 ? (
+                    <div className="p-8 text-center text-slate-400 text-xs">
+                      No bookings created yet. Create a test booking from the home page to see it appear here and in Supabase!
+                    </div>
+                  ) : (
+                    bookings.slice(0, 10).map((b) => (
+                      <div key={b.referenceId} className="p-3.5 flex items-center justify-between hover:bg-slate-50 text-xs">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2 font-mono font-bold text-slate-900">
+                            <span>#{b.referenceId}</span>
+                            <span className="text-slate-400 font-normal">|</span>
+                            <span className="font-sans font-medium text-slate-700">{b.passengerDetails.fullName}</span>
+                          </div>
+                          <div className="text-[11px] text-slate-500">
+                            {b.searchDetails.pickupLocation} → {b.searchDetails.dropLocation || 'Local'}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <div className="font-extrabold text-slate-900">
+                              ₹{b.estimatedFare.totalEstimatedFare.toLocaleString('en-IN')}
+                            </div>
+                            <div className="text-[10px] text-slate-400 font-medium">
+                              {b.selectedVehicle.name}
+                            </div>
+                          </div>
+
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            {b.status || 'Confirmed'}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>

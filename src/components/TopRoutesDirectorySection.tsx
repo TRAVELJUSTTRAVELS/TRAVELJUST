@@ -68,6 +68,7 @@ export const TopRoutesDirectorySection: React.FC<TopRoutesDirectorySectionProps>
                 <li><a href="#popular-routes-section" onClick={(e) => handleNavClick(e, '#popular-routes-section')} className="hover:text-emerald-300 transition-colors">Hassan</a></li>
                 <li><a href="#popular-routes-section" onClick={(e) => handleNavClick(e, '#popular-routes-section')} className="hover:text-emerald-300 transition-colors">Chikkamagaluru</a></li>
                 <li><a href="#popular-routes-section" onClick={(e) => handleNavClick(e, '#popular-routes-section')} className="hover:text-emerald-300 transition-colors">Ooty</a></li>
+                <li><a href="#popular-routes-section" onClick={(e) => handleNavClick(e, '#popular-routes-section')} className="hover:text-emerald-300 transition-colors">Kodaikanal</a></li>
                 <li><a href="#popular-routes-section" onClick={(e) => handleNavClick(e, '#popular-routes-section')} className="hover:text-emerald-300 transition-colors">Wayanad</a></li>
               </ul>
             </div>
