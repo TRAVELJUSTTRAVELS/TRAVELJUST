@@ -499,24 +499,6 @@ export const Header: React.FC<HeaderProps> = ({
           )}
 
           <div className="flex flex-col gap-1 py-1">
-            {onOpenPartnerDrawer && (
-              <button
-                type="button"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onOpenPartnerDrawer();
-                }}
-                className="text-left text-base font-bold text-emerald-950 bg-emerald-50 hover:bg-emerald-100 px-3 py-2.5 rounded-lg transition-colors flex items-center justify-between border border-emerald-200 mt-1"
-              >
-                <div className="flex items-center gap-2">
-                  <Car className="w-4 h-4 text-emerald-700" />
-                  <span>Attach Your Cab / Partner</span>
-                </div>
-                <span className="text-[10px] uppercase font-black bg-emerald-600 text-white px-2 py-0.5 rounded-md">
-                  Drive With Us
-                </span>
-              </button>
-            )}
 
             {/* In mobile nav: only show Owner tools if Owner */}
             {isOwner && (
@@ -558,25 +540,6 @@ export const Header: React.FC<HeaderProps> = ({
 
           {!isOwner && (
             <div className="pt-3 border-t border-slate-100 space-y-2">
-              {/* Mobile Download App Button */}
-              <button
-                id="mobile-download-app-btn"
-                type="button"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onOpenDownloadApp?.();
-                }}
-                className="w-full flex items-center justify-between px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-900 border border-slate-200 rounded-xl font-bold text-sm cursor-pointer"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Smartphone className="w-4 h-4 text-[#14CD03]" />
-                  <span>Download App</span>
-                </div>
-                <span className="text-[10px] uppercase font-bold bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded">
-                  Android & iOS
-                </span>
-              </button>
-
               {/* Mobile Login / Account Button */}
               <button
                 id="mobile-login-account-btn"
@@ -685,17 +648,6 @@ export const Header: React.FC<HeaderProps> = ({
           )}
 
           <div className="pt-2 space-y-3">
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                onBookRideClick();
-              }}
-              className="w-full bg-emerald-800 hover:bg-emerald-900 text-white font-semibold py-3 px-4 rounded-xl shadow text-center flex items-center justify-center gap-2 text-base"
-            >
-              Book a Ride Now
-              <ChevronRight className="w-5 h-5" />
-            </button>
-
             <div className="bg-emerald-50/70 p-3.5 rounded-xl border border-emerald-100 flex items-center justify-between text-xs text-emerald-900">
               <div className="flex items-center gap-2 font-medium">
                 <Phone className="w-4 h-4 text-emerald-800" />

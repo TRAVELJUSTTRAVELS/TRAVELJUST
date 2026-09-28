@@ -40,15 +40,8 @@ export const auth = getAuth(app);
 export const googleAuthProvider = new GoogleAuthProvider();
 googleAuthProvider.setCustomParameters({ prompt: 'select_account' });
 
-// Initialize Firestore with forced long-polling for seamless iframe/Cloud Run container network compatibility
-const databaseId = firebaseConfigJson.firestoreDatabaseId || undefined;
-export const db = initializeFirestore(
-  app,
-  {
-    experimentalForceLongPolling: true,
-  },
-  databaseId
-);
+// Initialize Firestore strictly matching the Firebase Integration Skill specification
+export const db = getFirestore(app, firebaseConfigJson.firestoreDatabaseId);
 
 // Standardized Firestore Error Handling per Firebase Skill
 export enum OperationType {
@@ -99,16 +92,19 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw new Error(JSON.stringify(errInfo));
 }
 
-// Connection test on boot (mandatory Firebase skill check)
+// Connection test helper (called on-demand or during diagnostics)
 export async function testFirestoreConnection(): Promise<boolean> {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return false;
+  }
   try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-    return true;
+    const snap = await getDoc(doc(db, 'test', 'connection'));
+    return snap.exists();
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     const errorCode = (error as { code?: string })?.code;
     if (
-      errorMsg.includes('the client is offline') ||
+      errorMsg.includes('offline') ||
       errorCode === 'unavailable' ||
       errorMsg.includes('unavailable')
     ) {
@@ -117,13 +113,6 @@ export async function testFirestoreConnection(): Promise<boolean> {
     // Document does not exist or permission is normal on fresh projects
     return true;
   }
-}
-
-// Kick off test connection safely without unhandled rejections
-if (typeof window !== 'undefined') {
-  window.setTimeout(() => {
-    testFirestoreConnection().catch(() => {});
-  }, 1500);
 }
 
 // User Profile helper
