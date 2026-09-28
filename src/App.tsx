@@ -19,20 +19,23 @@ import { WhyChooseUs } from './components/WhyChooseUs';
 import { FAQSection } from './components/FAQSection';
 import { Footer } from './components/Footer';
 import { BookingModal } from './components/BookingModal';
-import { LegalModal } from './components/LegalModal';
 import { OwnerAuthModal } from './components/OwnerAuthModal';
-import { CustomerPortalModal } from './components/CustomerPortalModal';
-import { OwnerPortalModal } from './components/OwnerPortalModal';
-import { FareEngineModal } from './components/FareEngineModal';
-import { DriverPartnerDrawer } from './components/DriverPartnerDrawer';
-import { DownloadAppModal } from './components/DownloadAppModal';
 import { CustomerAuthModal } from './components/CustomerAuthModal';
-import { TravelExpertPopupModal } from './components/TravelExpertPopupModal';
 import { MobileInstallBanner } from './components/MobileInstallBanner';
 import { InAppPushNotificationBanner } from './components/InAppPushNotificationBanner';
 import { ContactAIChat } from './components/ContactAIChat';
-import { TravelStudioModal } from './components/TravelStudioModal';
 import { OfflineIndicator } from './components/OfflineIndicator';
+
+// Code-split heavy modals to dramatically accelerate initial load time and optimize Core Web Vitals
+const LegalModal = React.lazy(() => import('./components/LegalModal').then(m => ({ default: m.LegalModal })));
+const CustomerPortalModal = React.lazy(() => import('./components/CustomerPortalModal').then(m => ({ default: m.CustomerPortalModal })));
+const OwnerPortalModal = React.lazy(() => import('./components/OwnerPortalModal').then(m => ({ default: m.OwnerPortalModal })));
+const FareEngineModal = React.lazy(() => import('./components/FareEngineModal').then(m => ({ default: m.FareEngineModal })));
+const DriverPartnerDrawer = React.lazy(() => import('./components/DriverPartnerDrawer').then(m => ({ default: m.DriverPartnerDrawer })));
+const DownloadAppModal = React.lazy(() => import('./components/DownloadAppModal').then(m => ({ default: m.DownloadAppModal })));
+const TravelExpertPopupModal = React.lazy(() => import('./components/TravelExpertPopupModal').then(m => ({ default: m.TravelExpertPopupModal })));
+const TravelStudioModal = React.lazy(() => import('./components/TravelStudioModal').then(m => ({ default: m.TravelStudioModal })));
+const SiteOptimizerModal = React.lazy(() => import('./components/SiteOptimizerModal').then(m => ({ default: m.SiteOptimizerModal })));
 import { saveSearchToServiceWorkerCache } from './services/searchCacheService';
 import { calculateRouteDistance } from './services/googleMapsService';
 import { getStoredCustomer, clearCustomerSession, saveCustomerSession } from './services/customerAuthService';
@@ -124,6 +127,7 @@ export default function App() {
   const [travelExpertModalOpen, setTravelExpertModalOpen] = useState(false);
   const [travelStudioModalOpen, setTravelStudioModalOpen] = useState(false);
   const [travelStudioInitialTab, setTravelStudioInitialTab] = useState<'video' | 'create-image' | 'edit-image'>('video');
+  const [siteOptimizerModalOpen, setSiteOptimizerModalOpen] = useState(false);
 
   const handleOpenTravelStudio = (tab: 'video' | 'create-image' | 'edit-image' = 'video') => {
     setTravelStudioInitialTab(tab);
@@ -598,6 +602,7 @@ export default function App() {
         onOpenCustomerAuth={() => setCustomerAuthModalOpen(true)}
         onCustomerLogout={handleCustomerLogout}
         onOpenTravelStudio={handleOpenTravelStudio}
+        onOpenSiteOptimizer={() => setSiteOptimizerModalOpen(true)}
       />
 
       {/* Main Page Layout */}
@@ -710,6 +715,7 @@ export default function App() {
         customer={customer}
         onOpenCustomerPortal={() => setCustomerPortalModalOpen(true)}
         onOpenPartnerDrawer={() => setPartnerDrawerOpen(true)}
+        onOpenSiteOptimizer={() => setSiteOptimizerModalOpen(true)}
       />
 
       {/* Driver Partner / Vendor Fleet Onboarding Drawer */}
@@ -731,34 +737,109 @@ export default function App() {
         />
       )}
 
-      {/* Privacy Policy / Terms Modal */}
-      <LegalModal
-        type={legalModalType}
-        onClose={() => setLegalModalType(null)}
-      />
+      <React.Suspense fallback={null}>
+        {/* Privacy Policy / Terms Modal */}
+        {legalModalType && (
+          <LegalModal
+            type={legalModalType}
+            onClose={() => setLegalModalType(null)}
+          />
+        )}
 
-      {/* Customer Account & Trips Dashboard Portal */}
-      <CustomerPortalModal
-        isOpen={customerPortalModalOpen}
-        onClose={() => setCustomerPortalModalOpen(false)}
-        customer={customer}
-        onLogout={handleCustomerLogout}
-        onUpdateCustomer={handleUpdateCustomerProfile}
-        onRebookTrip={handleRebookTrip}
-        onBookNewRide={handleScrollToBookingSearch}
-      />
+        {/* Customer Account & Trips Dashboard Portal */}
+        {customerPortalModalOpen && (
+          <CustomerPortalModal
+            isOpen={customerPortalModalOpen}
+            onClose={() => setCustomerPortalModalOpen(false)}
+            customer={customer}
+            onLogout={handleCustomerLogout}
+            onUpdateCustomer={handleUpdateCustomerProfile}
+            onRebookTrip={handleRebookTrip}
+            onBookNewRide={handleScrollToBookingSearch}
+          />
+        )}
+
+        {/* Download App Modal */}
+        {downloadAppModalOpen && (
+          <DownloadAppModal
+            isOpen={downloadAppModalOpen}
+            onClose={() => setDownloadAppModalOpen(false)}
+          />
+        )}
+
+        {/* Driver Partner Drawer */}
+        {partnerDrawerOpen && (
+          <DriverPartnerDrawer
+            isOpen={partnerDrawerOpen}
+            onClose={() => setPartnerDrawerOpen(false)}
+          />
+        )}
+
+        {/* Comprehensive Business Owner & Fleet Management Portal */}
+        {isOwner && ownerPortalModalOpen && (
+          <OwnerPortalModal
+            isOpen={isOwner && ownerPortalModalOpen}
+            onClose={() => setOwnerPortalModalOpen(false)}
+            onExitOwnerMode={handleExitOwnerMode}
+            onOpenFareEngine={handleOpenSimpleFareEngine}
+            onOpenSimpleFareEngine={handleOpenSimpleFareEngine}
+            onOpenAdvancedFareEngine={handleOpenAdvancedFareEngine}
+            onOpenTravelStudio={handleOpenTravelStudio}
+            onFareSaved={(updated) => {
+              setPricingConfig((prev) => fareService.syncCentralizedToSitePricingConfig(updated, prev));
+              setFareUpdateTrigger((c) => c + 1);
+            }}
+          />
+        )}
+
+        {/* Live Dynamic Fare Engine Modal (Accessible to Owner & Preview) */}
+        {fareEngineModalOpen && (
+          <FareEngineModal
+            isOpen={fareEngineModalOpen}
+            onClose={() => setFareEngineModalOpen(false)}
+            isOwner={isOwner}
+            initialMode={fareEngineInitialMode}
+            onOpenOwnerAuth={() => setOwnerAuthModalOpen(true)}
+            onFareSaved={(updated) => {
+              setPricingConfig((prev) => fareService.syncCentralizedToSitePricingConfig(updated, prev));
+              setFareUpdateTrigger((c) => c + 1);
+            }}
+          />
+        )}
+
+        {/* 24x7 Travel Expert Popup Modal (opens after 30 seconds) */}
+        {travelExpertModalOpen && (
+          <TravelExpertPopupModal
+            isOpen={travelExpertModalOpen}
+            onClose={handleCloseTravelExpertModal}
+            phoneNumber="97407 54400"
+          />
+        )}
+
+        {/* AI Creative Studio Modal (Veo 3.1 & Gemini Image Preview) */}
+        {travelStudioModalOpen && (
+          <TravelStudioModal
+            isOpen={travelStudioModalOpen}
+            onClose={() => setTravelStudioModalOpen(false)}
+            initialTab={travelStudioInitialTab}
+          />
+        )}
+
+        {/* Site Optimizer & WordPress Updates Hub Modal */}
+        {siteOptimizerModalOpen && (
+          <SiteOptimizerModal
+            isOpen={siteOptimizerModalOpen}
+            onClose={() => setSiteOptimizerModalOpen(false)}
+            isOwner={isOwner}
+          />
+        )}
+      </React.Suspense>
 
       {/* Owner Authentication Modal */}
       <OwnerAuthModal
         isOpen={ownerAuthModalOpen}
         onClose={() => setOwnerAuthModalOpen(false)}
         onSuccess={handleOwnerLoginSuccess}
-      />
-
-      {/* Download App Modal */}
-      <DownloadAppModal
-        isOpen={downloadAppModalOpen}
-        onClose={() => setDownloadAppModalOpen(false)}
       />
 
       {/* Customer Login / Register Modal */}
@@ -779,41 +860,6 @@ export default function App() {
         }}
       />
 
-      {/* Comprehensive Business Owner & Fleet Management Portal */}
-      <OwnerPortalModal
-        isOpen={isOwner && ownerPortalModalOpen}
-        onClose={() => setOwnerPortalModalOpen(false)}
-        onExitOwnerMode={handleExitOwnerMode}
-        onOpenFareEngine={handleOpenSimpleFareEngine}
-        onOpenSimpleFareEngine={handleOpenSimpleFareEngine}
-        onOpenAdvancedFareEngine={handleOpenAdvancedFareEngine}
-        onOpenTravelStudio={handleOpenTravelStudio}
-        onFareSaved={(updated) => {
-          setPricingConfig((prev) => fareService.syncCentralizedToSitePricingConfig(updated, prev));
-          setFareUpdateTrigger((c) => c + 1);
-        }}
-      />
-
-      {/* Live Dynamic Fare Engine Modal (Accessible to Owner & Preview) */}
-      <FareEngineModal
-        isOpen={fareEngineModalOpen}
-        onClose={() => setFareEngineModalOpen(false)}
-        isOwner={isOwner}
-        initialMode={fareEngineInitialMode}
-        onOpenOwnerAuth={() => setOwnerAuthModalOpen(true)}
-        onFareSaved={(updated) => {
-          setPricingConfig((prev) => fareService.syncCentralizedToSitePricingConfig(updated, prev));
-          setFareUpdateTrigger((c) => c + 1);
-        }}
-      />
-
-      {/* 24x7 Travel Expert Popup Modal (opens after 30 seconds) */}
-      <TravelExpertPopupModal
-        isOpen={travelExpertModalOpen}
-        onClose={handleCloseTravelExpertModal}
-        phoneNumber="97407 54400"
-      />
-
       {/* Floating 1-Tap Mobile App Install Banner */}
       <MobileInstallBanner
         onOpenDetailedModal={() => setDownloadAppModalOpen(true)}
@@ -824,13 +870,6 @@ export default function App() {
         onOpenRideDetails={() => {
           setCustomerPortalModalOpen(true);
         }}
-      />
-
-      {/* AI Creative Studio Modal (Veo 3.1 & Gemini Image Preview) */}
-      <TravelStudioModal
-        isOpen={travelStudioModalOpen}
-        onClose={() => setTravelStudioModalOpen(false)}
-        initialTab={travelStudioInitialTab}
       />
     </div>
   );

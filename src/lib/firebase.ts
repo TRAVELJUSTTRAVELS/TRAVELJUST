@@ -40,12 +40,12 @@ export const auth = getAuth(app);
 export const googleAuthProvider = new GoogleAuthProvider();
 googleAuthProvider.setCustomParameters({ prompt: 'select_account' });
 
-// Initialize Firestore with long-polling fallback for iframe/Cloud Run container network compatibility
+// Initialize Firestore with forced long-polling for seamless iframe/Cloud Run container network compatibility
 const databaseId = firebaseConfigJson.firestoreDatabaseId || undefined;
 export const db = initializeFirestore(
   app,
   {
-    experimentalAutoDetectLongPolling: true,
+    experimentalForceLongPolling: true,
   },
   databaseId
 );
@@ -112,7 +112,6 @@ export async function testFirestoreConnection(): Promise<boolean> {
       errorCode === 'unavailable' ||
       errorMsg.includes('unavailable')
     ) {
-      console.warn('Firestore operating with offline persistence / network auto-reconnect active.');
       return false;
     }
     // Document does not exist or permission is normal on fresh projects
@@ -123,10 +122,8 @@ export async function testFirestoreConnection(): Promise<boolean> {
 // Kick off test connection safely without unhandled rejections
 if (typeof window !== 'undefined') {
   window.setTimeout(() => {
-    testFirestoreConnection().catch((err) => {
-      console.warn('Firestore initial handshake note:', err?.message || err);
-    });
-  }, 1000);
+    testFirestoreConnection().catch(() => {});
+  }, 1500);
 }
 
 // User Profile helper

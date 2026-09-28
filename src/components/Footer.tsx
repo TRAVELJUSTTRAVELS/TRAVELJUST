@@ -12,6 +12,7 @@ interface FooterProps {
   customer?: CustomerUser | null;
   onOpenCustomerPortal?: () => void;
   onOpenPartnerDrawer?: () => void;
+  onOpenSiteOptimizer?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
@@ -23,6 +24,7 @@ export const Footer: React.FC<FooterProps> = ({
   customer = null,
   onOpenCustomerPortal,
   onOpenPartnerDrawer,
+  onOpenSiteOptimizer,
 }) => {
   const currentYear = new Date().getFullYear();
 
@@ -201,6 +203,17 @@ export const Footer: React.FC<FooterProps> = ({
             <span>•</span>
             {isOwner ? (
               <div className="flex items-center gap-3">
+                {onOpenSiteOptimizer && (
+                  <button
+                    type="button"
+                    onClick={onOpenSiteOptimizer}
+                    className="flex items-center gap-1.5 text-amber-400 hover:text-amber-300 font-bold transition-colors cursor-pointer"
+                    title="Site Optimizer, SEO & Automatic WordPress Updates (Owner Only)"
+                  >
+                    <Zap className="w-3 h-3 text-amber-400" />
+                    <span>Site Optimizer & SEO</span>
+                  </button>
+                )}
                 {onOpenFareEngine && (
                   <button
                     type="button"

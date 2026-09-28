@@ -38,6 +38,7 @@ interface HeaderProps {
   onOpenCustomerAuth?: () => void;
   onCustomerLogout?: () => void;
   onOpenTravelStudio?: (initialTab?: 'video' | 'create-image' | 'edit-image') => void;
+  onOpenSiteOptimizer?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -56,6 +57,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenCustomerAuth,
   onCustomerLogout,
   onOpenTravelStudio,
+  onOpenSiteOptimizer,
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -315,6 +317,18 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Owner Mode Actions - ONLY visible to OWNER in Owner Portal mode */}
             {isOwner && (
               <div className="flex items-center gap-2">
+                {/* Site Optimizer & WordPress Core Updates - Owner Exclusive */}
+                <button
+                  id="header-site-optimizer-btn"
+                  type="button"
+                  onClick={onOpenSiteOptimizer}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-[#006045] border border-emerald-300 rounded-xl font-bold text-sm shadow-2xs hover:shadow-xs transition-all duration-150 cursor-pointer select-none"
+                  title="Site Optimizer, SEO & Automatic WordPress Core Updates (Owner Only)"
+                >
+                  <Sparkles className="w-4 h-4 text-[#FE9A00] shrink-0" />
+                  <span>Site Optimizer</span>
+                </button>
+
                 {/* Fare & Price Engine Button - Shown ONLY in Owner Portal mode */}
                 <button
                   id="header-fare-price-engine-btn"
@@ -346,21 +360,34 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Mobile Hamburger & Controls */}
           <div className="flex items-center gap-1.5 md:hidden">
-            {/* Quick Mobile Fare & Price Engine Button - Shown ONLY in Owner Mode / Portal */}
+            {/* Quick Mobile Owner Controls - Shown ONLY in Owner Mode / Portal */}
             {isOwner && (
-              <button
-                type="button"
-                id="mobile-quick-fare-engine-btn"
-                onClick={() => (onOpenSimpleFareEngine || onOpenFareEngine)?.()}
-                className="flex items-center gap-1 px-2.5 py-1.5 bg-[#032014] text-[#14CD03] border border-emerald-800 rounded-xl text-xs font-extrabold shadow-2xs active:scale-95 transition-all cursor-pointer"
-                title="Dynamic Fare & Price Engine (Owner Mode)"
-              >
-                <Zap className="w-3.5 h-3.5 text-[#14CD03] fill-[#14CD03]/30" />
-                <span className="text-[11px] text-white">Fare Engine</span>
-              </button>
+              <>
+                <button
+                  type="button"
+                  id="mobile-quick-optimizer-btn"
+                  onClick={onOpenSiteOptimizer}
+                  className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 text-[#006045] border border-emerald-300 rounded-xl text-xs font-bold shadow-2xs active:scale-95 transition-all cursor-pointer"
+                  title="Site Optimizer & WordPress (Owner Only)"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-[#FE9A00]" />
+                  <span className="text-[11px] font-bold">SEO</span>
+                </button>
+
+                <button
+                  type="button"
+                  id="mobile-quick-fare-engine-btn"
+                  onClick={() => (onOpenSimpleFareEngine || onOpenFareEngine)?.()}
+                  className="flex items-center gap-1 px-2.5 py-1.5 bg-[#032014] text-[#14CD03] border border-emerald-800 rounded-xl text-xs font-extrabold shadow-2xs active:scale-95 transition-all cursor-pointer"
+                  title="Dynamic Fare & Price Engine (Owner Mode)"
+                >
+                  <Zap className="w-3.5 h-3.5 text-[#14CD03] fill-[#14CD03]/30" />
+                  <span className="text-[11px] text-white">Fare Engine</span>
+                </button>
+              </>
             )}
 
-            {/* Quick Mobile App Install / Download Icon Button */}
+            {/* Quick Mobile App Install / Download Icon Button - Shown to Customers */}
             {!isOwner && (
               <button
                 type="button"
@@ -492,20 +519,39 @@ export const Header: React.FC<HeaderProps> = ({
             )}
 
             {/* In mobile nav: only show Owner tools if Owner */}
-            {isOwner && onExitOwnerMode && (
+            {isOwner && (
               <div className="space-y-1.5 mt-2 pt-2 border-t border-amber-200">
                 <button
+                  type="button"
                   onClick={() => {
                     setMobileMenuOpen(false);
-                    onExitOwnerMode();
+                    onOpenSiteOptimizer?.();
                   }}
-                  className="w-full text-left text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 px-3 py-2.5 rounded-lg transition-colors flex items-center justify-between border border-red-200 cursor-pointer"
+                  className="w-full text-left text-xs font-bold text-[#006045] bg-emerald-50 hover:bg-emerald-100 px-3 py-2.5 rounded-lg transition-colors flex items-center justify-between border border-emerald-300 cursor-pointer"
                 >
                   <div className="flex items-center gap-2">
-                    <LogOut className="w-4 h-4 text-red-700" />
-                    <span>Exit Owner Mode</span>
+                    <Sparkles className="w-4 h-4 text-[#FE9A00]" />
+                    <span>Site Optimizer & WordPress</span>
                   </div>
+                  <span className="text-[10px] uppercase font-black bg-[#006045] text-white px-2 py-0.5 rounded-md">
+                    Owner Pro
+                  </span>
                 </button>
+
+                {onExitOwnerMode && (
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onExitOwnerMode();
+                    }}
+                    className="w-full text-left text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 px-3 py-2.5 rounded-lg transition-colors flex items-center justify-between border border-red-200 cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <LogOut className="w-4 h-4 text-red-700" />
+                      <span>Exit Owner Mode</span>
+                    </div>
+                  </button>
+                )}
               </div>
             )}
           </div>

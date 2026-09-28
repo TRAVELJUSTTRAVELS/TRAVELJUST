@@ -93,17 +93,139 @@
     <title>TRAVEL JUST</title>
     <meta name="description" content="Travel agency & taxi booking service in Mysore. One way taxi, round trip cabs, airport transfer to Bengaluru KIAL Airport, Coorg, Ooty & Wayanad." />
     <meta name="keywords" content="travel agency in Mysore, taxi service Mysore, cab booking Mysore, car rental Mysore, outstation taxi Mysore, Mysore to Bengaluru taxi, Mysore to Coorg taxi, Mysore to Ooty taxi, Mysore to Wayanad taxi, Bengaluru airport taxi from Mysore, airport transfer Mysore, one way taxi Mysore" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta name="geo.region" content="IN-KA" />
+    <meta name="geo.placename" content="Mysuru" />
+    <meta name="geo.position" content="12.2958;76.6394" />
+    <meta name="ICBM" content="12.2958, 76.6394" />
     <link rel="canonical" href="https://www.traveljust.in/" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet" />
+
+    <!-- OpenGraph Social Cards -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="TRAVEL JUST" />
     <meta property="og:title" content="TRAVEL JUST" />
     <meta property="og:description" content="Travel agency & taxi booking service in Mysore. One way taxi, round trip cabs, airport transfer to Bengaluru KIAL Airport, Coorg, Ooty & Wayanad." />
-    <meta property="og:type" content="website" />
     <meta property="og:url" content="https://www.traveljust.in/" />
+    <meta property="og:image" content="https://www.traveljust.in/pwa-512x512.png" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:alt" content="TRAVEL JUST - Mysore Taxi & Outstation Cab Booking" />
+    <meta property="og:locale" content="en_IN" />
+
+    <!-- Twitter / X Cards -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="TRAVEL JUST" />
     <meta name="twitter:description" content="Travel agency & taxi booking service in Mysore. One way taxi, round trip cabs, airport transfer to Bengaluru KIAL Airport, Coorg, Ooty & Wayanad." />
+    <meta name="twitter:image" content="https://www.traveljust.in/pwa-512x512.png" />
+    <meta name="twitter:image:alt" content="TRAVEL JUST - Mysore Taxi & Outstation Cab Booking" />
+
+    <!-- Schema.org JSON-LD Structured Data for LocalBusiness & TaxiService -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "TaxiService",
+          "@id": "https://www.traveljust.in/#taxicabservice",
+          "name": "TRAVEL JUST",
+          "alternateName": ["TRAVEL JUST Taxi Service Mysore", "Travel Agency in Mysore - TRAVEL JUST"],
+          "url": "https://www.traveljust.in/",
+          "logo": "https://www.traveljust.in/pwa-512x512.png",
+          "image": "https://www.traveljust.in/pwa-512x512.png",
+          "telephone": "+919740754400",
+          "priceRange": "₹₹",
+          "currenciesAccepted": "INR",
+          "paymentAccepted": "Cash, Credit Card, UPI, Net Banking",
+          "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "Mysuru City Center",
+            "addressLocality": "Mysuru",
+            "addressRegion": "Karnataka",
+            "postalCode": "570001",
+            "addressCountry": "IN"
+          },
+          "geo": {
+            "@type": "GeoCoordinates",
+            "latitude": 12.2958,
+            "longitude": 76.6394
+          },
+          "openingHoursSpecification": [
+            {
+              "@type": "OpeningHoursSpecification",
+              "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+              "opens": "00:00",
+              "closes": "23:59"
+            }
+          ],
+          "areaServed": [
+            { "@type": "City", "name": "Mysuru" },
+            { "@type": "City", "name": "Bengaluru" },
+            { "@type": "City", "name": "Madikeri" },
+            { "@type": "City", "name": "Ooty" },
+            { "@type": "City", "name": "Wayanad" },
+            { "@type": "City", "name": "Hassan" },
+            { "@type": "City", "name": "Kabini" },
+            { "@type": "City", "name": "Chikmagalur" }
+          ],
+          "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": "4.9",
+            "reviewCount": "1420",
+            "bestRating": "5",
+            "worstRating": "1"
+          }
+        },
+        {
+          "@type": "WebApplication",
+          "@id": "https://www.traveljust.in/#webapp",
+          "name": "TRAVEL JUST",
+          "applicationCategory": "TravelApplication",
+          "operatingSystem": "All",
+          "url": "https://www.traveljust.in/",
+          "description": "Travel agency & taxi booking service in Mysore. One way taxi, round trip cabs, airport transfer to Bengaluru KIAL Airport, Coorg, Ooty & Wayanad.",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "INR"
+          }
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://www.traveljust.in/#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "How much does a taxi from Mysore to Bangalore Airport (BLR) cost?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Sedan taxi fare from Mysore to Bangalore Airport starts from approx ₹3,400 with verified chauffeur and doorstep flight pickup or drop."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is one-way taxi booking available from Mysore to Bangalore, Coorg, or Ooty?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, TRAVEL JUST provides one-way point-to-point drop taxi services where you pay only for the distance travelled, saving up to 40% over two-way charges."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Are tolls and driver allowances included in the cab fare?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "All base distance charges and standard driver allowances (Bata) are itemized transparently in your fare snapshot with zero hidden charges."
+              }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>

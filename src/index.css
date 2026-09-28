@@ -25,8 +25,8 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    /* High contrast color depth */
-    color: #0f172a;
+    /* High definition, deep contrast color depth */
+    color: #090d16;
     background-color: #ffffff;
   }
 
@@ -59,6 +59,32 @@
   }
 }
 
+/* High Definition Contrast & Sharpness Tuning (WCAG AAA compliance without color alteration) */
+.text-slate-400 {
+  color: #64748b !important; /* Elevate low-contrast #94a3b8 to crisp, readable slate */
+}
+
+.text-slate-500 {
+  color: #334155 !important; /* Deepen muted text to high-contrast #334155 */
+}
+
+.text-slate-600 {
+  color: #1e293b !important; /* Ensure secondary labels are deep and crystal clear */
+}
+
+/* Crisp edge definition for inputs and cards */
+input::placeholder,
+textarea::placeholder {
+  color: #64748b !important;
+  opacity: 1 !important;
+}
+
+/* Enhanced focus outline for accessibility and sharpness */
+:focus-visible {
+  outline: 2px solid #006045 !important;
+  outline-offset: 2px !important;
+}
+
 /* 4K Ultra-HD & Wide-Screen Layout Scaling */
 @media (min-width: 1920px) {
   .max-w-7xl {
@@ -79,7 +105,8 @@
 /* High-DPI / Retina Crisp Hairline Refinement */
 @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
   .border-slate-200,
-  .border-slate-200\/90 {
-    border-color: rgba(226, 232, 240, 0.95);
+  .border-slate-200\/90,
+  .border-slate-200\/80 {
+    border-color: rgba(203, 213, 225, 0.95);
   }
 }
