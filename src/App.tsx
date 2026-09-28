@@ -21,7 +21,6 @@ import { Footer } from './components/Footer';
 import { BookingModal } from './components/BookingModal';
 import { OwnerAuthModal } from './components/OwnerAuthModal';
 import { CustomerAuthModal } from './components/CustomerAuthModal';
-import { MobileInstallBanner } from './components/MobileInstallBanner';
 import { InAppPushNotificationBanner } from './components/InAppPushNotificationBanner';
 import { ContactAIChat } from './components/ContactAIChat';
 import { OfflineIndicator } from './components/OfflineIndicator';
@@ -858,11 +857,6 @@ export default function App() {
           setCustomerAuthModalOpen(false);
           setPartnerDrawerOpen(true);
         }}
-      />
-
-      {/* Floating 1-Tap Mobile App Install Banner */}
-      <MobileInstallBanner
-        onOpenDetailedModal={() => setDownloadAppModalOpen(true)}
       />
 
       {/* Real-time Push Notification Alert Toast / Banner */}

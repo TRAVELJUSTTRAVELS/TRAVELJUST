@@ -111,6 +111,48 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({
     return 13;
   })();
 
+  // Authoritative extra Hour rate for Local Booking strictly retrieved from active Fare Engine or snapshot
+  const extraPerHourRate = (() => {
+    // 1. Check fareEstimate snapshot produced by Fare & Price Engine calculation
+    if (fareEstimate.fareSnapshot?.extraPerHourRate && fareEstimate.fareSnapshot.extraPerHourRate > 0) {
+      return fareEstimate.fareSnapshot.extraPerHourRate;
+    }
+
+    // 2. Fetch directly from Centralized Fare Engine active config
+    const central = fareService.getCentralizedConfigSync();
+    const vid: FareVehicleId =
+      vehicle.id === 'sedan-4-1' || vehicle.id === 'toyota-etios' || vehicle.id === 'swift-desire'
+        ? 'sedan-4-1'
+        : vehicle.id === 'suv-6-1' || vehicle.id === 'ertiga' || vehicle.id === 'suv'
+        ? 'suv-6-1'
+        : vehicle.id === 'innova' || vehicle.id === 'innova-6-1' || vehicle.id === 'innova-7-1'
+        ? 'innova'
+        : vehicle.id === 'innova-crysta' || vehicle.id === 'innova-crysta-7-1'
+        ? 'innova-crysta'
+        : vehicle.id === 'tempo-traveller-12-1' || vehicle.id === 'tempo-traveller' || vehicle.id === 'tempo-traveller-14-1'
+        ? 'tempo-traveller-12-1'
+        : 'sedan-4-1';
+
+    if (central?.local?.[vid]?.extraPerHourRate && central.local[vid].extraPerHourRate > 0) {
+      return central.local[vid].extraPerHourRate;
+    }
+
+    const vPricing =
+      pricingConfig.vehiclePricing?.[vehicle.id] ||
+      (vehicle.id === 'suv-6-1' ? pricingConfig.vehiclePricing?.['ertiga'] : undefined);
+    if (vPricing?.perHourFare && vPricing.perHourFare > 0) {
+      return vPricing.perHourFare;
+    }
+
+    // Standard local package defaults per vehicle category
+    if (vid === 'sedan-4-1') return 150;
+    if (vid === 'suv-6-1') return 175;
+    if (vid === 'innova') return 175;
+    if (vid === 'innova-crysta') return 180;
+    if (vid === 'tempo-traveller-12-1') return 400;
+    return 150;
+  })();
+
   const formattedTotalFare =
     typeof fareEstimate.totalEstimatedFare === 'number' && !isNaN(fareEstimate.totalEstimatedFare)
       ? fareEstimate.totalEstimatedFare.toLocaleString('en-IN')
@@ -179,20 +221,28 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({
                 {vehicle.description}
               </p>
 
-              {/* Capacities & Badges */}
+              {/* Capacities & Badges - Arranged in exact sequence: Extra/Hour, Extra KM, Passengers, Comfort (Executive), Bags */}
               <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs font-medium text-slate-700 pt-1">
-                <div className="flex items-center gap-1.5 bg-slate-100/80 px-2.5 py-1 rounded-lg">
-                  <Users className="w-4 h-4 text-emerald-800" />
-                  <span id={`vehicle-passenger-capacity-${vehicle.id}`}>Up to {vehicle.seatingCapacity} Passengers</span>
-                </div>
+                {/* 1. Extra/Hour (only in local booking Preferred Vehicle) */}
+                {searchDetails?.serviceType === 'local' && (
+                  <button
+                    type="button"
+                    id={`btn-extra-hour-${vehicle.id}`}
+                    className="flex items-center gap-1.5 bg-[#d0fae5] hover:bg-[#bbf7d0] text-emerald-950 border border-emerald-300 px-2.5 py-1 rounded-lg font-bold shadow-2xs transition-colors cursor-default select-none active:scale-[0.98]"
+                    title={`Extra Hour Rate for ${vehicle.name}: ₹${extraPerHourRate}/hr after included package hours`}
+                  >
+                    <Clock className="w-3.5 h-3.5 text-emerald-800 shrink-0" />
+                    <span>Extra/Hour:</span>
+                    <span id={`vehicle-extra-hour-rate-${vehicle.id}`} className="font-extrabold text-emerald-950">
+                      ₹{extraPerHourRate}.
+                    </span>
+                  </button>
+                )}
 
-                <div className="flex items-center gap-1.5 bg-slate-100/80 px-2.5 py-1 rounded-lg">
-                  <Briefcase className="w-4 h-4 text-emerald-800" />
-                  <span>{vehicle.luggageCapacity} Bags</span>
-                </div>
-
+                {/* 2. Extra KM */}
                 {!fareEstimate.isFixedPrice && (
-                  <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-900 border border-emerald-200/90 px-2.5 py-1 rounded-lg font-bold shadow-2xs">
+                  <div className="flex items-center gap-1.5 bg-[#d0fae5] text-emerald-950 border border-emerald-300 px-2.5 py-1 rounded-lg font-bold shadow-2xs">
+                    <Car className="w-3.5 h-3.5 text-emerald-800 shrink-0" />
                     <span>Extra KM:</span>
                     <span id={`vehicle-extra-km-rate-${vehicle.id}`} className="font-extrabold text-emerald-950">
                       ₹{extraKmRate}/km
@@ -200,9 +250,22 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({
                   </div>
                 )}
 
-                <div className="flex items-center gap-1.5 text-emerald-800">
+                {/* 3. Up to Passengers */}
+                <div className="flex items-center gap-1.5 bg-slate-100/80 px-2.5 py-1 rounded-lg">
+                  <Users className="w-4 h-4 text-emerald-800" />
+                  <span id={`vehicle-passenger-capacity-${vehicle.id}`}>Up to {vehicle.seatingCapacity} Passengers</span>
+                </div>
+
+                {/* 4. Comfort Level (Executive / Premium / Standard) */}
+                <div className="flex items-center gap-1.5 text-emerald-800 bg-slate-100/80 px-2.5 py-1 rounded-lg">
                   <ShieldCheck className="w-4 h-4" />
                   <span className="font-semibold">{vehicle.comfortLevel}</span>
+                </div>
+
+                {/* 5. Bags */}
+                <div className="flex items-center gap-1.5 bg-slate-100/80 px-2.5 py-1 rounded-lg">
+                  <Briefcase className="w-4 h-4 text-emerald-800" />
+                  <span>{vehicle.luggageCapacity} Bags</span>
                 </div>
               </div>
 
@@ -339,7 +402,7 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({
         {searchDetails?.serviceType === 'local' && (
           <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-1.5 text-[11px] sm:text-xs font-medium text-slate-500 leading-relaxed">
             <span className="text-amber-600 font-bold">*NOTE:</span>
-            <span>Final fare may vary based on Extra KM, Extra Hours, Parking, and Toll charges.</span>
+            <span>Final fare may vary based on Extra KM, Extra Hours, Parking, & Toll charges.</span>
           </div>
         )}
 
