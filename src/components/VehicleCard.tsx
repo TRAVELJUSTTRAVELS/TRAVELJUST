@@ -10,6 +10,7 @@ import {
   Car,
   Clock,
   Info,
+  CheckCircle2,
 } from 'lucide-react';
 import { Vehicle, FareEstimate, PricingConfig, BookingSearchState } from '../types';
 import { VehicleVectorGraphic } from './VehicleVectorGraphic';
@@ -23,6 +24,7 @@ interface VehicleCardProps {
   pricingConfig: PricingConfig;
   searchDetails?: BookingSearchState;
   onSelect: (vehicle: Vehicle) => void;
+  onProceedToBooking?: () => void;
   isSelected?: boolean;
 }
 
@@ -32,6 +34,7 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({
   pricingConfig,
   searchDetails,
   onSelect,
+  onProceedToBooking,
   isSelected,
 }) => {
   const [showBreakdown, setShowBreakdown] = useState(false);
@@ -57,16 +60,6 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({
 
   // Authoritative extra KM rate strictly retrieved from the active Fare & Price Engine
   const extraKmRate = (() => {
-    // 1. Check fareEstimate snapshot produced by Fare & Price Engine calculation
-    if (fareEstimate.fareSnapshot?.extraPerKmRate && fareEstimate.fareSnapshot.extraPerKmRate > 0) {
-      return fareEstimate.fareSnapshot.extraPerKmRate;
-    }
-    if (fareEstimate.fareSnapshot?.perKmRate && fareEstimate.fareSnapshot.perKmRate > 0) {
-      return fareEstimate.fareSnapshot.perKmRate;
-    }
-
-    // 2. Fetch directly from Centralized Fare Engine active config
-    const central = fareService.getCentralizedConfigSync();
     const vid: FareVehicleId =
       vehicle.id === 'sedan-4-1' || vehicle.id === 'toyota-etios' || vehicle.id === 'swift-desire'
         ? 'sedan-4-1'
@@ -79,6 +72,22 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({
         : vehicle.id === 'tempo-traveller-12-1' || vehicle.id === 'tempo-traveller' || vehicle.id === 'tempo-traveller-14-1'
         ? 'tempo-traveller-12-1'
         : 'sedan-4-1';
+
+    // Innova standard rate is ₹20/km
+    if (vid === 'innova') {
+      return 20;
+    }
+
+    // 1. Check fareEstimate snapshot produced by Fare & Price Engine calculation
+    if (fareEstimate.fareSnapshot?.extraPerKmRate && fareEstimate.fareSnapshot.extraPerKmRate > 0) {
+      return fareEstimate.fareSnapshot.extraPerKmRate;
+    }
+    if (fareEstimate.fareSnapshot?.perKmRate && fareEstimate.fareSnapshot.perKmRate > 0) {
+      return fareEstimate.fareSnapshot.perKmRate;
+    }
+
+    // 2. Fetch directly from Centralized Fare Engine active config
+    const central = fareService.getCentralizedConfigSync();
 
     if (central) {
       if (searchDetails?.serviceType === 'local' && central.local[vid]) {
@@ -371,29 +380,31 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({
             </div>
 
             <div className="w-full sm:w-auto flex items-center justify-end">
-              <button
-                id={`btn-select-vehicle-${vehicle.id}`}
-                type="button"
-                disabled={fareEstimate.isValid === false}
-                onClick={() => onSelect(vehicle)}
-                className={`w-full sm:w-auto min-w-[140px] px-6 py-3 rounded-xl font-bold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-emerald-700 cursor-pointer ${
-                  fareEstimate.isValid === false
-                    ? 'bg-slate-200 text-slate-500 cursor-not-allowed border border-slate-300'
-                    : isSelected
-                    ? 'bg-emerald-900 text-white hover:bg-emerald-950 ring-2 ring-emerald-600/50'
-                    : 'bg-emerald-800 hover:bg-emerald-900 text-white active:scale-[0.99]'
-                }`}
-              >
-                {fareEstimate.isValid === false ? (
-                  'Route Required'
-                ) : isSelected ? (
-                  <>
-                    <Check className="w-4 h-4 stroke-[3]" /> Selected
-                  </>
-                ) : (
-                  'SELECT'
-                )}
-              </button>
+              {isSelected ? (
+                <button
+                  id={`btn-confirm-vehicle-${vehicle.id}`}
+                  type="button"
+                  onClick={() => (onProceedToBooking ? onProceedToBooking() : onSelect(vehicle))}
+                  className="w-full sm:w-auto min-w-[170px] px-6 py-3 rounded-xl font-black text-xs sm:text-sm bg-[#14CD03] hover:bg-[#12b803] active:bg-[#0fa002] text-slate-950 shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer uppercase tracking-wider"
+                >
+                  <CheckCircle2 className="w-4 h-4 text-slate-950 stroke-[2.5]" />
+                  <span>CONFIRM BOOKING</span>
+                </button>
+              ) : (
+                <button
+                  id={`btn-select-vehicle-${vehicle.id}`}
+                  type="button"
+                  disabled={fareEstimate.isValid === false}
+                  onClick={() => onSelect(vehicle)}
+                  className={`w-full sm:w-auto min-w-[140px] px-6 py-3 rounded-xl font-bold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-emerald-700 cursor-pointer ${
+                    fareEstimate.isValid === false
+                      ? 'bg-slate-200 text-slate-500 cursor-not-allowed border border-slate-300'
+                      : 'bg-emerald-800 hover:bg-emerald-900 text-white active:scale-[0.99]'
+                  }`}
+                >
+                  {fareEstimate.isValid === false ? 'Route Required' : 'SELECT'}
+                </button>
+              )}
             </div>
           </div>
         </div>

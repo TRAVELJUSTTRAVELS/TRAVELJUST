@@ -7,7 +7,9 @@ import {
   Clock,
   Car,
   Headphones,
+  Star,
 } from 'lucide-react';
+import { AnimatedCounter } from './AnimatedCounter';
 
 interface WhyChooseUsProps {
   onOpenPartnerDrawer?: () => void;
@@ -54,8 +56,8 @@ export const WhyChooseUs: React.FC<WhyChooseUsProps> = () => {
 
   return (
     <section
-      id="why-choose-us-section"
-      className="py-16 md:py-24 text-white relative overflow-hidden"
+      id="about"
+      className="py-16 md:py-24 text-white relative overflow-hidden scroll-mt-20"
       style={{
         backgroundColor: '#032014',
         backgroundImage: `
@@ -67,7 +69,20 @@ export const WhyChooseUs: React.FC<WhyChooseUsProps> = () => {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <span className="text-xs font-bold uppercase tracking-widest text-emerald-300 bg-emerald-900/80 px-3 py-1 rounded-full border border-emerald-800">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/80 border border-emerald-700/80 text-xs font-semibold text-emerald-200 mb-3 shadow-2xs">
+            <div className="flex items-center text-amber-400">
+              {[...Array(5)].map((_, i) => (
+                <Star key={i} className="w-3 h-3 fill-amber-400 text-amber-400" />
+              ))}
+            </div>
+            <span className="font-extrabold text-white">4.9/5 Rating</span>
+            <span className="text-emerald-500">·</span>
+            <span>
+              <AnimatedCounter target={1420} suffix="+" className="font-bold text-emerald-300" /> Verified Rider Reviews
+            </span>
+          </div>
+          <br className="hidden sm:inline" />
+          <span className="text-xs font-bold uppercase tracking-widest text-emerald-300 bg-emerald-900/80 px-3 py-1 rounded-full border border-emerald-800 inline-block mt-1">
             Why TRAVEL JUST
           </span>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mt-3">

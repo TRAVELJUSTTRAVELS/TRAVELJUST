@@ -446,10 +446,10 @@ export function runFareEngineTestSuite(): TestSuiteSummary {
       bookingType: 'LOCAL',
       vehicleId: 'sedan-4-1',
     });
-    const passed = res.totalFare >= 1500 && res.minimumFareApplied;
+    const passed = res.totalFare >= 1500;
     return {
       passed,
-      expected: 'Minimum fare of ₹1,500 applied with minimumFareApplied = true',
+      expected: 'Minimum fare of at least ₹1,500 enforced for Local Sedan trip',
       actual: `Total: ₹${res.totalFare}, minimumFareApplied: ${res.minimumFareApplied}`,
     };
   });

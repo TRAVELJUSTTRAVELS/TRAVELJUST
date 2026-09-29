@@ -24,6 +24,7 @@ import { CustomerAuthModal } from './components/CustomerAuthModal';
 import { InAppPushNotificationBanner } from './components/InAppPushNotificationBanner';
 import { ContactAIChat } from './components/ContactAIChat';
 import { OfflineIndicator } from './components/OfflineIndicator';
+import { ProgressBar } from './components/DynamicLoadingIndicator';
 
 // Code-split heavy modals to dramatically accelerate initial load time and optimize Core Web Vitals
 const LegalModal = React.lazy(() => import('./components/LegalModal').then(m => ({ default: m.LegalModal })));
@@ -117,6 +118,8 @@ export default function App() {
   };
 
   const [searchState, setSearchState] = useState<BookingSearchState | null>(null);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [isConfirmingBooking, setIsConfirmingBooking] = useState<boolean>(false);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [legalModalType, setLegalModalType] = useState<'privacy' | 'terms' | null>(null);
@@ -328,6 +331,7 @@ export default function App() {
   }, []);
 
   const handleSearchSubmit = useCallback((state: BookingSearchState) => {
+    setIsSearching(true);
     setSearchState(state);
     // Cache search details and pre-calculated fares to Service Worker Cache
     saveSearchToServiceWorkerCache(state, pricingConfig).catch((err) => {
@@ -340,6 +344,10 @@ export default function App() {
         resultsElem.scrollIntoView({ behavior: 'smooth' });
       }
     }, 100);
+    // Dynamic loading completes and smoothly reveals results
+    setTimeout(() => {
+      setIsSearching(false);
+    }, 600);
   }, [pricingConfig]);
 
   const handleSelectCachedSearch = useCallback((cachedSearch: BookingSearchState) => {
@@ -366,7 +374,14 @@ export default function App() {
   }, [customer]);
 
   const handleDirectConfirmBooking = useCallback(
-    (customSearch?: BookingSearchState, customVehicle?: Vehicle) => {
+    (customSearch?: BookingSearchState, customVehicle?: Vehicle, explicitCustomer?: CustomerUser | null) => {
+      const activeCustomer = explicitCustomer !== undefined ? explicitCustomer : customer;
+      // If customer is not logged in, prompt login form first
+      if (!activeCustomer) {
+        setCustomerAuthModalOpen(true);
+        return;
+      }
+
       const activeSearch = customSearch || searchState;
       const activeVehicle = customVehicle || selectedVehicle || vehiclesData[0];
       if (!activeSearch || !activeVehicle) return;
@@ -377,9 +392,9 @@ export default function App() {
       const fareEstimate = calculateFare(activeSearch, activeVehicle, pricingConfig);
 
       const passengerDetails: PassengerDetails = {
-        fullName: customer?.fullName || 'Customer',
-        mobileNumber: customer?.mobileNumber || '',
-        email: customer?.email || '',
+        fullName: activeCustomer.fullName || 'Customer',
+        mobileNumber: activeCustomer.mobileNumber || '',
+        email: activeCustomer.email || '',
         specialInstructions: '',
       };
 
@@ -413,8 +428,8 @@ export default function App() {
 
       // Send directly to customer on WhatsApp
       const targetPhone =
-        customer?.mobileNumber && customer.mobileNumber.trim().length >= 10
-          ? customer.mobileNumber
+        activeCustomer.mobileNumber && activeCustomer.mobileNumber.trim().length >= 10
+          ? activeCustomer.mobileNumber
           : siteConfig.contact.whatsapp;
       openWhatsAppChat(message, targetPhone);
 
@@ -434,6 +449,20 @@ export default function App() {
       }, 100);
     },
     [searchState, selectedVehicle, pricingConfig, customer, handleCompleteBooking]
+  );
+
+  // Handles vehicle selection for all booking forms
+  const handleSelectPreferredVehicle = useCallback(
+    (vehicle: Vehicle) => {
+      setSelectedVehicle(vehicle);
+
+      // For non-login customers: show login form after selecting preferred vehicle
+      if (!customer) {
+        setCustomerAuthModalOpen(true);
+      }
+      // For login customers: preferred vehicle is selected, which immediately displays the "CONFIRM BOOKING" button!
+    },
+    [customer]
   );
 
   const handleInstantConfirmBooking = useCallback(
@@ -604,6 +633,12 @@ export default function App() {
         onOpenSiteOptimizer={() => setSiteOptimizerModalOpen(true)}
       />
 
+      {/* Global Dynamic Progress Indicator for Search & Booking Interactions */}
+      <ProgressBar
+        isLoading={isSearching || isConfirmingBooking}
+        className="fixed top-0 left-0 right-0 z-50 rounded-none h-1 shadow-xs"
+      />
+
       {/* Main Page Layout */}
       <main className="flex-1">
         {/* Hero Section */}
@@ -633,7 +668,8 @@ export default function App() {
                 searchDetails={searchState}
                 pricingConfig={pricingConfig}
                 selectedVehicle={selectedVehicle}
-                onSelectVehicle={(vehicle) => setSelectedVehicle(vehicle)}
+                onSelectVehicle={handleSelectPreferredVehicle}
+                isLoading={isSearching}
                 onEditSearch={() => {
                   const searchElem = document.getElementById('booking-search-section');
                   if (searchElem) searchElem.scrollIntoView({ behavior: 'smooth' });
@@ -845,9 +881,20 @@ export default function App() {
       <CustomerAuthModal
         isOpen={customerAuthModalOpen}
         onClose={() => setCustomerAuthModalOpen(false)}
+        preferredVehicle={selectedVehicle}
         onSuccess={(loggedCustomer) => {
           setCustomer(loggedCustomer);
           setCustomerAuthModalOpen(false);
+          // After non-login customer fills details, modal closes and the CONFIRM BOOKING button is displayed!
+          setTimeout(() => {
+            const confirmBtn =
+              (selectedVehicle && document.getElementById(`btn-confirm-vehicle-${selectedVehicle.id}`)) ||
+              document.querySelector('[id^="btn-confirm-vehicle-"]') ||
+              document.getElementById('search-results-anchor');
+            if (confirmBtn) {
+              confirmBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+          }, 150);
         }}
         onOpenOwnerLogin={() => {
           setCustomerAuthModalOpen(false);

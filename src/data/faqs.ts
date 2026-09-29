@@ -51,4 +51,24 @@ export const faqsData: FAQItem[] = [
     question: 'How can I contact TRAVEL JUST customer support?',
     answer: 'Our Mysore operations desk is active 24/7. Call or WhatsApp us anytime at +91 9740754400 for urgent bookings, customized quote inquiries, and dispatch coordination.',
   },
+  {
+    id: 'faq-11',
+    question: 'Do you provide child car seats or booster seats for family travel?',
+    answer: 'Yes, TRAVEL JUST provides child safety car seats and infant booster seats upon request for outstation and airport rides. Please request one in advance during booking or notify our 24/7 WhatsApp support desk to ensure installation.',
+  },
+  {
+    id: 'faq-12',
+    question: 'Are your cabs pet-friendly, and can I travel with my dog or cat?',
+    answer: 'Yes, TRAVEL JUST offers pet-friendly taxi options for dogs, cats, and companion animals across outstation and airport routes. Please notify our team when booking so we can assign an accommodating vehicle and pet-friendly chauffeur.',
+  },
+  {
+    id: 'faq-13',
+    question: 'What payment methods does TRAVEL JUST accept for taxi bookings?',
+    answer: 'TRAVEL JUST accepts all major payment methods including UPI (Google Pay, PhonePe, Paytm, BHIM), Credit and Debit Cards, Net Banking, and direct Cash payment upon trip completion. Digital GST invoices and itemized receipts are provided immediately.',
+  },
+  {
+    id: 'faq-14',
+    question: 'How are TRAVEL JUST drivers verified and background-checked for passenger safety?',
+    answer: 'Every TRAVEL JUST chauffeur undergoes thorough identity verification, commercial badge and driving license validation, background screening, and route familiarity assessment. Our chauffeurs specialize in hill driving across Ooty and Coorg ghat roads, ensuring maximum safety for solo travelers, families, and corporate executives.',
+  },
 ];

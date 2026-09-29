@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { siteConfig } from '../config/siteConfig';
 import { CustomerUser } from '../types';
+import { ThemeToggle } from './ThemeToggle';
 
 interface HeaderProps {
   onBookRideClick: () => void;
@@ -187,7 +188,7 @@ export const Header: React.FC<HeaderProps> = ({
                   }
                 }}
                 className="flex items-center gap-2 pl-1.5 pr-3 py-1 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-800 border border-slate-200/90 hover:border-slate-300 rounded-full text-sm font-semibold shadow-2xs hover:shadow-xs transition-all duration-150 active:scale-[0.98] cursor-pointer select-none"
-                title={customer ? `Signed in as ${customer.fullName}` : 'Customer Login'}
+                title={customer ? `Signed in as ${customer.fullName}` : 'Login'}
                 aria-expanded={accountDropdownOpen}
                 aria-haspopup="true"
               >
@@ -210,7 +211,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
 
                 <span className="truncate max-w-[130px] text-slate-900 font-bold text-xs sm:text-sm">
-                  {customer ? customer.fullName : 'Customer Login'}
+                  {customer ? customer.fullName : 'Login'}
                 </span>
 
                 <ChevronDown
@@ -356,10 +357,16 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
               </div>
             )}
+
+            {/* Dark Mode Theme Toggle for Desktop */}
+            <ThemeToggle variant="button" />
           </div>
 
           {/* Mobile Hamburger & Controls */}
           <div className="flex items-center gap-1.5 md:hidden">
+            {/* Quick Mobile Theme Toggle */}
+            <ThemeToggle variant="button" className="shrink-0" />
+
             {/* Quick Mobile Owner Controls - Shown ONLY in Owner Mode / Portal */}
             {isOwner && (
               <>
@@ -567,7 +574,7 @@ export const Header: React.FC<HeaderProps> = ({
                       </svg>
                     )}
                   </div>
-                  <span>{customer ? customer.fullName : 'Customer Login'}</span>
+                  <span>{customer ? customer.fullName : 'Login'}</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-slate-400" />
               </button>
@@ -648,6 +655,9 @@ export const Header: React.FC<HeaderProps> = ({
           )}
 
           <div className="pt-2 space-y-3">
+            {/* Theme Toggle in Mobile Drawer */}
+            <ThemeToggle variant="menu-item" />
+
             <div className="bg-emerald-50/70 p-3.5 rounded-xl border border-emerald-100 flex items-center justify-between text-xs text-emerald-900">
               <div className="flex items-center gap-2 font-medium">
                 <Phone className="w-4 h-4 text-emerald-800" />

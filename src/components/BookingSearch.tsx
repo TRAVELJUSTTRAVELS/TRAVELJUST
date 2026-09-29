@@ -38,6 +38,7 @@ import { CalendarPopover } from './CalendarPopover';
 import { calculateRouteDistance, estimateDrivingDistanceMatrix } from '../services/googleMapsService';
 import { calculateRoundTripDays } from '../utils/fareCalculator';
 import { defaultPricingConfig } from '../config/siteConfig';
+import { ProgressBar } from './DynamicLoadingIndicator';
 
 interface BookingSearchProps {
   initialState?: Partial<BookingSearchState>;
@@ -152,6 +153,7 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
     initialState?.routeInfo || null
   );
   const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Reset and auto-reset states
   const [autoResetSecondsLeft, setAutoResetSecondsLeft] = useState<number>(300);
@@ -547,7 +549,11 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
       }));
       return;
     }
+    setIsSubmitting(true);
     onSearch(searchData);
+    setTimeout(() => {
+      setIsSubmitting(false);
+    }, 700);
   };
 
   return (
@@ -555,10 +561,19 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
       id="travel-just-booking-widget"
       onKeyDown={registerUserActivity}
       onClick={registerUserActivity}
-      className="rounded-[28px] shadow-xl border border-slate-200/80 transition-all relative z-20 w-full bg-[#ECFDF5]"
+      className="rounded-[28px] shadow-xl border border-slate-200/80 dark:border-slate-800 transition-all relative z-20 w-full bg-[#D0FAE5] overflow-hidden"
     >
+      {/* Subtle dynamic top progress bar during route calculations & form searches */}
+      <ProgressBar
+        isLoading={isSubmitting || isCalculatingRoute}
+        className="absolute top-0 left-0 right-0 z-30 rounded-none h-1"
+      />
+
       {/* Top Banner with centered tab bar */}
-      <div className="pt-6 pb-4 px-4 sm:px-6 md:px-8 flex flex-col items-center justify-center bg-[#ECFDF5] rounded-t-[28px]">
+      <div
+        className="pt-6 pb-4 px-4 sm:px-6 md:px-8 flex flex-col items-center justify-center bg-[#D0FAE5] rounded-t-[28px]"
+        style={{ backgroundColor: '#D0FAE5' }}
+      >
         <ServiceSelector
           selectedService={serviceType}
           onSelectService={handleServiceChange}
@@ -566,7 +581,7 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
       </div>
 
       {/* Main white form container */}
-      <div className="bg-white rounded-b-[28px] p-4 sm:p-6 md:p-7 lg:p-8">
+      <div className="bg-white dark:bg-slate-900 rounded-b-[28px] p-4 sm:p-6 md:p-7 lg:p-8">
         <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
           {/* 1. OUTSTATION ROUND-TRIP (6 BOXES) */}
           {/* 1. OUTSTATION ROUND-TRIP (MATCHING SCREENSHOT 11.jpeg & 1.jpeg) */}
@@ -1818,9 +1833,17 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
           <button
             type="submit"
             id="explore-cabs-primary-btn"
-            className="w-full max-w-[280px] h-[50px] sm:h-[52px] bg-[#ECFDF5] hover:bg-[#d1fae5] text-emerald-950 hover:text-emerald-900 border-2 border-emerald-300 hover:border-emerald-400 font-extrabold text-base sm:text-lg uppercase tracking-wider rounded-xl shadow-sm hover:shadow transition-all duration-150 active:scale-[0.99] flex items-center justify-center cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
+            disabled={isSubmitting || isCalculatingRoute}
+            className="w-full max-w-[280px] h-[50px] sm:h-[52px] bg-[#ECFDF5] hover:bg-[#d1fae5] dark:bg-emerald-950/80 dark:hover:bg-emerald-900 dark:text-emerald-100 text-emerald-950 hover:text-emerald-900 border-2 border-emerald-300 dark:border-emerald-700 hover:border-emerald-400 font-extrabold text-base sm:text-lg uppercase tracking-wider rounded-xl shadow-sm hover:shadow transition-all duration-150 active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 disabled:opacity-85"
           >
-            EXPLORE CABS
+            {isSubmitting || isCalculatingRoute ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin text-emerald-800 dark:text-emerald-300 shrink-0" />
+                <span>{isCalculatingRoute ? 'CALCULATING...' : 'FINDING CABS...'}</span>
+              </>
+            ) : (
+              <span>EXPLORE CABS</span>
+            )}
           </button>
 
           {/* Minimal, subtle reset details */}

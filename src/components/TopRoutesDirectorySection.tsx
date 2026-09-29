@@ -22,7 +22,7 @@ export const TopRoutesDirectorySection: React.FC<TopRoutesDirectorySectionProps>
   return (
     <section
       id="top-routes-directory-section"
-      className="py-14 sm:py-16 text-slate-200 border-t border-[#073322] relative overflow-hidden"
+      className="py-14 sm:py-16 text-slate-200 border-t border-[#073322] relative overflow-hidden scroll-mt-20"
       style={{
         backgroundColor: '#032014',
         backgroundImage: `
@@ -32,6 +32,7 @@ export const TopRoutesDirectorySection: React.FC<TopRoutesDirectorySectionProps>
         backgroundSize: '48px 48px',
       }}
     >
+      <span id="popular-routes-section" className="absolute top-0 pointer-events-none" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="space-y-6">
           {/* Header */}
@@ -48,7 +49,10 @@ export const TopRoutesDirectorySection: React.FC<TopRoutesDirectorySectionProps>
                 Explore popular outstation packages, airport drops, and sightseeing cab routes.
               </p>
             </div>
-            <span className="inline-flex items-center gap-1.5 text-xs text-emerald-300 font-semibold bg-[#05321f]/90 border border-emerald-700/60 px-3 py-1 rounded-full w-fit shadow-xs">
+            <span
+              style={{ color: '#FE9A00' }}
+              className="inline-flex items-center gap-1.5 text-xs text-[#FE9A00] font-semibold bg-[#05321f]/90 border border-emerald-700/60 px-3 py-1 rounded-full w-fit shadow-xs"
+            >
               24/7 Doorstep Pickup • Verified Drivers • AC Cabs
             </span>
           </div>

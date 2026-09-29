@@ -11,6 +11,7 @@ import { calculateFare } from '../utils/fareCalculator';
 import { RecentSearchesBar } from './RecentSearchesBar';
 import { generateSearchKey } from '../services/searchCacheService';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import { VehicleListSkeleton } from './DynamicLoadingIndicator';
 
 interface SearchResultsProps {
   searchDetails: BookingSearchState;
@@ -21,6 +22,7 @@ interface SearchResultsProps {
   onProceedToBooking: () => void;
   onClearSearch?: () => void;
   onSelectCachedSearch?: (search: BookingSearchState) => void;
+  isLoading?: boolean;
 }
 
 export const SearchResults: React.FC<SearchResultsProps> = ({
@@ -32,6 +34,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   onProceedToBooking,
   onClearSearch,
   onSelectCachedSearch,
+  isLoading = false,
 }) => {
   const { isOnline, isUnstable, checkConnection } = useOnlineStatus();
   const [showRecentSearches, setShowRecentSearches] = useState<boolean>(true);
@@ -83,18 +86,20 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
           </div>
         </div>
 
-        {availableVehicles.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center space-y-3">
+        {isLoading ? (
+          <VehicleListSkeleton />
+        ) : availableVehicles.length === 0 ? (
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 text-center space-y-3">
             <Car className="w-12 h-12 text-slate-400 mx-auto" />
-            <h4 className="font-bold text-slate-800 text-lg">
+            <h4 className="font-bold text-slate-800 dark:text-slate-100 text-lg">
               No Vehicles Available for Selected Passenger Count
             </h4>
-            <p className="text-xs text-slate-500 max-w-md mx-auto">
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
               Please adjust your passenger count or select an all-vehicles filter to view available mini-buses or larger vehicles.
             </p>
             <button
               onClick={onEditSearch}
-              className="mt-2 bg-emerald-800 text-white font-semibold text-xs px-5 py-2.5 rounded-xl hover:bg-emerald-900 transition-colors cursor-pointer"
+              className="mt-2 bg-emerald-800 dark:bg-emerald-700 text-white font-semibold text-xs px-5 py-2.5 rounded-xl hover:bg-emerald-900 transition-colors cursor-pointer"
             >
               Modify Search Options
             </button>
@@ -114,10 +119,8 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                   searchDetails={searchDetails}
                   onSelect={(v) => {
                     onSelectVehicle(v);
-                    if (searchDetails.serviceType === 'local') {
-                      onProceedToBooking();
-                    }
                   }}
+                  onProceedToBooking={onProceedToBooking}
                   isSelected={isSelected}
                 />
               );
@@ -126,34 +129,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
         )}
       </div>
 
-      {/* Fare Estimation & Proceed Bottom Bar (Hidden for Local Package Form) */}
-      {selectedVehicle && searchDetails.serviceType !== 'local' && (
-        <div className="sticky bottom-4 z-30 bg-slate-900 text-white p-4 sm:p-5 rounded-2xl shadow-2xl border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 animate-in slide-in-from-bottom-4 duration-200">
-          <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 block">
-              Selected: {selectedVehicle.name}
-            </span>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-extrabold text-white">
-                Estimated Fare: {pricingConfig.currencySymbol}
-                {calculateFare(searchDetails, selectedVehicle, pricingConfig).totalEstimatedFare}
-              </span>
-            </div>
-          </div>
 
-          <div className="flex items-center w-full sm:w-auto">
-            <button
-              type="button"
-              id="search-results-confirm-booking-btn"
-              onClick={onProceedToBooking}
-              className="w-full sm:w-auto bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white font-extrabold text-base px-8 py-3.5 rounded-xl shadow-lg transition-all active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer uppercase tracking-wider"
-            >
-              <CheckCircle2 className="w-5 h-5 text-emerald-200" />
-              <span>CONFIRM BOOKING</span>
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

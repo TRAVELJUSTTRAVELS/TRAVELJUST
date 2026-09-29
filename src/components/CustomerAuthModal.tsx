@@ -9,9 +9,10 @@ import {
   Phone,
   RefreshCw,
 } from 'lucide-react';
-import { CustomerUser } from '../types';
+import { CustomerUser, Vehicle } from '../types';
 import { registerOrLoginCustomer, findCustomerByPhone } from '../services/customerAuthService';
 import { auth, googleAuthProvider, syncUserProfile, signInWithPopup } from '../lib/firebase';
+import { ProgressBar } from './DynamicLoadingIndicator';
 
 export interface CustomerAuthModalProps {
   isOpen?: boolean;
@@ -19,12 +20,14 @@ export interface CustomerAuthModalProps {
   onSuccess?: (customer: CustomerUser) => void;
   onOpenOwnerLogin?: () => void;
   onOpenPartnerDrawer?: () => void;
+  preferredVehicle?: Vehicle | null;
 }
 
 export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({
   isOpen = false,
   onClose,
   onSuccess,
+  preferredVehicle = null,
 }) => {
   const [fullName, setFullName] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
@@ -218,6 +221,12 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({
         className="relative w-full max-w-[370px] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Subtle dynamic loading indicator during authentication */}
+        <ProgressBar
+          isLoading={isLoading}
+          className="absolute top-0 left-0 right-0 z-30 rounded-none h-1"
+        />
+
         {/* Header matching original card aesthetic */}
         <div className="bg-gradient-to-r from-[#0f2441] via-slate-900 to-[#009966] text-white px-4 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -226,13 +235,8 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({
             </div>
             <div>
               <h3 className="font-bold text-sm sm:text-base text-white leading-tight">
-                {step === 'otp' ? 'Enter OTP Verification' : 'Customer Sign In'}
+                {step === 'otp' ? 'Enter OTP Verification' : 'Login'}
               </h3>
-              <p className="text-[11px] text-slate-300 mt-0.5 leading-tight">
-                {step === 'otp'
-                  ? `OTP sent to +91 ${mobileNumber || 'XXXXXXXXXX'}`
-                  : 'Instant access to your rides, invoices & cab tracking'}
-              </p>
             </div>
           </div>
 
@@ -254,6 +258,18 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({
           {error && (
             <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-semibold">
               {error}
+            </div>
+          )}
+
+          {preferredVehicle && (
+            <div className="p-2.5 bg-emerald-50 border border-emerald-200/90 rounded-xl text-emerald-950 text-xs flex items-center gap-2.5 shadow-2xs">
+              <div className="w-5 h-5 rounded-full bg-emerald-700 text-white flex items-center justify-center shrink-0 font-bold text-[10px]">
+                ✓
+              </div>
+              <div className="leading-tight">
+                <span className="font-bold text-slate-900 block">Preferred Vehicle: {preferredVehicle.name}</span>
+                <span className="text-[11px] text-emerald-800">Please fill details to proceed to Confirm Booking</span>
+              </div>
             </div>
           )}
 
@@ -347,7 +363,7 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   ) : (
                     <>
-                      <span>Continue & Sign In</span>
+                      <span>{preferredVehicle ? 'Continue to Confirm Booking' : 'Continue & Sign In'}</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
@@ -446,7 +462,7 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({
                   ) : (
                     <>
                       <ShieldCheck className="w-4 h-4" />
-                      <span>Verify OTP & Sign In</span>
+                      <span>{preferredVehicle ? 'Verify & Proceed to Booking' : 'Verify OTP & Sign In'}</span>
                     </>
                   )}
                 </button>

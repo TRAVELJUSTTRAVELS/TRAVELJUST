@@ -59,6 +59,13 @@ export function generateSchemaMarkup() {
       email: siteConfig.contact.email,
       availableLanguage: ['English', 'Kannada', 'Hindi', 'Tamil', 'Malayalam'],
     },
+    aggregateRating: {
+      '@type': 'AggregateRating',
+      ratingValue: '4.9',
+      reviewCount: '1420',
+      bestRating: '5',
+      worstRating: '1',
+    },
   };
 
   const websiteSchema = {
