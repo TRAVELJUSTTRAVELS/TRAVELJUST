@@ -69,6 +69,6 @@ export const faqsData: FAQItem[] = [
   {
     id: 'faq-14',
     question: 'How are TRAVEL JUST drivers verified and background-checked for passenger safety?',
-    answer: 'Every TRAVEL JUST chauffeur undergoes thorough identity verification, commercial badge and driving license validation, background screening, and route familiarity assessment. Our chauffeurs specialize in hill driving across Ooty and Coorg ghat roads, ensuring maximum safety for solo travelers, families, and corporate executives.',
+    answer: 'Every TRAVEL JUST chauffeur undergoes thorough identity verification, commercial badge and driving license validation, background screening, and route familiarity assessment. Ensuring maximum safety for solo travelers, families, and corporate executives.',
   },
 ];
