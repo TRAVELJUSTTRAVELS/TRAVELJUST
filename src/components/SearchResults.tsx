@@ -12,6 +12,7 @@ import { RecentSearchesBar } from './RecentSearchesBar';
 import { generateSearchKey } from '../services/searchCacheService';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { VehicleListSkeleton } from './DynamicLoadingIndicator';
+import { PriceComparisonTable } from './PriceComparisonTable';
 
 interface SearchResultsProps {
   searchDetails: BookingSearchState;
@@ -127,9 +128,17 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
             })}
           </div>
         )}
+
+        {/* Price Comparison Table for Selected Vehicle */}
+        {!isLoading && availableVehicles.length > 0 && (
+          <PriceComparisonTable
+            vehicle={selectedVehicle || availableVehicles[0]}
+            searchDetails={searchDetails}
+            pricingConfig={pricingConfig}
+            isSelectedByUser={Boolean(selectedVehicle)}
+          />
+        )}
       </div>
-
-
     </div>
   );
 };
