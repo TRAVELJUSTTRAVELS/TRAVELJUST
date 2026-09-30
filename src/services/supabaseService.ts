@@ -1,10 +1,13 @@
 import { BookingRequest } from '../types';
-import { supabase, isSupabaseConfigured, SUPABASE_PROJECT_ID } from './supabaseClient';
+import {
+  supabase,
+  isSupabaseConfigured,
+  SUPABASE_PROJECT_ID,
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY,
+} from './supabaseClient';
 
-export { supabase, isSupabaseConfigured, SUPABASE_PROJECT_ID };
-
-export const SUPABASE_URL = '';
-export const SUPABASE_ANON_KEY = '';
+export { supabase, isSupabaseConfigured, SUPABASE_PROJECT_ID, SUPABASE_URL, SUPABASE_ANON_KEY };
 
 
 export interface SaveBookingResult {
@@ -385,4 +388,74 @@ export async function testSupabaseConnection(): Promise<{
     };
   }
 }
+
+/**
+ * Real-time subscription to Supabase bookings table changes.
+ * Calls onChange callback whenever a booking is inserted, updated, or status changed.
+ */
+export function subscribeToSupabaseBookings(onChange: (payload: any) => void) {
+  if (!supabase) return () => {};
+
+  const channel = supabase
+    .channel('bookings-realtime-channel')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'bookings',
+      },
+      (payload) => {
+        onChange(payload);
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
+/**
+ * Fetch a single booking by referenceId directly from Supabase
+ */
+export async function fetchBookingByReferenceIdFromSupabase(referenceId: string) {
+  if (!supabase) return null;
+
+  try {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('*')
+      .or(`reference_id.eq.${referenceId},"BOOKING ID".eq.${referenceId}`)
+      .limit(1)
+      .maybeSingle();
+
+    if (!error && data) {
+      return data;
+    }
+  } catch (e) {
+    console.warn('Supabase fetch single booking error:', e);
+  }
+  return null;
+}
+
+/**
+ * Update booking status in Supabase table
+ */
+export async function updateBookingStatusInSupabase(referenceId: string, status: string) {
+  if (!supabase) return false;
+
+  try {
+    const { error } = await supabase
+      .from('bookings')
+      .update({ status })
+      .or(`reference_id.eq.${referenceId},"BOOKING ID".eq.${referenceId}`);
+
+    return !error;
+  } catch (e) {
+    console.warn('Supabase status update error:', e);
+    return false;
+  }
+}
+
 

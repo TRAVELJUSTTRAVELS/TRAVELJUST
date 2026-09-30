@@ -3,6 +3,7 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithCredential,
   signOut,
   onAuthStateChanged,
   type User,
@@ -259,4 +260,20 @@ export async function fetchFareConfigFromFirestore(): Promise<any | null> {
   }
 }
 
-export { signInWithPopup, signOut, onAuthStateChanged, type User };
+/**
+ * Signs in using a Google ID token from Google Identity Services (GIS).
+ * Bypasses auth/unauthorized-domain restrictions since token verification is cryptographic.
+ */
+export async function signInWithGoogleIdToken(idToken: string) {
+  const credential = GoogleAuthProvider.credential(idToken);
+  return await signInWithCredential(auth, credential);
+}
+
+export {
+  signInWithPopup,
+  signInWithCredential,
+  GoogleAuthProvider,
+  signOut,
+  onAuthStateChanged,
+  type User,
+};

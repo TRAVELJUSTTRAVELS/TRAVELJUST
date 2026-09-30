@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
-import { DbBookingRecord } from '../types';
+import { DbBookingRecord, BookingRequest } from '../types';
 
-export function generateTripInvoicePdf(trip: DbBookingRecord) {
+export function createTripInvoicePdfDoc(trip: DbBookingRecord) {
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -20,13 +20,13 @@ export function generateTripInvoicePdf(trip: DbBookingRecord) {
   // Brand Name
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  doc.text('CAB RENTAL & CHAUFFEUR SERVICES', margin, 13);
+  doc.setFontSize(15);
+  doc.text('TRAVEL JUST · CAB RENTAL & CHAUFFEUR SERVICES', margin, 13);
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
+  doc.setFontSize(8.5);
   doc.setTextColor(167, 243, 208); // Emerald 200
-  doc.text('Official Booking Summary & Tax Invoice Receipt', margin, 20);
+  doc.text('Official Booking Summary & Tax Invoice Receipt · Mysuru, Karnataka', margin, 20);
 
   // Reference tag in header
   doc.setFont('helvetica', 'bold');
@@ -309,13 +309,123 @@ export function generateTripInvoicePdf(trip: DbBookingRecord) {
 
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(100, 116, 139);
-  doc.text('Support: +91 9740754400  |  Email: traveljustmysuru@gmail.com  |  Web: www.traveljust.in  |  Official GST Registered', margin, footerY + 10);
+  doc.text('TRAVEL JUST PREMIUM CHAUFFEURS | Phone: +91 9740754400 | Email: traveljustmysuru@gmail.com | Web: www.traveljust.in | Official GST Registered', margin, footerY + 10);
 
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(148, 163, 184);
-  doc.text(`Booking Ref: ${trip.reference_id} - Generated via Web Booking Engine`, pageWidth - margin, footerY + 10, { align: 'right' });
+  doc.text(`Booking Ref: ${trip.reference_id} - Generated via TRAVEL JUST Owner Portal`, pageWidth - margin, footerY + 10, { align: 'right' });
 
-  // Save the PDF file
+  // Return the PDF document and generated filename
   const fileName = `Invoice_${trip.reference_id || 'Booking'}.pdf`;
+  return { doc, fileName };
+}
+
+export function generateTripInvoicePdf(trip: DbBookingRecord) {
+  const { doc, fileName } = createTripInvoicePdfDoc(trip);
   doc.save(fileName);
+  return { doc, fileName };
+}
+
+export function bookingRequestToDbRecord(b: BookingRequest): DbBookingRecord {
+  return {
+    reference_id: b.referenceId,
+    full_name: b.passengerDetails?.fullName || 'Valued Passenger',
+    mobile_number: b.passengerDetails?.mobileNumber || '',
+    email: b.passengerDetails?.email || '',
+    service_type: b.searchDetails?.serviceType || 'Cab Rental',
+    pickup_location: b.searchDetails?.pickupLocation || 'Mysuru',
+    drop_location: b.searchDetails?.dropLocation || '',
+    travel_date: b.searchDetails?.travelDate || '',
+    pickup_time: b.searchDetails?.pickupTime || '09:00 AM',
+    return_date: (b.searchDetails as any)?.returnDate,
+    return_time: (b.searchDetails as any)?.returnTime,
+    duration_hours: b.searchDetails?.durationHours,
+    estimated_distance_km: b.searchDetails?.distanceKm,
+    airport_transfer_type: (b.searchDetails as any)?.airportTransferType,
+    passengers_count: b.passengerDetails?.passengersCount || 1,
+    vehicle_id: b.selectedVehicle?.id,
+    vehicle_name: b.selectedVehicle?.name || 'Cab',
+    vehicle_category: b.selectedVehicle?.category || 'Standard',
+    special_instructions: b.passengerDetails?.specialInstructions || b.passengerDetails?.specialRequests,
+    total_estimated_fare: Number(b.estimatedFare?.totalEstimatedFare || 0),
+    currency: 'INR',
+    status: b.status,
+    driver_name: b.driverDetails?.driverName,
+    driver_phone: b.driverDetails?.driverPhone,
+    driver_vehicle_plate: b.driverDetails?.driverVehiclePlate,
+    created_at: (b as any).createdAt || (b as any).created_at || new Date().toISOString(),
+  };
+}
+
+export function generateBookingInvoicePdf(b: BookingRequest) {
+  const trip = bookingRequestToDbRecord(b);
+  return generateTripInvoicePdf(trip);
+}
+
+/**
+ * Share invoice directly via the Web Share API (WhatsApp, Email, installed apps)
+ * with graceful fallback for devices without file sharing support.
+ */
+export async function shareBookingInvoice(b: BookingRequest): Promise<{ shared: boolean; method: string }> {
+  const trip = bookingRequestToDbRecord(b);
+  const { doc, fileName } = createTripInvoicePdfDoc(trip);
+
+  const shareTitle = `Invoice #${b.referenceId} - TRAVEL JUST`;
+  const shareText = `Official Trip Invoice for Booking #${b.referenceId} (${b.passengerDetails.fullName} · ${b.searchDetails.pickupLocation} to ${b.searchDetails.dropLocation || 'Local Package'}) · ₹${Number(b.estimatedFare?.totalEstimatedFare || 0).toLocaleString('en-IN')}`;
+
+  try {
+    const pdfBlob = doc.output('blob');
+    const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+
+    // 1. Check if device & browser support native Web Share API with file attachments
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: shareTitle,
+            text: shareText,
+          });
+          return { shared: true, method: 'files' };
+        } catch (err: any) {
+          if (err.name === 'AbortError') {
+            return { shared: false, method: 'cancelled' };
+          }
+          console.warn('Native file share failed, trying text fallback:', err);
+        }
+      }
+
+      // 2. Browser supports navigator.share for text/url (common on desktop Chrome / Edge)
+      try {
+        await navigator.share({
+          title: shareTitle,
+          text: shareText,
+          url: window.location.href,
+        });
+        // Also auto-save file so user has it ready
+        doc.save(fileName);
+        return { shared: true, method: 'text_with_download' };
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          return { shared: false, method: 'cancelled' };
+        }
+        console.warn('Native text share failed:', err);
+      }
+    }
+  } catch (prepErr) {
+    console.warn('Error preparing PDF file for sharing:', prepErr);
+  }
+
+  // 3. Fallback for browsers without Web Share API:
+  // Auto-download the PDF invoice and launch WhatsApp with the booking summary
+  doc.save(fileName);
+  const cleanPhone = (b.passengerDetails.mobileNumber || '').replace(/\D/g, '').slice(-10);
+  const waText = encodeURIComponent(
+    `Hello ${b.passengerDetails.fullName}, here is your official TRAVEL JUST booking summary for #${b.referenceId}:\n• Service: ${b.searchDetails.serviceType}\n• Route: ${b.searchDetails.pickupLocation} ➔ ${b.searchDetails.dropLocation || 'Local Package'}\n• Date: ${b.searchDetails.travelDate} at ${b.searchDetails.pickupTime}\n• Total: ₹${Number(b.estimatedFare?.totalEstimatedFare || 0).toLocaleString('en-IN')}\n\nInvoice PDF has been generated and downloaded to your device!`
+  );
+  const waUrl = cleanPhone
+    ? `https://wa.me/91${cleanPhone}?text=${waText}`
+    : `https://api.whatsapp.com/send?text=${waText}`;
+  window.open(waUrl, '_blank');
+  return { shared: true, method: 'whatsapp_fallback' };
 }

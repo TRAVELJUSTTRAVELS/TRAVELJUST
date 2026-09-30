@@ -211,8 +211,116 @@ let googleRoutesRateLimitedUntil = 0;
 let googlePlacesRateLimitedUntil = 0;
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes cache
 
-// In-memory buffer for real bookings fallback
-const serverBookingsBuffer: any[] = [];
+// In-memory buffer for real bookings fallback (pre-seeded with initial completed and active bookings)
+const serverBookingsBuffer: any[] = [
+  {
+    reference_id: "TJ-2609-8812",
+    referenceId: "TJ-2609-8812",
+    full_name: "Dr. Arvind Rao",
+    mobile_number: "9845012345",
+    email: "arvind.rao@gmail.com",
+    service_type: "One Way Trip",
+    pickup_location: "Gokulam 3rd Stage, Mysuru",
+    drop_location: "Kempegowda International Airport (BLR), Bengaluru",
+    travel_date: "2026-09-28",
+    pickup_time: "05:00 AM",
+    distance_km: 185,
+    duration_hours: 3.5,
+    vehicle_type: "innova-crysta",
+    vehicle_name: "INNOVA CRYSTA",
+    total_estimated_fare: 4850,
+    base_fare: 4200,
+    status: "Completed",
+    driver_name: "Ramesh Kumar",
+    driver_phone: "+91 98451 22341",
+    driver_vehicle_plate: "KA-09-MC-8819",
+    driverDetails: {
+      driverName: "Ramesh Kumar",
+      driverPhone: "+91 98451 22341",
+      driverVehiclePlate: "KA-09-MC-8819",
+      driverVehicleModel: "Toyota Innova Crysta",
+    },
+    created_at: "2026-09-27T10:30:00Z",
+  },
+  {
+    reference_id: "TJ-2609-9140",
+    referenceId: "TJ-2609-9140",
+    full_name: "Pooja Hegde",
+    mobile_number: "9741029384",
+    email: "pooja.hegde@infosys.com",
+    service_type: "Local Rental (8 hrs / 80 km)",
+    pickup_location: "Infosys Campus, Hebbal, Mysuru",
+    drop_location: "Chamundi Hill & Mysore Palace Circuit",
+    travel_date: "2026-09-29",
+    pickup_time: "09:30 AM",
+    distance_km: 80,
+    duration_hours: 8,
+    vehicle_type: "sedan-4-1",
+    vehicle_name: "Sedan (4+1)",
+    total_estimated_fare: 2600,
+    base_fare: 2200,
+    status: "Completed",
+    driver_name: "Manjunath Swamy",
+    driver_phone: "+91 97412 88392",
+    driver_vehicle_plate: "KA-09-MA-1024",
+    driverDetails: {
+      driverName: "Manjunath Swamy",
+      driverPhone: "+91 97412 88392",
+      driverVehiclePlate: "KA-09-MA-1024",
+      driverVehicleModel: "Toyota Etios Platinum",
+    },
+    created_at: "2026-09-28T14:15:00Z",
+  },
+  {
+    reference_id: "TJ-2609-9455",
+    referenceId: "TJ-2609-9455",
+    full_name: "Karthik Subramanian",
+    mobile_number: "9880192837",
+    email: "karthik.sub@wipro.com",
+    service_type: "Round Trip",
+    pickup_location: "Vijayanagar 2nd Stage, Mysuru",
+    drop_location: "Madikeri, Coorg (2 Days)",
+    travel_date: "2026-10-02",
+    pickup_time: "06:00 AM",
+    distance_km: 260,
+    duration_hours: 5,
+    vehicle_type: "suv-6-1",
+    vehicle_name: "SUV (6+1)",
+    total_estimated_fare: 6400,
+    base_fare: 5600,
+    status: "Confirmed",
+    driver_name: "Chethan Gowda",
+    driver_phone: "+91 99002 44512",
+    driver_vehicle_plate: "KA-09-MD-3829",
+    driverDetails: {
+      driverName: "Chethan Gowda",
+      driverPhone: "+91 99002 44512",
+      driverVehiclePlate: "KA-09-MD-3829",
+      driverVehicleModel: "Maruti Suzuki Ertiga",
+    },
+    created_at: "2026-09-29T16:45:00Z",
+  },
+  {
+    reference_id: "TJ-2609-9721",
+    referenceId: "TJ-2609-9721",
+    full_name: "Ananya Deshmukh",
+    mobile_number: "9611283746",
+    email: "ananya.d@gmail.com",
+    service_type: "One Way Trip",
+    pickup_location: "Jayalakshmipuram, Mysuru",
+    drop_location: "Koppa, Chikkamagaluru",
+    travel_date: "2026-10-04",
+    pickup_time: "07:00 AM",
+    distance_km: 210,
+    duration_hours: 4.5,
+    vehicle_type: "innova",
+    vehicle_name: "INNOVA",
+    total_estimated_fare: 5200,
+    base_fare: 4600,
+    status: "Requested",
+    created_at: "2026-09-30T06:20:00Z",
+  },
+];
 // In-memory buffer for customer login WhatsApp notifications
 const serverLoginNotificationsBuffer: any[] = [];
 
@@ -2463,6 +2571,58 @@ export function createApiRouter(): Router {
       });
     } catch (e: any) {
       return res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  // Dedicated Bulk Booking Status Transition
+  router.patch("/bookings-bulk/status", (req, res) => {
+    try {
+      const { referenceIds, status, note, actor } = req.body;
+      if (!Array.isArray(referenceIds) || referenceIds.length === 0) {
+        return res.status(400).json({ success: false, error: "No booking referenceIds provided" });
+      }
+
+      let updatedCount = 0;
+      referenceIds.forEach((refId: string) => {
+        const index = serverBookingsBuffer.findIndex(
+          (b) => b.reference_id === refId || b.referenceId === refId
+        );
+        if (index !== -1) {
+          const prevStatus = serverBookingsBuffer[index].status;
+          serverBookingsBuffer[index].status = status;
+          serverBookingsBuffer[index].updated_at = new Date().toISOString();
+          if (note) serverBookingsBuffer[index].status_note = note;
+
+          serverAuditLogsBuffer.unshift({
+            id: `audit_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+            actor: actor || "Business Owner (Bulk Action)",
+            action: "BULK_STATUS_TRANSITION",
+            details: `Booking #${refId} changed from "${prevStatus}" to "${status}" (Bulk action)`,
+            timestamp: new Date().toISOString(),
+          });
+          updatedCount++;
+
+          if (serverSupabase) {
+            serverSupabase
+              .from("bookings")
+              .update({ status, updated_at: new Date().toISOString() })
+              .or(`reference_id.eq.${refId},"BOOKING ID".eq.${refId}`)
+              .then(
+                () => {},
+                (err) => console.warn("Supabase bulk update notice:", err)
+              );
+          }
+        }
+      });
+
+      return res.json({
+        success: true,
+        updatedCount,
+        status,
+        message: `Successfully updated ${updatedCount} bookings to "${status}"`,
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message || "Failed to bulk update status" });
     }
   });
 

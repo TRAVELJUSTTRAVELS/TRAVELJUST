@@ -6,12 +6,15 @@ import {
   ArrowRight,
   KeyRound,
   ShieldCheck,
+  ShieldAlert,
+  Copy,
+  Check,
   Phone,
   RefreshCw,
 } from 'lucide-react';
 import { CustomerUser, Vehicle } from '../types';
 import { registerOrLoginCustomer, findCustomerByPhone } from '../services/customerAuthService';
-import { auth, googleAuthProvider, syncUserProfile, signInWithPopup } from '../lib/firebase';
+import { auth, googleAuthProvider, syncUserProfile, signInWithPopup, signInWithGoogleIdToken } from '../lib/firebase';
 import { ProgressBar } from './DynamicLoadingIndicator';
 
 export interface CustomerAuthModalProps {
@@ -38,6 +41,8 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isExistingCustomer, setIsExistingCustomer] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [unauthorizedDomain, setUnauthorizedDomain] = useState<string | null>(null);
+  const [copiedDomain, setCopiedDomain] = useState(false);
 
   if (!isOpen) return null;
 
@@ -87,6 +92,63 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     setError(null);
+    setUnauthorizedDomain(null);
+
+    // 1. Try Google Identity Services (GIS) One-Tap / Token first if available in window
+    const gAccounts = typeof window !== 'undefined' ? (window as any).google?.accounts : null;
+    if (gAccounts?.id) {
+      try {
+        const gisResult = await new Promise<any>((resolve, reject) => {
+          let hasResolved = false;
+          gAccounts.id.initialize({
+            client_id: '586569035100-qiacf9n6pm8ark360kuvelg4o598f4kc.apps.googleusercontent.com',
+            callback: async (response: any) => {
+              if (response.credential) {
+                hasResolved = true;
+                try {
+                  const res = await signInWithGoogleIdToken(response.credential);
+                  resolve(res);
+                } catch (e) {
+                  reject(e);
+                }
+              } else {
+                reject(new Error('No credential from Google'));
+              }
+            },
+          });
+          gAccounts.id.prompt((notification: any) => {
+            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+              if (!hasResolved) {
+                reject(new Error('GIS prompt skipped'));
+              }
+            }
+          });
+          setTimeout(() => {
+            if (!hasResolved) reject(new Error('GIS prompt timeout'));
+          }, 1500);
+        });
+
+        if (gisResult?.user) {
+          const user = gisResult.user;
+          const profile = await syncUserProfile(user);
+          const phoneDigits = user.phoneNumber ? user.phoneNumber.replace(/\D/g, '').slice(-10) : '';
+          const fallbackPhone = phoneDigits.length === 10 ? phoneDigits : (mobileNumber || '9876543210');
+          const customer = registerOrLoginCustomer(
+            profile.displayName || user.displayName || 'Google Passenger',
+            fallbackPhone,
+            profile.email || user.email || undefined,
+            { notifyOwner: true, autoOpenWhatsApp: false }
+          );
+          if (onSuccess) onSuccess(customer);
+          if (onClose) onClose();
+          return;
+        }
+      } catch {
+        // Fallback to standard popup flow
+      }
+    }
+
+    // 2. Standard Firebase Popup Flow
     try {
       const res = await signInWithPopup(auth, googleAuthProvider);
       const user = res.user;
@@ -106,8 +168,17 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({
         onClose();
       }
     } catch (err: any) {
-      console.error('Google Sign In Error:', err);
-      if (err?.code === 'auth/popup-closed-by-user') {
+      console.warn('Google Sign In Result:', err);
+      const isUnauthorizedDomain =
+        err?.code === 'auth/unauthorized-domain' ||
+        err?.message?.includes('unauthorized-domain') ||
+        err?.message?.includes('auth/unauthorized-domain');
+
+      if (isUnauthorizedDomain) {
+        const currentDomain = typeof window !== 'undefined' ? window.location.hostname : 'run.app';
+        setUnauthorizedDomain(currentDomain);
+        setError(null);
+      } else if (err?.code === 'auth/popup-closed-by-user') {
         setError('Google sign-in popup was closed. Please try again.');
       } else {
         setError(err?.message || 'Google sign-in failed. Please try again or use mobile OTP.');
@@ -255,6 +326,50 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({
 
         {/* Content */}
         <div className="p-4 space-y-3">
+          {unauthorizedDomain && (
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/80 rounded-xl text-xs space-y-2.5 text-amber-900 dark:text-amber-200">
+              <div className="flex items-center gap-2 font-bold text-amber-950 dark:text-amber-100">
+                <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>Google OAuth Domain Authorization Required</span>
+              </div>
+              <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">
+                Firebase restricts Google sign-in popups on new preview domains until whitelisted. To enable Google Popups on this app URL:
+              </p>
+              <div className="flex items-center justify-between gap-2 p-2 bg-white dark:bg-slate-900 rounded-lg border border-amber-200 dark:border-amber-800 font-mono text-[11px] text-slate-800 dark:text-slate-200 select-all">
+                <span className="truncate">{unauthorizedDomain}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(unauthorizedDomain);
+                    setCopiedDomain(true);
+                    setTimeout(() => setCopiedDomain(false), 2000);
+                  }}
+                  className="px-2 py-0.5 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100 rounded text-[10px] font-bold shrink-0 transition-colors flex items-center gap-1 cursor-pointer"
+                >
+                  {copiedDomain ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                  {copiedDomain ? 'Copied!' : 'Copy Domain'}
+                </button>
+              </div>
+              <div className="text-[10px] text-amber-700 dark:text-amber-400">
+                Paste in <strong>Firebase Console &gt; Authentication &gt; Settings &gt; Authorized Domains</strong>.
+              </div>
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUnauthorizedDomain(null);
+                    setStep('details');
+                    if (!fullName) setFullName('Valued Passenger');
+                  }}
+                  className="w-full py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                >
+                  <span>Use Instant Mobile Login (Demo OTP: 1234)</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+
           {error && (
             <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-semibold">
               {error}
