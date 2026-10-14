@@ -3,7 +3,7 @@ import { ChevronRight, HelpCircle, Search, X } from 'lucide-react';
 import { faqsData } from '../data/faqs';
 
 export const FAQSection: React.FC = () => {
-  const [openId, setOpenId] = useState<string | null>('faq-1');
+  const [openId, setOpenId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   const toggleFAQ = (id: string) => {
@@ -39,7 +39,7 @@ export const FAQSection: React.FC = () => {
 
   const handleClearSearch = () => {
     setSearchQuery('');
-    setOpenId('faq-1');
+    setOpenId(null);
   };
 
   return (

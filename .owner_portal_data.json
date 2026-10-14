@@ -343,7 +343,7 @@
     },
     "conversionStats": {
       "bookingStarts": 412,
-      "bookingCompletions": 285,
+      "bookingCompletions": 287,
       "abandonedBookings": 128,
       "whatsAppClicks": 650,
       "phoneClicks": 490
@@ -354,6 +354,21 @@
     "version": 3
   },
   "whatsAppThreads": [
+    {
+      "id": "wa-TJ-96620",
+      "customerId": "cust-9480642742",
+      "customerName": "far",
+      "customerPhone": "9480642742",
+      "bookingId": "TJ-48120",
+      "pickupLocation": "Bangalore, Karnataka",
+      "dropLocation": "Mysuru, Karnataka",
+      "serviceType": "oneway",
+      "category": "BOOKING_LIFECYCLE",
+      "lastMessageText": "Booking #TJ-96620 initiated",
+      "lastMessageTimestamp": "2026-10-14T13:39:25.303Z",
+      "unreadCount": 0,
+      "messages": []
+    },
     {
       "id": "wa-TJ-99999",
       "customerId": "cust-9876543210",
@@ -447,7 +462,51 @@
       ]
     }
   ],
+  "whatsAppQueue": [],
+  "whatsAppGatewaySettings": {
+    "officialBusinessPhone": "+91 9740754400",
+    "defaultOwnerNotificationPhone": "+91 9740754400",
+    "fleetManagerNotificationPhone": "+91 9740754400",
+    "provider": "DIRECT_WHATSAPP_DEEPLINK",
+    "autoSendCustomerLoginAlerts": true,
+    "autoSendBookingLifecycleAlerts": true,
+    "autoSendDriverAssignmentAlerts": true,
+    "autoSendPaymentReceipts": true,
+    "autoSendFleetManagerAlerts": true
+  },
   "payments": [
+    {
+      "id": "pay-1791985165506",
+      "bookingId": "TJ-48120",
+      "customerName": "far",
+      "customerPhone": "9480642742",
+      "totalAmount": 2599,
+      "discountAmount": 0,
+      "finalAmount": 2599,
+      "paidAmount": 0,
+      "balanceAmount": 2599,
+      "status": "PENDING",
+      "paymentMethod": "ONLINE_UPI",
+      "transactionRef": "UPI-165506",
+      "updatedAt": "2026-10-14T13:39:25.506Z",
+      "notes": ""
+    },
+    {
+      "id": "pay-1791985165304",
+      "bookingId": "TJ-96620",
+      "customerName": "far",
+      "customerPhone": "9480642742",
+      "totalAmount": 2599,
+      "discountAmount": 0,
+      "finalAmount": 2599,
+      "paidAmount": 0,
+      "balanceAmount": 2599,
+      "status": "PENDING",
+      "paymentMethod": "ONLINE_UPI",
+      "transactionRef": "UPI-165304",
+      "updatedAt": "2026-10-14T13:39:25.304Z",
+      "notes": ""
+    },
     {
       "id": "pay-1791797998828",
       "bookingId": "TJ-99999",
@@ -466,6 +525,434 @@
     }
   ],
   "auditLogs": [
+    {
+      "id": "audit-1791985165508-fji13",
+      "timestamp": "2026-10-14T13:39:25.508Z",
+      "actorEmail": "system",
+      "actorRole": "BOOKING_MANAGER",
+      "action": "CREATE_BOOKING",
+      "entity": "BOOKING",
+      "entityId": "TJ-48120",
+      "bookingId": "TJ-48120",
+      "previousValue": null,
+      "newValue": {
+        "reference_id": "TJ-48120",
+        "full_name": "far",
+        "mobile_number": "9480642742",
+        "email": "",
+        "service_type": "oneway",
+        "pickup_location": "Bangalore, Karnataka",
+        "drop_location": "Mysuru, Karnataka",
+        "travel_date": "2026-10-14",
+        "pickup_time": "9:00 AM",
+        "return_date": null,
+        "return_time": null,
+        "duration_hours": 8,
+        "airport_transfer_type": "pickup",
+        "passengers_count": 2,
+        "vehicle_id": "sedan-4-1",
+        "vehicle_name": "Sedan (4+1)",
+        "vehicle_category": "Sedan (4+1)",
+        "special_instructions": "",
+        "total_estimated_fare": 2599,
+        "currency": "INR",
+        "status": "Pending Confirmation",
+        "driver_name": null,
+        "driver_phone": null,
+        "driver_vehicle_plate": null,
+        "selected_add_ons": [],
+        "add_ons_total": 0,
+        "search_details": {
+          "serviceType": "oneway",
+          "pickupLocation": "Bangalore, Karnataka",
+          "dropLocation": "Mysuru, Karnataka",
+          "travelDate": "2026-10-14",
+          "pickupDate": "2026-10-14",
+          "dropDate": "2026-10-14",
+          "pickupTime": "9:00 AM",
+          "durationHours": 8,
+          "airportTransferType": "pickup",
+          "passengers": 2,
+          "vehicleType": "all",
+          "routeInfo": {
+            "distanceKm": 17,
+            "distanceMeters": 16968,
+            "durationMinutes": 40,
+            "durationFormatted": "Approx. 40 min",
+            "summaryText": "17 km · Approx. 40 min",
+            "originAddress": "Bangalore, Karnataka",
+            "destinationAddress": "Mysuru, Karnataka",
+            "originPlaceId": "loc_manipal_hospital_mysuru",
+            "destinationPlaceId": "loc_mys_airport",
+            "stopsCount": 0,
+            "viaStops": [],
+            "encodedPolyline": "ewjjAkd|rMi@Bo@@GDKT?PINg@JGH@ZDn@HlBIpClFdAnCr@vDz@`C^tBh@tC~@hJjDj@Hn@?~CGzBKtA@lBH~Fd@pGJvD@~IDbEEnBC\\BbGIlAB`@D~BHxAGbDi@hAMpBMzBQlHe@f@Kf@WHOLArFcITS|@]dAY\\EDONIPBHJ@@t@QpBWjDo@v@ShFmBp@IlC?Nu@hBwFTiAr@_CjAmE@Ql@ObKkDzC_A^G?SDIPqBCq@PCHNHYX]RGJ@JAlCRlBDbHt@dBZ`DTtCD|@EDKJ?BJhCIhAcAzFwFfGwFl@a@z@{@t@i@vAw@bBi@tBc@|AMzA?|GPjCJ~@Hx@Pl@Nv@RNBMzCSlNChFCZKZpAhBhAtAN`@z@hFZrAtCnP\\`A^h@h@`@h@RlATn@D`AIf@MnAa@d@Er@?l@L~@\\nAn@TXXr@Fr@DhA^HbGSbHMpESpBElB@xAAJEhDAlAB`OAf@AfMBtBAvA@VB|Dt@jBLbCF|G`@zIVfDFjF@|ANvADpB?hCT|BVFHLF|Eb@fF`@|Pz@dDV|En@vIZ`BAjKq@n@GfAUfA]x@_@vAaArBaBVS`Ae@lAe@hB[bBOx@ChA@pKv@`BHvAAjBQjFu@nCOfDMhEMxK]pAOrDs@pHgBfAQvDY^IfBs@`Ag@rCwBdAi@tA_@dAKt@CrWO~ABnV]jIKpDOTA?tAJ~GR`OBjCCHOByKNCAA`B",
+            "routeDescription": "Jevargi - Chamarajanagar Rd",
+            "highwayCorridor": "NH 275 10-Lane Bengaluru-Mysuru Expressway",
+            "tollEstimate": 320,
+            "isAirportRoute": false,
+            "originCoords": {
+              "lat": 12.3482,
+              "lng": 76.6625
+            },
+            "destinationCoords": {
+              "lat": 12.2285,
+              "lng": 76.6548
+            },
+            "isInterstate": false,
+            "interstateTaxEstimate": 0,
+            "interstateStates": {
+              "fromState": "Karnataka",
+              "toState": "Karnataka"
+            },
+            "routesCount": 1,
+            "recommendedRoute": "Jevargi - Chamarajanagar Rd",
+            "alternateRoutes": [
+              {
+                "routeIndex": 0,
+                "description": "Jevargi - Chamarajanagar Rd",
+                "distanceKm": 17,
+                "distanceMeters": 16968,
+                "durationMinutes": 40,
+                "durationFormatted": "Approx. 40 min",
+                "encodedPolyline": "ewjjAkd|rMi@Bo@@GDKT?PINg@JGH@ZDn@HlBIpClFdAnCr@vDz@`C^tBh@tC~@hJjDj@Hn@?~CGzBKtA@lBH~Fd@pGJvD@~IDbEEnBC\\BbGIlAB`@D~BHxAGbDi@hAMpBMzBQlHe@f@Kf@WHOLArFcITS|@]dAY\\EDONIPBHJ@@t@QpBWjDo@v@ShFmBp@IlC?Nu@hBwFTiAr@_CjAmE@Ql@ObKkDzC_A^G?SDIPqBCq@PCHNHYX]RGJ@JAlCRlBDbHt@dBZ`DTtCD|@EDKJ?BJhCIhAcAzFwFfGwFl@a@z@{@t@i@vAw@bBi@tBc@|AMzA?|GPjCJ~@Hx@Pl@Nv@RNBMzCSlNChFCZKZpAhBhAtAN`@z@hFZrAtCnP\\`A^h@h@`@h@RlATn@D`AIf@MnAa@d@Er@?l@L~@\\nAn@TXXr@Fr@DhA^HbGSbHMpESpBElB@xAAJEhDAlAB`OAf@AfMBtBAvA@VB|Dt@jBLbCF|G`@zIVfDFjF@|ANvADpB?hCT|BVFHLF|Eb@fF`@|Pz@dDV|En@vIZ`BAjKq@n@GfAUfA]x@_@vAaArBaBVS`Ae@lAe@hB[bBOx@ChA@pKv@`BHvAAjBQjFu@nCOfDMhEMxK]pAOrDs@pHgBfAQvDY^IfBs@`Ag@rCwBdAi@tA_@dAKt@CrWO~ABnV]jIKpDOTA?tAJ~GR`OBjCCHOByKNCAA`B",
+                "highwayCorridor": "NH 275 10-Lane Bengaluru-Mysuru Expressway",
+                "tollEstimate": 320
+              }
+            ],
+            "validationStatus": "VALID",
+            "dataSource": "google_maps"
+          },
+          "distanceKm": 17
+        },
+        "estimated_fare": {
+          "estimatedDistanceKm": 149,
+          "exactDistanceKm": 149,
+          "estimatedDurationHours": 2.5,
+          "baseFareAmount": 2599,
+          "distanceFareAmount": 0,
+          "durationFareAmount": 0,
+          "driverAllowanceAmount": 0,
+          "passengerSurchargeAmount": 0,
+          "airportSurchargeAmount": 0,
+          "totalEstimatedFare": 2599,
+          "includedMinKm": 149,
+          "isValid": true,
+          "isFixedPrice": true,
+          "fixedRouteName": "Mysuru ⇄ Bengaluru City (~149 km limit)",
+          "pricingModel": "ONE_WAY_FIXED_CORRIDOR",
+          "disclaimer": "Final fare may vary based on actual route, waiting time, additional stops, and applicable charges.",
+          "breakdown": [
+            {
+              "label": "Fixed One-Way Corridor Fare (Bengaluru City to Mysuru (DISTANCE ~149 km limit))",
+              "amount": 2599
+            },
+            {
+              "label": "Included Highway Distance (Approximately 149 km)",
+              "amount": 0
+            },
+            {
+              "label": "Driver Allowance & Highway Service Surcharge",
+              "amount": 0
+            },
+            {
+              "label": "Guaranteed Fixed Rate (No Fare Engine Comparison)",
+              "amount": 0
+            }
+          ],
+          "fareSnapshot": {
+            "vehicleId": "sedan-4-1",
+            "vehicleType": "Sedan (4+1)",
+            "pricingVersion": 1,
+            "pricingModel": "ONE_WAY_FIXED_CORRIDOR",
+            "baseFare": 2599,
+            "perKmRate": 0,
+            "extraPerKmRate": 13,
+            "includedKm": 149,
+            "includedHours": 2.5,
+            "hourlyRate": 0,
+            "extraPerHourRate": 0,
+            "driverAllowance": 0,
+            "distanceKm": 149,
+            "durationMinutes": 150,
+            "durationHours": 2.5,
+            "additionalCharges": 0,
+            "totalFare": 2599,
+            "currency": "INR",
+            "timestamp": "2026-10-14T13:39:24.229Z",
+            "originState": "Karnataka",
+            "destinationState": "Karnataka"
+          }
+        },
+        "fare_snapshot": {
+          "vehicleId": "sedan-4-1",
+          "vehicleType": "Sedan (4+1)",
+          "pricingVersion": 1,
+          "pricingModel": "ONE_WAY_FIXED_CORRIDOR",
+          "baseFare": 2599,
+          "perKmRate": 0,
+          "extraPerKmRate": 13,
+          "includedKm": 149,
+          "includedHours": 2.5,
+          "hourlyRate": 0,
+          "extraPerHourRate": 0,
+          "driverAllowance": 0,
+          "distanceKm": 149,
+          "durationMinutes": 150,
+          "durationHours": 2.5,
+          "additionalCharges": 0,
+          "totalFare": 2599,
+          "currency": "INR",
+          "timestamp": "2026-10-14T13:39:24.229Z",
+          "originState": "Karnataka",
+          "destinationState": "Karnataka"
+        },
+        "pricing_version": 1,
+        "created_at": "2026-10-14T13:39:24.260Z"
+      },
+      "details": "New ONEWAY booking created by far (9480642742)"
+    },
+    {
+      "id": "audit-1791985165506-is2rl",
+      "timestamp": "2026-10-14T13:39:25.506Z",
+      "actorEmail": "traveljustmysuru@gmail.com",
+      "actorRole": "ACCOUNTS",
+      "action": "RECORD_PAYMENT",
+      "entity": "PAYMENT",
+      "entityId": "pay-1791985165506",
+      "previousValue": null,
+      "newValue": {
+        "id": "pay-1791985165506",
+        "bookingId": "TJ-48120",
+        "customerName": "far",
+        "customerPhone": "9480642742",
+        "totalAmount": 2599,
+        "discountAmount": 0,
+        "finalAmount": 2599,
+        "paidAmount": 0,
+        "balanceAmount": 2599,
+        "status": "PENDING",
+        "paymentMethod": "ONLINE_UPI",
+        "transactionRef": "UPI-165506",
+        "updatedAt": "2026-10-14T13:39:25.506Z",
+        "notes": ""
+      },
+      "details": "Recorded payment of ₹0 for booking #TJ-48120 (Balance: ₹2599)"
+    },
+    {
+      "id": "audit-1791985165305-ihj8l",
+      "timestamp": "2026-10-14T13:39:25.305Z",
+      "actorEmail": "system",
+      "actorRole": "BOOKING_MANAGER",
+      "action": "CREATE_BOOKING",
+      "entity": "BOOKING",
+      "entityId": "TJ-96620",
+      "bookingId": "TJ-96620",
+      "previousValue": null,
+      "newValue": {
+        "reference_id": "TJ-96620",
+        "full_name": "far",
+        "mobile_number": "9480642742",
+        "email": "",
+        "service_type": "oneway",
+        "pickup_location": "Bangalore, Karnataka",
+        "drop_location": "Mysuru, Karnataka",
+        "travel_date": "2026-10-14",
+        "pickup_time": "9:00 AM",
+        "return_date": null,
+        "return_time": null,
+        "duration_hours": 8,
+        "airport_transfer_type": "pickup",
+        "passengers_count": 2,
+        "vehicle_id": "sedan-4-1",
+        "vehicle_name": "Sedan (4+1)",
+        "vehicle_category": "Sedan (4+1)",
+        "special_instructions": "",
+        "total_estimated_fare": 2599,
+        "currency": "INR",
+        "status": "Pending Confirmation",
+        "driver_name": null,
+        "driver_phone": null,
+        "driver_vehicle_plate": null,
+        "selected_add_ons": [],
+        "add_ons_total": 0,
+        "search_details": {
+          "serviceType": "oneway",
+          "pickupLocation": "Bangalore, Karnataka",
+          "dropLocation": "Mysuru, Karnataka",
+          "travelDate": "2026-10-14",
+          "pickupDate": "2026-10-14",
+          "dropDate": "2026-10-14",
+          "pickupTime": "9:00 AM",
+          "durationHours": 8,
+          "airportTransferType": "pickup",
+          "passengers": 2,
+          "vehicleType": "all",
+          "routeInfo": {
+            "distanceKm": 17,
+            "distanceMeters": 16968,
+            "durationMinutes": 40,
+            "durationFormatted": "Approx. 40 min",
+            "summaryText": "17 km · Approx. 40 min",
+            "originAddress": "Bangalore, Karnataka",
+            "destinationAddress": "Mysuru, Karnataka",
+            "originPlaceId": "loc_manipal_hospital_mysuru",
+            "destinationPlaceId": "loc_mys_airport",
+            "stopsCount": 0,
+            "viaStops": [],
+            "encodedPolyline": "ewjjAkd|rMi@Bo@@GDKT?PINg@JGH@ZDn@HlBIpClFdAnCr@vDz@`C^tBh@tC~@hJjDj@Hn@?~CGzBKtA@lBH~Fd@pGJvD@~IDbEEnBC\\BbGIlAB`@D~BHxAGbDi@hAMpBMzBQlHe@f@Kf@WHOLArFcITS|@]dAY\\EDONIPBHJ@@t@QpBWjDo@v@ShFmBp@IlC?Nu@hBwFTiAr@_CjAmE@Ql@ObKkDzC_A^G?SDIPqBCq@PCHNHYX]RGJ@JAlCRlBDbHt@dBZ`DTtCD|@EDKJ?BJhCIhAcAzFwFfGwFl@a@z@{@t@i@vAw@bBi@tBc@|AMzA?|GPjCJ~@Hx@Pl@Nv@RNBMzCSlNChFCZKZpAhBhAtAN`@z@hFZrAtCnP\\`A^h@h@`@h@RlATn@D`AIf@MnAa@d@Er@?l@L~@\\nAn@TXXr@Fr@DhA^HbGSbHMpESpBElB@xAAJEhDAlAB`OAf@AfMBtBAvA@VB|Dt@jBLbCF|G`@zIVfDFjF@|ANvADpB?hCT|BVFHLF|Eb@fF`@|Pz@dDV|En@vIZ`BAjKq@n@GfAUfA]x@_@vAaArBaBVS`Ae@lAe@hB[bBOx@ChA@pKv@`BHvAAjBQjFu@nCOfDMhEMxK]pAOrDs@pHgBfAQvDY^IfBs@`Ag@rCwBdAi@tA_@dAKt@CrWO~ABnV]jIKpDOTA?tAJ~GR`OBjCCHOByKNCAA`B",
+            "routeDescription": "Jevargi - Chamarajanagar Rd",
+            "highwayCorridor": "NH 275 10-Lane Bengaluru-Mysuru Expressway",
+            "tollEstimate": 320,
+            "isAirportRoute": false,
+            "originCoords": {
+              "lat": 12.3482,
+              "lng": 76.6625
+            },
+            "destinationCoords": {
+              "lat": 12.2285,
+              "lng": 76.6548
+            },
+            "isInterstate": false,
+            "interstateTaxEstimate": 0,
+            "interstateStates": {
+              "fromState": "Karnataka",
+              "toState": "Karnataka"
+            },
+            "routesCount": 1,
+            "recommendedRoute": "Jevargi - Chamarajanagar Rd",
+            "alternateRoutes": [
+              {
+                "routeIndex": 0,
+                "description": "Jevargi - Chamarajanagar Rd",
+                "distanceKm": 17,
+                "distanceMeters": 16968,
+                "durationMinutes": 40,
+                "durationFormatted": "Approx. 40 min",
+                "encodedPolyline": "ewjjAkd|rMi@Bo@@GDKT?PINg@JGH@ZDn@HlBIpClFdAnCr@vDz@`C^tBh@tC~@hJjDj@Hn@?~CGzBKtA@lBH~Fd@pGJvD@~IDbEEnBC\\BbGIlAB`@D~BHxAGbDi@hAMpBMzBQlHe@f@Kf@WHOLArFcITS|@]dAY\\EDONIPBHJ@@t@QpBWjDo@v@ShFmBp@IlC?Nu@hBwFTiAr@_CjAmE@Ql@ObKkDzC_A^G?SDIPqBCq@PCHNHYX]RGJ@JAlCRlBDbHt@dBZ`DTtCD|@EDKJ?BJhCIhAcAzFwFfGwFl@a@z@{@t@i@vAw@bBi@tBc@|AMzA?|GPjCJ~@Hx@Pl@Nv@RNBMzCSlNChFCZKZpAhBhAtAN`@z@hFZrAtCnP\\`A^h@h@`@h@RlATn@D`AIf@MnAa@d@Er@?l@L~@\\nAn@TXXr@Fr@DhA^HbGSbHMpESpBElB@xAAJEhDAlAB`OAf@AfMBtBAvA@VB|Dt@jBLbCF|G`@zIVfDFjF@|ANvADpB?hCT|BVFHLF|Eb@fF`@|Pz@dDV|En@vIZ`BAjKq@n@GfAUfA]x@_@vAaArBaBVS`Ae@lAe@hB[bBOx@ChA@pKv@`BHvAAjBQjFu@nCOfDMhEMxK]pAOrDs@pHgBfAQvDY^IfBs@`Ag@rCwBdAi@tA_@dAKt@CrWO~ABnV]jIKpDOTA?tAJ~GR`OBjCCHOByKNCAA`B",
+                "highwayCorridor": "NH 275 10-Lane Bengaluru-Mysuru Expressway",
+                "tollEstimate": 320
+              }
+            ],
+            "validationStatus": "VALID",
+            "dataSource": "google_maps"
+          },
+          "distanceKm": 17
+        },
+        "estimated_fare": {
+          "estimatedDistanceKm": 149,
+          "exactDistanceKm": 149,
+          "estimatedDurationHours": 2.5,
+          "baseFareAmount": 2599,
+          "distanceFareAmount": 0,
+          "durationFareAmount": 0,
+          "driverAllowanceAmount": 0,
+          "passengerSurchargeAmount": 0,
+          "airportSurchargeAmount": 0,
+          "totalEstimatedFare": 2599,
+          "includedMinKm": 149,
+          "isValid": true,
+          "isFixedPrice": true,
+          "fixedRouteName": "Mysuru ⇄ Bengaluru City (~149 km limit)",
+          "pricingModel": "ONE_WAY_FIXED_CORRIDOR",
+          "disclaimer": "Final fare may vary based on actual route, waiting time, additional stops, and applicable charges.",
+          "breakdown": [
+            {
+              "label": "Fixed One-Way Corridor Fare (Bengaluru City to Mysuru (DISTANCE ~149 km limit))",
+              "amount": 2599
+            },
+            {
+              "label": "Included Highway Distance (Approximately 149 km)",
+              "amount": 0
+            },
+            {
+              "label": "Driver Allowance & Highway Service Surcharge",
+              "amount": 0
+            },
+            {
+              "label": "Guaranteed Fixed Rate (No Fare Engine Comparison)",
+              "amount": 0
+            }
+          ],
+          "fareSnapshot": {
+            "vehicleId": "sedan-4-1",
+            "vehicleType": "Sedan (4+1)",
+            "pricingVersion": 1,
+            "pricingModel": "ONE_WAY_FIXED_CORRIDOR",
+            "baseFare": 2599,
+            "perKmRate": 0,
+            "extraPerKmRate": 13,
+            "includedKm": 149,
+            "includedHours": 2.5,
+            "hourlyRate": 0,
+            "extraPerHourRate": 0,
+            "driverAllowance": 0,
+            "distanceKm": 149,
+            "durationMinutes": 150,
+            "durationHours": 2.5,
+            "additionalCharges": 0,
+            "totalFare": 2599,
+            "currency": "INR",
+            "timestamp": "2026-10-14T13:39:24.006Z",
+            "originState": "Karnataka",
+            "destinationState": "Karnataka"
+          }
+        },
+        "fare_snapshot": {
+          "vehicleId": "sedan-4-1",
+          "vehicleType": "Sedan (4+1)",
+          "pricingVersion": 1,
+          "pricingModel": "ONE_WAY_FIXED_CORRIDOR",
+          "baseFare": 2599,
+          "perKmRate": 0,
+          "extraPerKmRate": 13,
+          "includedKm": 149,
+          "includedHours": 2.5,
+          "hourlyRate": 0,
+          "extraPerHourRate": 0,
+          "driverAllowance": 0,
+          "distanceKm": 149,
+          "durationMinutes": 150,
+          "durationHours": 2.5,
+          "additionalCharges": 0,
+          "totalFare": 2599,
+          "currency": "INR",
+          "timestamp": "2026-10-14T13:39:24.006Z",
+          "originState": "Karnataka",
+          "destinationState": "Karnataka"
+        },
+        "pricing_version": 1,
+        "created_at": "2026-10-14T13:39:24.006Z"
+      },
+      "details": "New ONEWAY booking created by far (9480642742)"
+    },
+    {
+      "id": "audit-1791985165305-bf638",
+      "timestamp": "2026-10-14T13:39:25.305Z",
+      "actorEmail": "traveljustmysuru@gmail.com",
+      "actorRole": "ACCOUNTS",
+      "action": "RECORD_PAYMENT",
+      "entity": "PAYMENT",
+      "entityId": "pay-1791985165304",
+      "previousValue": null,
+      "newValue": {
+        "id": "pay-1791985165304",
+        "bookingId": "TJ-96620",
+        "customerName": "far",
+        "customerPhone": "9480642742",
+        "totalAmount": 2599,
+        "discountAmount": 0,
+        "finalAmount": 2599,
+        "paidAmount": 0,
+        "balanceAmount": 2599,
+        "status": "PENDING",
+        "paymentMethod": "ONLINE_UPI",
+        "transactionRef": "UPI-165304",
+        "updatedAt": "2026-10-14T13:39:25.304Z",
+        "notes": ""
+      },
+      "details": "Recorded payment of ₹0 for booking #TJ-96620 (Balance: ₹2599)"
+    },
     {
       "id": "audit-1791797998829-kpgdx",
       "timestamp": "2026-10-12T09:39:58.829Z",
@@ -613,6 +1100,24 @@
   "notifications": [
     {
       "type": "NEW_BOOKING",
+      "title": "New Booking Request #TJ-48120",
+      "message": "far booked ONEWAY trip (Sedan (4+1)). Total: ₹2599",
+      "bookingId": "TJ-48120",
+      "id": "notif-1791985165506-qpa5",
+      "timestamp": "2026-10-14T13:39:25.506Z",
+      "read": false
+    },
+    {
+      "type": "NEW_BOOKING",
+      "title": "New Booking Request #TJ-96620",
+      "message": "far booked ONEWAY trip (Sedan (4+1)). Total: ₹2599",
+      "bookingId": "TJ-96620",
+      "id": "notif-1791985165304-0f9r",
+      "timestamp": "2026-10-14T13:39:25.304Z",
+      "read": false
+    },
+    {
+      "type": "NEW_BOOKING",
       "title": "New Booking Request #TJ-99999",
       "message": "Test Passenger booked AIRPORT trip (Sedan (4+1)). Total: ₹3250",
       "bookingId": "TJ-99999",
@@ -621,5 +1126,5 @@
       "read": false
     }
   ],
-  "savedAt": "2026-10-12T09:39:58.831Z"
+  "savedAt": "2026-10-14T13:44:10.054Z"
 }

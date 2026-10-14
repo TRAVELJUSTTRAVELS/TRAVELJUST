@@ -977,6 +977,50 @@ class OwnerDataStore {
     return queueItem;
   }
 
+  public updateMessageStatusFromWebhook(
+    messageIdOrRef: string,
+    newStatus: 'delivered' | 'read' | 'failed' | 'sent',
+    recipientPhone?: string,
+    timestamp?: string
+  ): { updatedMessages: number; updatedBookings: string[] } {
+    let updatedCount = 0;
+    const affectedBookings = new Set<string>();
+
+    // 1. Update queue items
+    for (const q of this.whatsAppQueue) {
+      if (
+        q.id === messageIdOrRef ||
+        (q.bookingId && messageIdOrRef.includes(q.bookingId)) ||
+        (recipientPhone && q.recipientPhone.includes(recipientPhone.replace(/\D/g, '').slice(-10)))
+      ) {
+        q.status = newStatus.toUpperCase() as any;
+        q.lastAttemptAt = timestamp || new Date().toISOString();
+        if (q.bookingId) affectedBookings.add(q.bookingId);
+      }
+    }
+
+    // 2. Update thread messages
+    for (const t of this.whatsAppThreads) {
+      for (const m of t.messages) {
+        if (
+          m.id === messageIdOrRef ||
+          (m.bookingId && messageIdOrRef.includes(m.bookingId)) ||
+          (m.metadata?.wamid && m.metadata.wamid === messageIdOrRef)
+        ) {
+          m.status = newStatus;
+          updatedCount++;
+          if (m.bookingId) affectedBookings.add(m.bookingId);
+        }
+      }
+    }
+
+    this.saveToDisk();
+    return {
+      updatedMessages: updatedCount,
+      updatedBookings: Array.from(affectedBookings),
+    };
+  }
+
   public clearWhatsAppQueue(): void {
     this.whatsAppQueue = [];
     this.saveToDisk();

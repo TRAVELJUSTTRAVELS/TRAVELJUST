@@ -9,7 +9,6 @@ import { WhyChooseUs } from './components/WhyChooseUs';
 import { FAQSection } from './components/FAQSection';
 import { TopOutstationRoutesSection } from './components/TopOutstationRoutesSection';
 import { Footer } from './components/Footer';
-import { MobileBottomNav } from './components/MobileBottomNav';
 import { BookingModal } from './components/BookingModal';
 import { CustomerAuthModal } from './components/CustomerAuthModal';
 import { InAppPushNotificationBanner } from './components/InAppPushNotificationBanner';
@@ -698,25 +697,6 @@ export default function App() {
         customer={customer}
         onOpenCustomerPortal={() => setCustomerPortalModalOpen(true)}
         onOpenTrackBooking={() => handleOpenTrackBooking()}
-      />
-
-      {/* Mobile Priority Fixed Bottom Navigation Bar */}
-      <MobileBottomNav
-        onBookClick={handleScrollToBookingSearch}
-        onRoutesClick={() => {
-          const routesElem = document.getElementById('top-outstation-routes-section');
-          if (routesElem) {
-            routesElem.scrollIntoView({ behavior: 'smooth' });
-          }
-        }}
-        onAccountClick={() => {
-          if (customer) {
-            handleOpenCustomerPortal('trips');
-          } else {
-            setCustomerAuthModalOpen(true);
-          }
-        }}
-        customer={customer}
       />
 
       {/* Multi-step Booking Dialog Modal */}

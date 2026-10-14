@@ -6,6 +6,10 @@ import {
   signInWithCredential,
   signOut,
   onAuthStateChanged,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  PhoneAuthProvider,
+  type ConfirmationResult,
   type User,
 } from 'firebase/auth';
 import {
@@ -41,6 +45,55 @@ export const auth = getAuth(app);
 export const googleAuthProvider = new GoogleAuthProvider();
 googleAuthProvider.addScope('https://www.googleapis.com/auth/calendar.events');
 googleAuthProvider.setCustomParameters({ prompt: 'select_account' });
+
+/**
+ * Creates or retrieves an application RecaptchaVerifier for Firebase Phone Auth.
+ * Supports invisible or visible container verification.
+ */
+export function setupRecaptcha(
+  containerOrButtonId: string | HTMLElement,
+  size: 'invisible' | 'normal' = 'invisible',
+  onVerify?: () => void,
+  onExpire?: () => void
+): RecaptchaVerifier {
+  if (typeof window === 'undefined') {
+    throw new Error('RecaptchaVerifier must be called in a browser environment');
+  }
+
+  // Clear existing verifier if stored on window
+  const win = window as any;
+  if (win.recaptchaVerifier) {
+    try {
+      win.recaptchaVerifier.clear();
+    } catch {
+      // Ignore cleanup error
+    }
+  }
+
+  const verifier = new RecaptchaVerifier(auth, containerOrButtonId, {
+    size,
+    callback: () => {
+      if (onVerify) onVerify();
+    },
+    'expired-callback': () => {
+      if (onExpire) onExpire();
+    },
+  });
+
+  win.recaptchaVerifier = verifier;
+  return verifier;
+}
+
+/**
+ * Initiates phone OTP sending via Firebase Phone Authentication.
+ * Expects phone with country code e.g. "+919740754400"
+ */
+export async function sendFirebasePhoneOtp(
+  phoneNumberWithCountryCode: string,
+  verifier: RecaptchaVerifier
+): Promise<ConfirmationResult> {
+  return await signInWithPhoneNumber(auth, phoneNumberWithCountryCode, verifier);
+}
 
 // Initialize Firestore with forced long-polling to prevent proxy/streaming timeout warnings
 const databaseId = (firebaseConfigJson as { firestoreDatabaseId?: string }).firestoreDatabaseId;
@@ -158,6 +211,20 @@ export interface UserProfile {
   lastLoginAt?: string;
 }
 
+/**
+ * Removes undefined fields from an object so Firestore setDoc does not throw
+ * "Unsupported field value: undefined" errors.
+ */
+function cleanFirestoreData<T extends Record<string, any>>(data: T): Partial<T> {
+  const cleaned: Record<string, any> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (value !== undefined) {
+      cleaned[key] = value;
+    }
+  }
+  return cleaned as Partial<T>;
+}
+
 export async function syncUserProfile(user: User): Promise<UserProfile> {
   const isOwnerEmail = user.email?.toLowerCase() === 'traveljustmysuru@gmail.com';
   const role: 'customer' | 'owner' | 'admin' = isOwnerEmail ? 'owner' : 'customer';
@@ -176,9 +243,9 @@ export async function syncUserProfile(user: User): Promise<UserProfile> {
 
   const profile: UserProfile = {
     uid: user.uid,
-    email: user.email,
+    email: user.email ?? null,
     displayName: user.displayName || user.email?.split('@')[0] || 'Travel Just Guest',
-    photoURL: user.photoURL,
+    photoURL: user.photoURL ?? null,
     phoneNumber: user.phoneNumber || existingProfile?.phoneNumber || null,
     role: isOwnerEmail ? 'owner' : existingProfile?.role || role,
     createdAt: existingProfile?.createdAt || new Date().toISOString(),
@@ -186,7 +253,7 @@ export async function syncUserProfile(user: User): Promise<UserProfile> {
   };
 
   try {
-    await setDoc(userRef, profile, { merge: true });
+    await setDoc(userRef, cleanFirestoreData(profile), { merge: true });
   } catch (err) {
     console.warn('Could not save user profile to firestore:', err);
   }
@@ -197,10 +264,10 @@ export async function syncUserProfile(user: User): Promise<UserProfile> {
 // User Bookings persistence in Firestore
 export interface SavedBookingRecord {
   id: string;
-  userId?: string;
+  userId?: string | null;
   customerName: string;
   customerPhone: string;
-  customerEmail?: string;
+  customerEmail?: string | null;
   tripType: string;
   pickupLocation: string;
   dropLocation: string;
@@ -208,26 +275,29 @@ export interface SavedBookingRecord {
   pickupTime: string;
   vehicleType: string;
   estimatedFare: number;
-  distanceKm?: number;
+  distanceKm?: number | null;
   status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
   createdAt: string;
-  notes?: string;
+  notes?: string | null;
 }
 
 export async function saveBookingToFirestore(booking: SavedBookingRecord): Promise<boolean> {
   try {
-    const bookingDoc = doc(db, 'bookings', booking.id);
-    await setDoc(bookingDoc, {
+    const payload = cleanFirestoreData({
       ...booking,
+      userId: booking.userId ?? null,
+      customerEmail: booking.customerEmail ?? null,
+      distanceKm: booking.distanceKm ?? null,
+      notes: booking.notes ?? null,
       createdAt: booking.createdAt || new Date().toISOString(),
     });
 
+    const bookingDoc = doc(db, 'bookings', booking.id);
+    await setDoc(bookingDoc, payload);
+
     if (booking.userId) {
       const userBookingDoc = doc(db, 'users', booking.userId, 'bookings', booking.id);
-      await setDoc(userBookingDoc, {
-        ...booking,
-        createdAt: booking.createdAt || new Date().toISOString(),
-      });
+      await setDoc(userBookingDoc, payload);
     }
     return true;
   } catch (error) {
@@ -291,6 +361,23 @@ export async function fetchFareConfigFromFirestore(): Promise<any | null> {
 }
 
 /**
+ * Signs in using Google Popup Auth.
+ * Automatically provisions or updates user profile in Firestore.
+ */
+export const signInWithGoogle = async () => {
+  try {
+    const result = await signInWithPopup(auth, googleAuthProvider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    const user = result.user;
+    await syncUserProfile(user);
+    return { user, credential };
+  } catch (error) {
+    console.error("Error signing in with Google:", error);
+    throw error;
+  }
+};
+
+/**
  * Signs in using a Google ID token from Google Identity Services (GIS).
  * Bypasses auth/unauthorized-domain restrictions since token verification is cryptographic.
  */
@@ -299,11 +386,43 @@ export async function signInWithGoogleIdToken(idToken: string) {
   return await signInWithCredential(auth, credential);
 }
 
+/**
+ * Subscribes to real-time Firebase Auth state changes.
+ * Returns an unsubscribe callback for clean component unmounting.
+ */
+export function subscribeToAuthState(callback: (user: User | null) => void) {
+  return onAuthStateChanged(auth, (user) => {
+    if (user) {
+      console.log('User is active:', user.uid);
+    } else {
+      console.log('No user signed in.');
+    }
+    callback(user);
+  });
+}
+
+/**
+ * Signs out the current authenticated user from Firebase Auth.
+ */
+export const logoutUser = async (): Promise<void> => {
+  try {
+    await signOut(auth);
+    console.log("Logged out successfully");
+  } catch (error) {
+    console.error("Error logging out:", error);
+    throw error;
+  }
+};
+
 export {
   signInWithPopup,
   signInWithCredential,
   GoogleAuthProvider,
   signOut,
   onAuthStateChanged,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  PhoneAuthProvider,
+  type ConfirmationResult,
   type User,
 };

@@ -5427,6 +5427,145 @@ Format output cleanly in Markdown with bold headers, bullet points, and practica
     }
   });
 
+  // --------------------------------------------------------------------------
+  // WHATSAPP BUSINESS API WEBHOOK ENDPOINT
+  // Supports Meta Graph Webhook Verification (GET) and Incoming Receipts / Messages (POST)
+  // --------------------------------------------------------------------------
+  router.get("/whatsapp/webhook", (req, res) => {
+    const mode = req.query["hub.mode"];
+    const token = req.query["hub.verify_token"];
+    const challenge = req.query["hub.challenge"];
+
+    // Default verification token for TRAVEL JUST or environment variable
+    const VERIFY_TOKEN = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || "traveljust_webhook_secret_2026";
+
+    if (mode === "subscribe" && token === VERIFY_TOKEN) {
+      console.log("WhatsApp Webhook verified successfully");
+      return res.status(200).send(challenge);
+    }
+    return res.status(403).json({ error: "Verification token mismatch" });
+  });
+
+  router.post("/whatsapp/webhook", (req, res) => {
+    try {
+      const body = req.body;
+      const timestamp = new Date().toISOString();
+
+      if (!body) {
+        return res.status(400).json({ success: false, error: "Empty webhook payload" });
+      }
+
+      // Check if this is a standard Meta WhatsApp webhook entry
+      const entries = body.entry || [];
+      const processedStatuses: any[] = [];
+      const updatedBookingsList: string[] = [];
+
+      for (const entry of entries) {
+        const changes = entry.changes || [];
+        for (const change of changes) {
+          const value = change.value || {};
+
+          // A. Process Status Updates (delivery and read receipts)
+          if (Array.isArray(value.statuses)) {
+            for (const statusObj of value.statuses) {
+              const wamid = statusObj.id; // e.g., "wamid.HBg..."
+              const rawStatus = (statusObj.status || "").toLowerCase(); // "sent", "delivered", "read", "failed"
+              const recipientId = statusObj.recipient_id; // e.g., "919740754400"
+              const statusTimestamp = statusObj.timestamp
+                ? new Date(parseInt(statusObj.timestamp, 10) * 1000).toISOString()
+                : timestamp;
+
+              let mappedStatus: 'sent' | 'delivered' | 'read' | 'failed' = 'sent';
+              if (rawStatus === 'delivered') mappedStatus = 'delivered';
+              else if (rawStatus === 'read') mappedStatus = 'read';
+              else if (rawStatus === 'failed') mappedStatus = 'failed';
+
+              // Update data store
+              const updateResult = ownerDataStore.updateMessageStatusFromWebhook(
+                wamid,
+                mappedStatus,
+                recipientId,
+                statusTimestamp
+              );
+
+              // Update linked bookings in server memory buffer & Firestore sync
+              for (const bookingRef of updateResult.updatedBookings) {
+                const bIdx = serverBookingsBuffer.findIndex((b) => b.reference_id === bookingRef);
+                if (bIdx >= 0) {
+                  serverBookingsBuffer[bIdx].whatsapp_delivery_status = mappedStatus;
+                  serverBookingsBuffer[bIdx].whatsapp_last_receipt_at = statusTimestamp;
+
+                  // If customer read a driver assignment or dispatch message, update booking acknowledgement
+                  if (mappedStatus === 'read') {
+                    if (serverBookingsBuffer[bIdx].status === 'Requested') {
+                      serverBookingsBuffer[bIdx].status = 'Confirmed';
+                    }
+                    serverBookingsBuffer[bIdx].customer_acknowledged = true;
+                  }
+                  updatedBookingsList.push(bookingRef);
+                }
+              }
+
+              processedStatuses.push({
+                wamid,
+                status: mappedStatus,
+                recipientId,
+                affectedBookings: updateResult.updatedBookings,
+              });
+            }
+          }
+
+          // B. Process Incoming Customer Replies (two-way conversation)
+          if (Array.isArray(value.messages)) {
+            for (const msg of value.messages) {
+              const fromPhone = msg.from; // Customer phone
+              const msgText = msg.text?.body || msg.button?.text || "Media/Attachment received";
+              const senderName = value.contacts?.[0]?.profile?.name || `Customer (+${fromPhone})`;
+
+              // Append to thread or create new thread
+              const threadId = `wa-${fromPhone}`;
+              ownerDataStore.sendWhatsAppMessage(
+                threadId,
+                msgText,
+                'customer',
+                undefined,
+                senderName,
+                'BOOKING_LIFECYCLE',
+                { wamid: msg.id }
+              );
+            }
+          }
+        }
+      }
+
+      // Also support simplified direct testing payload format
+      if (body.messageId && body.status) {
+        const updateResult = ownerDataStore.updateMessageStatusFromWebhook(
+          body.messageId,
+          body.status,
+          body.phone,
+          timestamp
+        );
+        processedStatuses.push({
+          messageId: body.messageId,
+          status: body.status,
+          affectedBookings: updateResult.updatedBookings,
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "WhatsApp webhook processed successfully",
+        processedStatusesCount: processedStatuses.length,
+        processedStatuses,
+        updatedBookings: updatedBookingsList,
+      });
+    } catch (err: any) {
+      console.error("WhatsApp webhook error:", err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // 10. Payments Ledger & Invoices
   router.get("/payments", (_req, res) => {
     res.json({ success: true, payments: ownerDataStore.getPayments() });

@@ -59,6 +59,44 @@ const AIRPORT_LIST = [
   { id: 'MAA', name: 'Chennai International Airport (MAA)' },
 ];
 
+/**
+ * Parses time strings like "09:00 AM" or "02:30 PM" into total minutes from midnight (0..1439).
+ */
+export function parseTimeToMinutes(timeStr: string): number {
+  if (!timeStr) return 0;
+  const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+  if (!match) return 0;
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const modifier = (match[3] || '').toUpperCase();
+
+  if (modifier === 'PM' && hours < 12) hours += 12;
+  if (modifier === 'AM' && hours === 12) hours = 0;
+  return hours * 60 + minutes;
+}
+
+/**
+ * Checks if a given pickup date and time string is in the past relative to current local time.
+ */
+export function isPickupTimeInPast(dateStr: string, timeStr: string, bufferMinutes = 0): boolean {
+  if (!dateStr || !timeStr) return false;
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  const todayStr = `${y}-${m}-${d}`;
+
+  // If date is before today, it's in the past
+  if (dateStr < todayStr) return true;
+  // If date is in the future, it's not in the past
+  if (dateStr > todayStr) return false;
+
+  // Date is today: compare minutes from midnight
+  const currentMinutes = now.getHours() * 60 + now.getMinutes() + bufferMinutes;
+  const pickupMinutes = parseTimeToMinutes(timeStr);
+  return pickupMinutes < currentMinutes;
+}
+
 export const BookingSearch: React.FC<BookingSearchProps> = ({
   initialState,
   onSearch,
@@ -70,6 +108,39 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
     const m = String(now.getMonth() + 1).padStart(2, '0');
     const d = String(now.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
+  };
+
+  /**
+   * Returns earliest valid time option for today (or fallback default)
+   */
+  const getNextValidPickupTime = (dateStr: string, preferredTime?: string): string => {
+    const today = getTodayStr();
+    if (dateStr > today) {
+      return preferredTime || '09:00 AM';
+    }
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    // Find the first time option that is at least 15 minutes ahead of current time
+    const nextSlot = TIME_OPTIONS.find((t) => parseTimeToMinutes(t) >= currentMinutes + 15);
+    if (nextSlot) return nextSlot;
+    // If late night, pick the last slot or next slot
+    return preferredTime || TIME_OPTIONS[TIME_OPTIONS.length - 1];
+  };
+
+  /**
+   * Returns list of time option objects with disabled flag if in the past for today.
+   */
+  const getTimeOptionsForDate = (dateStr: string) => {
+    const isToday = dateStr === getTodayStr();
+    return TIME_OPTIONS.map((t) => {
+      const isPast = isToday && isPickupTimeInPast(dateStr, t);
+      return {
+        value: t,
+        label: isPast ? `${t} (Past)` : t,
+        disabled: isPast,
+      };
+    });
   };
 
   const [serviceType, setServiceType] = useState<ServiceType>(
@@ -105,14 +176,13 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
   );
 
   // Dates & Times
-  const [travelDate, setTravelDate] = useState<string>(
-    initialState?.travelDate || initialState?.pickupDate || getTodayStr()
-  );
+  const initialDate = initialState?.travelDate || initialState?.pickupDate || getTodayStr();
+  const [travelDate, setTravelDate] = useState<string>(initialDate);
   const [returnDate, setReturnDate] = useState<string>(
     initialState?.returnDate || getTodayStr()
   );
   const [pickupTime, setPickupTime] = useState<string>(
-    initialState?.pickupTime || '9:00 AM'
+    getNextValidPickupTime(initialDate, initialState?.pickupTime)
   );
   const [durationHours, setDurationHours] = useState<number>(
     initialState?.durationHours || 4
@@ -124,6 +194,14 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
   const [isSearchingRoute, setIsSearchingRoute] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
+  // Auto-adjust pickup time if date is today and selected pickup time is now in the past
+  useEffect(() => {
+    if (travelDate === getTodayStr() && isPickupTimeInPast(travelDate, pickupTime)) {
+      const validTime = getNextValidPickupTime(travelDate);
+      setPickupTime(validTime);
+    }
+  }, [travelDate]);
+
   // External initialState syncing
   useEffect(() => {
     if (initialState) {
@@ -132,10 +210,16 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
       if (initialState.pickupLocationObj !== undefined) setPickupLocationObj(initialState.pickupLocationObj);
       if (initialState.dropLocation !== undefined) setDropLocation(initialState.dropLocation);
       if (initialState.dropLocationObj !== undefined) setDropLocationObj(initialState.dropLocationObj);
-      if (initialState.travelDate) setTravelDate(initialState.travelDate);
-      if (initialState.pickupDate) setTravelDate(initialState.pickupDate);
+      const newTravelDate = initialState.travelDate || initialState.pickupDate;
+      if (newTravelDate) {
+        setTravelDate(newTravelDate);
+        if (initialState.pickupTime) {
+          setPickupTime(getNextValidPickupTime(newTravelDate, initialState.pickupTime));
+        }
+      } else if (initialState.pickupTime) {
+        setPickupTime(getNextValidPickupTime(travelDate, initialState.pickupTime));
+      }
       if (initialState.returnDate) setReturnDate(initialState.returnDate);
-      if (initialState.pickupTime) setPickupTime(initialState.pickupTime);
       if (initialState.durationHours) setDurationHours(initialState.durationHours);
       if (initialState.airportTransferType) setAirportTransferType(initialState.airportTransferType);
     }
@@ -264,6 +348,19 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
         setValidationError('Please specify destination.');
         return;
       }
+    }
+
+    // Validate pickup date cannot be in the past
+    const today = getTodayStr();
+    if (travelDate < today) {
+      setValidationError('Pickup date cannot be in the past.');
+      return;
+    }
+
+    // Validate pickup time cannot be in the past for today
+    if (travelDate === today && isPickupTimeInPast(travelDate, pickupTime)) {
+      setValidationError('Pickup time cannot be in the past for today. Please select an upcoming pickup time.');
+      return;
     }
 
     if (serviceType === 'roundtrip' && returnDate < travelDate) {
@@ -440,12 +537,22 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                     <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-[#8EA3C2] shrink-0 pointer-events-none" />
                     <select
                       value={pickupTime}
-                      onChange={(e) => setPickupTime(e.target.value)}
+                      onChange={(e) => {
+                        setPickupTime(e.target.value);
+                        setValidationError(null);
+                      }}
                       className="w-full bg-transparent border-none p-0 text-[#10233F] dark:text-white font-bold text-sm sm:text-base lg:text-[18px] xl:text-[20px] appearance-none focus:outline-none cursor-pointer pr-6"
                     >
-                      {TIME_OPTIONS.map((t) => (
-                        <option key={t} value={t} className="bg-white dark:bg-slate-900 text-[#10233F]">
-                          {t}
+                      {getTimeOptionsForDate(travelDate).map((opt) => (
+                        <option
+                          key={opt.value}
+                          value={opt.value}
+                          disabled={opt.disabled}
+                          className={`bg-white dark:bg-slate-900 ${
+                            opt.disabled ? 'text-slate-300 dark:text-slate-600' : 'text-[#10233F] dark:text-white'
+                          }`}
+                        >
+                          {opt.label}
                         </option>
                       ))}
                     </select>
@@ -600,12 +707,22 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                     <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-[#8EA3C2] shrink-0 pointer-events-none" />
                     <select
                       value={pickupTime}
-                      onChange={(e) => setPickupTime(e.target.value)}
+                      onChange={(e) => {
+                        setPickupTime(e.target.value);
+                        setValidationError(null);
+                      }}
                       className="w-full bg-transparent border-none p-0 text-[#10233F] dark:text-white font-bold text-sm sm:text-base lg:text-[18px] xl:text-[20px] appearance-none focus:outline-none cursor-pointer pr-5"
                     >
-                      {TIME_OPTIONS.map((t) => (
-                        <option key={t} value={t} className="bg-white dark:bg-slate-900 text-[#10233F]">
-                          {t}
+                      {getTimeOptionsForDate(travelDate).map((opt) => (
+                        <option
+                          key={opt.value}
+                          value={opt.value}
+                          disabled={opt.disabled}
+                          className={`bg-white dark:bg-slate-900 ${
+                            opt.disabled ? 'text-slate-300 dark:text-slate-600' : 'text-[#10233F] dark:text-white'
+                          }`}
+                        >
+                          {opt.label}
                         </option>
                       ))}
                     </select>
@@ -815,12 +932,22 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                       <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-[#8EA3C2] shrink-0 pointer-events-none" />
                       <select
                         value={pickupTime}
-                        onChange={(e) => setPickupTime(e.target.value)}
+                        onChange={(e) => {
+                          setPickupTime(e.target.value);
+                          setValidationError(null);
+                        }}
                         className="w-full bg-transparent border-none p-0 text-[#10233F] dark:text-white font-bold text-sm sm:text-base lg:text-[18px] xl:text-[20px] appearance-none focus:outline-none cursor-pointer pr-5"
                       >
-                        {TIME_OPTIONS.map((t) => (
-                          <option key={t} value={t} className="bg-white dark:bg-slate-900 text-[#10233F]">
-                            {t}
+                        {getTimeOptionsForDate(travelDate).map((opt) => (
+                          <option
+                            key={opt.value}
+                            value={opt.value}
+                            disabled={opt.disabled}
+                            className={`bg-white dark:bg-slate-900 ${
+                              opt.disabled ? 'text-slate-300 dark:text-slate-600' : 'text-[#10233F] dark:text-white'
+                            }`}
+                          >
+                            {opt.label}
                           </option>
                         ))}
                       </select>
@@ -1034,12 +1161,22 @@ export const BookingSearch: React.FC<BookingSearchProps> = ({
                     <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-[#8EA3C2] shrink-0 pointer-events-none" />
                     <select
                       value={pickupTime}
-                      onChange={(e) => setPickupTime(e.target.value)}
+                      onChange={(e) => {
+                        setPickupTime(e.target.value);
+                        setValidationError(null);
+                      }}
                       className="w-full bg-transparent border-none p-0 text-[#10233F] dark:text-white font-bold text-sm sm:text-base lg:text-[18px] appearance-none focus:outline-none cursor-pointer pr-5"
                     >
-                      {TIME_OPTIONS.map((t) => (
-                        <option key={t} value={t} className="bg-white dark:bg-slate-900 text-[#10233F]">
-                          {t}
+                      {getTimeOptionsForDate(travelDate).map((opt) => (
+                        <option
+                          key={opt.value}
+                          value={opt.value}
+                          disabled={opt.disabled}
+                          className={`bg-white dark:bg-slate-900 ${
+                            opt.disabled ? 'text-slate-300 dark:text-slate-600' : 'text-[#10233F] dark:text-white'
+                          }`}
+                        >
+                          {opt.label}
                         </option>
                       ))}
                     </select>
