@@ -34,7 +34,10 @@
         "vehicleType": { "type": "string", "description": "Selected fleet vehicle name" },
         "estimatedFare": { "type": "number", "description": "Calculated total fare in INR" },
         "distanceKm": { "type": "number", "description": "Route distance in kilometers" },
-        "status": { "type": "string", "description": "Booking status: PENDING, CONFIRMED, COMPLETED, CANCELLED" },
+        "status": { "type": "string", "description": "Booking status" },
+        "driverName": { "type": "string" },
+        "driverPhone": { "type": "string" },
+        "driverVehiclePlate": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["tripType", "pickupLocation", "dropLocation"]
@@ -47,6 +50,41 @@
         "version": { "type": "number", "description": "Configuration schema version" },
         "updatedAt": { "type": "string", "format": "date-time" },
         "updatedBy": { "type": "string" }
+      }
+    },
+    "Vehicle": {
+      "title": "Vehicle",
+      "description": "Fleet vehicle asset record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "registrationNumber": { "type": "string" },
+        "category": { "type": "string" },
+        "model": { "type": "string" },
+        "seatingCapacity": { "type": "number" },
+        "status": { "type": "string" }
+      }
+    },
+    "Chauffeur": {
+      "title": "Chauffeur",
+      "description": "Professional driver record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "mobileNumber": { "type": "string" },
+        "licenseNumber": { "type": "string" },
+        "status": { "type": "string" }
+      }
+    },
+    "Discount": {
+      "title": "Discount",
+      "description": "Promotional coupon rule",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "value": { "type": "number" },
+        "isActive": { "type": "boolean" }
       }
     }
   },
@@ -66,6 +104,18 @@
     "/settings/fareConfig": {
       "schema": "FareConfig",
       "description": "Centralized dynamic pricing and fare engine configuration document"
+    },
+    "/vehicles/{vehicleId}": {
+      "schema": "Vehicle",
+      "description": "Fleet vehicles collection"
+    },
+    "/chauffeurs/{chauffeurId}": {
+      "schema": "Chauffeur",
+      "description": "Fleet chauffeurs collection"
+    },
+    "/discounts/{discountId}": {
+      "schema": "Discount",
+      "description": "Promotional discount rules collection"
     }
   }
 }

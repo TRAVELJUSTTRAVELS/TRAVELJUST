@@ -1,5 +1,4 @@
 import { CustomerUser, BookingRequest } from '../types';
-import { notifyOwnerOnCustomerLogin } from '../utils/whatsapp';
 
 const CUSTOMER_STORAGE_KEY = 'tj_customer_user';
 const CUSTOMERS_LIST_KEY = 'tj_registered_customers';
@@ -74,18 +73,6 @@ export function registerOrLoginCustomer(
       totalTripsCount: 0,
     };
     saveCustomerSession(customerResult);
-  }
-
-  // Strictly trigger Fleet Manager WhatsApp login notification for both new and existing customers
-  if (options?.notifyOwner !== false) {
-    try {
-      notifyOwnerOnCustomerLogin(customerResult, {
-        isNewRegistration: isNew,
-        autoOpenWhatsApp: options?.autoOpenWhatsApp !== undefined ? options.autoOpenWhatsApp : true,
-      });
-    } catch (e) {
-      console.warn('Customer login Fleet Manager WhatsApp notification warning:', e);
-    }
   }
 
   return customerResult;

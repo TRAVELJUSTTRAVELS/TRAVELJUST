@@ -12,6 +12,12 @@ import {
   matchOneWayFixedCorridor,
   calculateOneWayFixedFare,
 } from './oneWayFixedCorridors';
+import {
+  calculateEstimatedFare,
+  FARE_DISCLAIMER,
+} from '../config/pricingConfig';
+
+export { calculateEstimatedFare, FARE_DISCLAIMER };
 
 /**
  * Calculates the inclusive number of days for a round trip.
@@ -28,13 +34,19 @@ export function calculateRoundTripDays(
   if (!travelDate || !returnDate) {
     return 1;
   }
-  const start = new Date(travelDate);
-  const end = new Date(returnDate);
-  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+  const parseSafeUTC = (dStr: string): number | null => {
+    const parts = dStr.split('-').map(Number);
+    if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+      return Date.UTC(parts[0], parts[1] - 1, parts[2]);
+    }
+    const d = new Date(dStr);
+    return isNaN(d.getTime()) ? null : Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  };
+  const startUTC = parseSafeUTC(travelDate);
+  const endUTC = parseSafeUTC(returnDate);
+  if (startUTC === null || endUTC === null) {
     return 1;
   }
-  const startUTC = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
-  const endUTC = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate());
   const diffDays = Math.floor((endUTC - startUTC) / (1000 * 60 * 60 * 24)) + 1;
   return Math.max(1, diffDays);
 }
@@ -306,6 +318,7 @@ export function calculateFare(
     includedMinKm: result.includedKm || undefined,
     isValid: true,
     breakdown: breakdownList,
+    disclaimer: FARE_DISCLAIMER,
     fareSnapshot: snapshot,
     pricingVersion: result.pricingVersion,
     pricingModel: result.pricingModel,

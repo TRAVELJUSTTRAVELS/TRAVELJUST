@@ -38,5 +38,46 @@ service cloud.firestore {
       allow read: if true;
       allow write: if request.auth != null;
     }
+
+    // Fleet & Vehicles
+    match /vehicles/{vehicleId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.email == 'traveljustmysuru@gmail.com';
+    }
+
+    // Chauffeurs
+    match /chauffeurs/{chauffeurId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.token.email == 'traveljustmysuru@gmail.com';
+    }
+
+    // Discounts & Promo Codes
+    match /discounts/{discountId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.email == 'traveljustmysuru@gmail.com';
+    }
+
+    // Site Optimizer & SEO Settings
+    match /site_settings/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.email == 'traveljustmysuru@gmail.com';
+    }
+
+    // Payments & Invoices
+    match /payments/{paymentId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.token.email == 'traveljustmysuru@gmail.com';
+    }
+
+    // WhatsApp Communications
+    match /whatsapp_messages/{messageId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Audit logs
+    match /audit_logs/{logId} {
+      allow read: if request.auth != null && request.auth.token.email == 'traveljustmysuru@gmail.com';
+      allow write: if request.auth != null;
+    }
   }
 }

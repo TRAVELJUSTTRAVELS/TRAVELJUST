@@ -1,0 +1,625 @@
+{
+  "vehicles": [
+    {
+      "id": "veh-01",
+      "registrationNumber": "KA-09-EA-4401",
+      "category": "Sedan (4+1)",
+      "model": "Maruti Suzuki Dzire (White)",
+      "seatingCapacity": 4,
+      "status": "AVAILABLE",
+      "assignedChauffeurId": "chf-01",
+      "assignedChauffeurName": "Ramesh Gowda",
+      "insuranceExpiry": "2027-04-15",
+      "permitExpiry": "2028-06-30",
+      "fitnessExpiry": "2027-08-20",
+      "lastServiceDate": "2026-09-10",
+      "notes": "Primary airport transfer vehicle, AC verified.",
+      "createdAt": "2025-01-10T10:00:00Z"
+    },
+    {
+      "id": "veh-02",
+      "registrationNumber": "KA-09-MC-8812",
+      "category": "SUV (6+1)",
+      "model": "Maruti Ertiga ZXi+ (Silver)",
+      "seatingCapacity": 6,
+      "status": "AVAILABLE",
+      "assignedChauffeurId": "chf-02",
+      "assignedChauffeurName": "Suresh Kumar",
+      "insuranceExpiry": "2027-03-22",
+      "permitExpiry": "2028-01-15",
+      "fitnessExpiry": "2027-05-10",
+      "lastServiceDate": "2026-08-28",
+      "notes": "Ideal for Coorg, Wayanad & Ooty hill station tours.",
+      "createdAt": "2025-02-14T10:00:00Z"
+    },
+    {
+      "id": "veh-03",
+      "registrationNumber": "KA-09-TR-9900",
+      "category": "Innova Crysta",
+      "model": "Toyota Innova Crysta 2.4 VX (Super White)",
+      "seatingCapacity": 7,
+      "status": "AVAILABLE",
+      "assignedChauffeurId": "chf-03",
+      "assignedChauffeurName": "Mahesh Nayak",
+      "insuranceExpiry": "2027-09-30",
+      "permitExpiry": "2028-11-20",
+      "fitnessExpiry": "2027-10-15",
+      "lastServiceDate": "2026-09-18",
+      "notes": "Premium executive & corporate outstation travel.",
+      "createdAt": "2025-03-01T10:00:00Z"
+    },
+    {
+      "id": "veh-04",
+      "registrationNumber": "KA-09-IN-5521",
+      "category": "Innova",
+      "model": "Toyota Innova 2.5V (Silver Metallic)",
+      "seatingCapacity": 7,
+      "status": "AVAILABLE",
+      "assignedChauffeurId": null,
+      "insuranceExpiry": "2026-12-10",
+      "permitExpiry": "2027-05-18",
+      "fitnessExpiry": "2026-11-25",
+      "lastServiceDate": "2026-09-01",
+      "notes": "Reliable family outstation corridor workhorse.",
+      "createdAt": "2025-04-12T10:00:00Z"
+    },
+    {
+      "id": "veh-05",
+      "registrationNumber": "KA-09-FB-1200",
+      "category": "Tempo Traveller (12+1)",
+      "model": "Force Traveller 3350 Luxury (12-Seater Pushback)",
+      "seatingCapacity": 12,
+      "status": "AVAILABLE",
+      "assignedChauffeurId": "chf-04",
+      "assignedChauffeurName": "Girish Prasad",
+      "insuranceExpiry": "2027-07-15",
+      "permitExpiry": "2028-08-30",
+      "fitnessExpiry": "2027-06-25",
+      "lastServiceDate": "2026-09-05",
+      "notes": "Large family weddings, pilgrimage and corporate retreats.",
+      "createdAt": "2025-05-05T10:00:00Z"
+    }
+  ],
+  "chauffeurs": [
+    {
+      "id": "chf-01",
+      "name": "Ramesh Gowda",
+      "mobileNumber": "+91 98451 22340",
+      "licenseNumber": "KA09 20120004581",
+      "licenseExpiry": "2030-05-20",
+      "status": "AVAILABLE",
+      "assignedVehicleId": "veh-01",
+      "assignedVehiclePlate": "KA-09-EA-4401",
+      "dutyStatus": "ON_DUTY",
+      "rating": 4.9,
+      "totalTripsCompleted": 480,
+      "emergencyContact": "+91 94480 11920",
+      "notes": "Speaks Kannada, English, Hindi. KIAL Expressway specialist.",
+      "createdAt": "2025-01-10T10:00:00Z"
+    },
+    {
+      "id": "chf-02",
+      "name": "Suresh Kumar",
+      "mobileNumber": "+91 97412 88901",
+      "licenseNumber": "KA09 20150008892",
+      "licenseExpiry": "2029-11-14",
+      "status": "AVAILABLE",
+      "assignedVehicleId": "veh-02",
+      "assignedVehiclePlate": "KA-09-MC-8812",
+      "dutyStatus": "ON_DUTY",
+      "rating": 4.8,
+      "totalTripsCompleted": 350,
+      "emergencyContact": "+91 98860 33412",
+      "notes": "Hill station route expert (Ooty 36 Hairpin bends, Coorg, Wayanad).",
+      "createdAt": "2025-02-14T10:00:00Z"
+    },
+    {
+      "id": "chf-03",
+      "name": "Mahesh Nayak",
+      "mobileNumber": "+91 99004 55123",
+      "licenseNumber": "KA09 20100003124",
+      "licenseExpiry": "2031-02-18",
+      "status": "AVAILABLE",
+      "assignedVehicleId": "veh-03",
+      "assignedVehiclePlate": "KA-09-TR-9900",
+      "dutyStatus": "ON_DUTY",
+      "rating": 5,
+      "totalTripsCompleted": 620,
+      "emergencyContact": "+91 98440 99811",
+      "notes": "Senior chauffeur, VIP protocol & interstate corridor expert.",
+      "createdAt": "2025-03-01T10:00:00Z"
+    },
+    {
+      "id": "chf-04",
+      "name": "Girish Prasad",
+      "mobileNumber": "+91 96112 44789",
+      "licenseNumber": "KA09 20160009941",
+      "licenseExpiry": "2028-09-30",
+      "status": "AVAILABLE",
+      "assignedVehicleId": "veh-05",
+      "assignedVehiclePlate": "KA-09-FB-1200",
+      "dutyStatus": "ON_DUTY",
+      "rating": 4.9,
+      "totalTripsCompleted": 290,
+      "emergencyContact": "+91 99720 55102",
+      "notes": "Heavy passenger commercial vehicle certified, courteous conduct.",
+      "createdAt": "2025-05-05T10:00:00Z"
+    }
+  ],
+  "discounts": [
+    {
+      "id": "disc-01",
+      "code": "AIRPORT100",
+      "discountType": "fixed",
+      "value": 100,
+      "applicableServices": [
+        "airport"
+      ],
+      "applicableVehicles": [
+        "sedan",
+        "suv",
+        "crysta"
+      ],
+      "minBookingValue": 2000,
+      "maxDiscount": 100,
+      "startDate": "2025-01-01",
+      "endDate": "2027-12-31",
+      "isActive": true,
+      "usageCount": 142,
+      "notes": "Flat ₹100 off on Bengaluru KIAL Airport transfers"
+    },
+    {
+      "id": "disc-02",
+      "code": "MYSURU10",
+      "discountType": "percentage",
+      "value": 10,
+      "applicableServices": [
+        "roundtrip",
+        "outstation",
+        "local"
+      ],
+      "applicableVehicles": [
+        "sedan",
+        "suv",
+        "crysta",
+        "tempo"
+      ],
+      "minBookingValue": 2500,
+      "maxDiscount": 350,
+      "startDate": "2025-01-01",
+      "endDate": "2027-12-31",
+      "isActive": true,
+      "usageCount": 88,
+      "notes": "10% instant discount up to ₹350 on Mysore tours"
+    },
+    {
+      "id": "disc-03",
+      "code": "FESTIVE250",
+      "discountType": "fixed",
+      "value": 250,
+      "applicableServices": [
+        "oneway",
+        "roundtrip"
+      ],
+      "applicableVehicles": [
+        "crysta",
+        "tempo"
+      ],
+      "minBookingValue": 4000,
+      "maxDiscount": 250,
+      "startDate": "2025-01-01",
+      "endDate": "2027-12-31",
+      "isActive": true,
+      "usageCount": 65,
+      "notes": "Special festival group booking discount"
+    }
+  ],
+  "addOns": [
+    {
+      "id": "addon-luggage-carrier",
+      "name": "Overhead Roof Luggage Carrier & All-Weather Tarp",
+      "shortLabel": "Roof Luggage Carrier",
+      "category": "luggage",
+      "description": "Heavy-duty rooftop luggage carrier with waterproof tarp cover and safety ratchet straps. Perfect for extra suitcases, boxes, or bulky holiday luggage.",
+      "price": 350,
+      "pricingType": "per_trip",
+      "applicableServices": [
+        "oneway",
+        "roundtrip",
+        "airport"
+      ],
+      "maxQuantity": 1,
+      "enabled": true,
+      "isPopular": true,
+      "iconName": "luggage",
+      "badge": "Extra Baggage",
+      "sortOrder": 1,
+      "updatedAt": "2026-10-12T00:00:00Z"
+    },
+    {
+      "id": "addon-multilingual-chauffeur",
+      "name": "Multi-lingual Chauffeur Preference (English / Hindi / Kannada)",
+      "shortLabel": "Chauffeur Language",
+      "category": "chauffeur_preference",
+      "description": "Verified chauffeur fluent in your preferred language for easy route coordination, local tourism tips, and polite communication.",
+      "price": 0,
+      "pricingType": "free",
+      "applicableServices": [
+        "all"
+      ],
+      "maxQuantity": 1,
+      "enabled": true,
+      "isPopular": false,
+      "iconName": "users",
+      "badge": "Complimentary",
+      "sortOrder": 2,
+      "updatedAt": "2026-10-12T00:00:00Z"
+    }
+  ],
+  "siteOptimizer": {
+    "metaTitle": "TRAVEL JUST Mysuru | Reliable Taxi & Cab Booking Service Mysore",
+    "metaDescription": "Book reliable taxi service in Mysore. One way cab, round trip, airport transfer to Bengaluru KIAL Airport T1/T2, Coorg, Ooty & Wayanad. Fixed fares, 24x7 service.",
+    "canonicalUrl": "https://www.traveljust.in/",
+    "h1": "Best Taxi Service in Mysore — Guaranteed On-Time Pickups",
+    "robotsTxt": "User-agent: *\nAllow: /\n\nSitemap: https://www.traveljust.in/sitemap.xml\nHost: https://www.traveljust.in",
+    "sitemapXmlUrl": "https://www.traveljust.in/sitemap.xml",
+    "localSeoDestinations": [
+      {
+        "city": "Mysuru",
+        "route": "/mysore-local-sightseeing-taxi",
+        "title": "Mysore Local Sightseeing & City Taxi Service",
+        "description": "Explore Mysore Palace, Chamundi Hill, Brindavan Gardens & Zoo with clean air-conditioned cabs and polite chauffeurs.",
+        "keywords": [
+          "mysore taxi",
+          "mysore local sightseeing cab",
+          "mysore travel agency"
+        ]
+      },
+      {
+        "city": "Bengaluru Airport",
+        "route": "/mysore-to-bangalore-airport-taxi",
+        "title": "Mysore to Bangalore Airport (BLR KIAL) Taxi Service",
+        "description": "Non-stop expressway cabs from Mysore to Kempegowda International Airport Terminal 1 & 2. 2.5 hours travel time, zero surge.",
+        "keywords": [
+          "mysore to bangalore airport taxi",
+          "mysore to kial cab",
+          "mysore airport drop"
+        ]
+      },
+      {
+        "city": "Coorg (Madikeri)",
+        "route": "/mysore-to-coorg-taxi",
+        "title": "Mysore to Coorg Taxi & Holiday Tour Packages",
+        "description": "Comfortable sedans and SUVs for scenic travel to Madikeri, Abbey Falls, Raja Seat and coffee plantations.",
+        "keywords": [
+          "mysore to coorg taxi",
+          "coorg cab package",
+          "mysore to madikeri cab"
+        ]
+      },
+      {
+        "city": "Ooty",
+        "route": "/mysore-to-ooty-taxi",
+        "title": "Mysore to Ooty Taxi via Bandipur & Mudumalai",
+        "description": "Experienced hill-station chauffeurs navigating the 36 hairpin bends safely. Botanical Gardens, Doddabetta & tea estates.",
+        "keywords": [
+          "mysore to ooty taxi",
+          "mysore to ooty cab",
+          "bandipur forest safari cab"
+        ]
+      },
+      {
+        "city": "Wayanad",
+        "route": "/mysore-to-wayanad-taxi",
+        "title": "Mysore to Wayanad Taxi via Muthanga Wildlife",
+        "description": "Travel through misty Kerala Western Ghats. Banasura Sagar, Chembra Peak & Edakkal Caves.",
+        "keywords": [
+          "mysore to wayanad cab",
+          "mysore kerala interstate taxi"
+        ]
+      },
+      {
+        "city": "Kabini",
+        "route": "/mysore-to-kabini-taxi",
+        "title": "Mysore to Kabini River & Jungle Lodge Safari Taxi",
+        "description": "Direct safari resort transfers to Kabini, Nagarhole National Park and HD Kote backwaters.",
+        "keywords": [
+          "mysore to kabini cab",
+          "kabini jungle resort taxi"
+        ]
+      }
+    ],
+    "schemas": {
+      "taxiService": true,
+      "localBusiness": true,
+      "faqPage": true
+    },
+    "performanceScores": {
+      "fcp": 0.8,
+      "lcp": 1.4,
+      "cls": 0.02,
+      "fid": 12,
+      "overall": 96
+    },
+    "conversionStats": {
+      "bookingStarts": 412,
+      "bookingCompletions": 285,
+      "abandonedBookings": 128,
+      "whatsAppClicks": 650,
+      "phoneClicks": 490
+    },
+    "lastUpdated": "2026-10-03T10:00:00Z",
+    "updatedBy": "traveljustmysuru@gmail.com",
+    "isPublished": true,
+    "version": 3
+  },
+  "whatsAppThreads": [
+    {
+      "id": "wa-TJ-99999",
+      "customerId": "cust-9876543210",
+      "customerName": "Test Passenger",
+      "customerPhone": "9876543210",
+      "bookingId": "TJ-99999",
+      "pickupLocation": "Mysuru",
+      "dropLocation": "KIAL Airport",
+      "serviceType": "airport",
+      "lastMessageText": "Booking #TJ-99999 initiated",
+      "lastMessageTimestamp": "2026-10-12T09:39:58.827Z",
+      "unreadCount": 0,
+      "messages": []
+    },
+    {
+      "id": "wa-thread-01",
+      "customerId": "cust-9740754400",
+      "customerName": "Anand Kumar",
+      "customerPhone": "+91 98451 22340",
+      "lastMessageText": "Thank you! Chauffeur Ramesh arrived on time at Gokulam.",
+      "lastMessageTimestamp": "2026-10-03T09:45:00Z",
+      "unreadCount": 0,
+      "bookingId": "TJ-82194",
+      "pickupLocation": "Gokulam 3rd Stage, Mysuru",
+      "dropLocation": "Kempegowda International Airport Terminal 1 (BLR)",
+      "serviceType": "AIRPORT",
+      "messages": [
+        {
+          "id": "msg-01",
+          "sender": "system",
+          "senderName": "TRAVEL JUST Business (+91 9740754400)",
+          "text": "Namaskara Anand Ji! Your airport transfer request #TJ-82194 has been received. Our dispatch team is reviewing your pickup.",
+          "timestamp": "2026-10-03T08:00:00Z",
+          "status": "read",
+          "templateName": "booking_request_received",
+          "bookingId": "TJ-82194"
+        },
+        {
+          "id": "msg-02",
+          "sender": "owner",
+          "senderName": "Travel Just Dispatcher",
+          "text": "Cab & Chauffeur Confirmed: Maruti Dzire (KA-09-EA-4401) driven by Ramesh Gowda (+91 98451 22340). Driver will report 15 mins prior.",
+          "timestamp": "2026-10-03T08:15:00Z",
+          "status": "read",
+          "templateName": "chauffeur_assigned",
+          "bookingId": "TJ-82194"
+        },
+        {
+          "id": "msg-03",
+          "sender": "customer",
+          "senderName": "Anand Kumar",
+          "text": "Thank you! Chauffeur Ramesh arrived on time at Gokulam.",
+          "timestamp": "2026-10-03T09:45:00Z",
+          "status": "read",
+          "bookingId": "TJ-82194"
+        }
+      ]
+    },
+    {
+      "id": "wa-thread-02",
+      "customerId": "cust-9988112233",
+      "customerName": "Priya Sharma",
+      "customerPhone": "+91 99881 12233",
+      "lastMessageText": "Can we add an extra stop at Bylakuppe Golden Temple on way to Coorg?",
+      "lastMessageTimestamp": "2026-10-03T09:10:00Z",
+      "unreadCount": 1,
+      "bookingId": "TJ-51042",
+      "pickupLocation": "Vijayanagar 2nd Stage, Mysuru",
+      "dropLocation": "Madikeri, Coorg, Karnataka",
+      "serviceType": "ROUNDTRIP",
+      "messages": [
+        {
+          "id": "msg-04",
+          "sender": "system",
+          "senderName": "TRAVEL JUST Business (+91 9740754400)",
+          "text": "Booking Confirmation: Your 2-Day Coorg Roundtrip #TJ-51042 is confirmed for Ertiga SUV (KA-09-MC-8812). Total Estimated Fare: ₹6,500.",
+          "timestamp": "2026-10-03T08:30:00Z",
+          "status": "read",
+          "templateName": "booking_confirmed",
+          "bookingId": "TJ-51042"
+        },
+        {
+          "id": "msg-05",
+          "sender": "customer",
+          "senderName": "Priya Sharma",
+          "text": "Can we add an extra stop at Bylakuppe Golden Temple on way to Coorg?",
+          "timestamp": "2026-10-03T09:10:00Z",
+          "status": "delivered",
+          "bookingId": "TJ-51042"
+        }
+      ]
+    }
+  ],
+  "payments": [
+    {
+      "id": "pay-1791797998828",
+      "bookingId": "TJ-99999",
+      "customerName": "Test Passenger",
+      "customerPhone": "9876543210",
+      "totalAmount": 3250,
+      "discountAmount": 0,
+      "finalAmount": 3250,
+      "paidAmount": 0,
+      "balanceAmount": 3250,
+      "status": "PENDING",
+      "paymentMethod": "ONLINE_UPI",
+      "transactionRef": "UPI-998828",
+      "updatedAt": "2026-10-12T09:39:58.828Z",
+      "notes": ""
+    }
+  ],
+  "auditLogs": [
+    {
+      "id": "audit-1791797998829-kpgdx",
+      "timestamp": "2026-10-12T09:39:58.829Z",
+      "actorEmail": "system",
+      "actorRole": "BOOKING_MANAGER",
+      "action": "CREATE_BOOKING",
+      "entity": "BOOKING",
+      "entityId": "TJ-99999",
+      "bookingId": "TJ-99999",
+      "previousValue": null,
+      "newValue": {
+        "reference_id": "TJ-99999",
+        "full_name": "Test Passenger",
+        "mobile_number": "9876543210",
+        "email": "",
+        "service_type": "airport",
+        "pickup_location": "Mysuru",
+        "drop_location": "KIAL Airport",
+        "travel_date": "",
+        "pickup_time": "",
+        "return_date": null,
+        "return_time": null,
+        "duration_hours": 8,
+        "airport_transfer_type": null,
+        "passengers_count": 2,
+        "vehicle_id": "sedan-4-1",
+        "vehicle_name": "Sedan (4+1)",
+        "vehicle_category": "Sedan",
+        "special_instructions": "",
+        "total_estimated_fare": 3250,
+        "currency": "INR",
+        "status": "Pending Confirmation",
+        "driver_name": null,
+        "driver_phone": null,
+        "driver_vehicle_plate": null,
+        "selected_add_ons": [
+          {
+            "addOnId": "addon-child-seat",
+            "name": "Child Safety Seat",
+            "quantity": 1,
+            "unitPrice": 250,
+            "totalPrice": 250
+          },
+          {
+            "addOnId": "addon-luggage-carrier",
+            "name": "Roof Luggage Carrier",
+            "quantity": 1,
+            "unitPrice": 350,
+            "totalPrice": 350
+          }
+        ],
+        "add_ons_total": 600,
+        "search_details": {
+          "serviceType": "airport",
+          "pickupLocation": "Mysuru",
+          "dropLocation": "KIAL Airport"
+        },
+        "estimated_fare": {
+          "totalEstimatedFare": 3250
+        },
+        "fare_snapshot": {
+          "vehicleId": "sedan-4-1",
+          "vehicleType": "Sedan (4+1)",
+          "baseFare": 500,
+          "perKmRate": 14,
+          "includedKm": 0,
+          "extraPerKmRate": 12,
+          "includedHours": 0,
+          "hourlyRate": 250,
+          "extraPerHourRate": 150,
+          "driverAllowance": 300,
+          "distanceKm": 0,
+          "durationMinutes": 0,
+          "durationHours": 0,
+          "additionalCharges": 0,
+          "totalFare": 3250,
+          "pricingVersion": 1,
+          "currency": "INR",
+          "timestamp": "2026-10-12T09:39:58.827Z",
+          "pricingModel": "BASE_PLUS_DISTANCE"
+        },
+        "pricing_version": 1,
+        "created_at": "2026-10-12T09:39:58.679Z"
+      },
+      "details": "New AIRPORT booking created by Test Passenger (9876543210)"
+    },
+    {
+      "id": "audit-1791797998828-ycmvi",
+      "timestamp": "2026-10-12T09:39:58.828Z",
+      "actorEmail": "traveljustmysuru@gmail.com",
+      "actorRole": "ACCOUNTS",
+      "action": "RECORD_PAYMENT",
+      "entity": "PAYMENT",
+      "entityId": "pay-1791797998828",
+      "previousValue": null,
+      "newValue": {
+        "id": "pay-1791797998828",
+        "bookingId": "TJ-99999",
+        "customerName": "Test Passenger",
+        "customerPhone": "9876543210",
+        "totalAmount": 3250,
+        "discountAmount": 0,
+        "finalAmount": 3250,
+        "paidAmount": 0,
+        "balanceAmount": 3250,
+        "status": "PENDING",
+        "paymentMethod": "ONLINE_UPI",
+        "transactionRef": "UPI-998828",
+        "updatedAt": "2026-10-12T09:39:58.828Z",
+        "notes": ""
+      },
+      "details": "Recorded payment of ₹0 for booking #TJ-99999 (Balance: ₹3250)"
+    },
+    {
+      "id": "audit-1791797980779-oaku5",
+      "timestamp": "2026-10-12T09:39:40.779Z",
+      "actorEmail": "traveljustmysuru@gmail.com",
+      "actorRole": "FLEET_MANAGER",
+      "action": "TOGGLE_ADDON",
+      "entity": "SETTINGS",
+      "entityId": "addon-child-seat",
+      "previousValue": {
+        "enabled": true
+      },
+      "newValue": {
+        "enabled": true
+      },
+      "details": "Toggled add-on \"Child Safety Seat (ISOFIX Certified)\" to Active"
+    },
+    {
+      "id": "audit-1791796010060-wh8h3",
+      "timestamp": "2026-10-12T09:06:50.060Z",
+      "actorEmail": "traveljustmysuru@gmail.com",
+      "actorRole": "SUPER_ADMIN",
+      "action": "INITIALIZE_PORTAL",
+      "entity": "SETTINGS",
+      "entityId": "SYSTEM",
+      "previousValue": null,
+      "newValue": {
+        "version": "2.0.0"
+      },
+      "details": "TRAVEL JUST Two-Portal Architecture initialized successfully with single source of truth."
+    }
+  ],
+  "notifications": [
+    {
+      "type": "NEW_BOOKING",
+      "title": "New Booking Request #TJ-99999",
+      "message": "Test Passenger booked AIRPORT trip (Sedan (4+1)). Total: ₹3250",
+      "bookingId": "TJ-99999",
+      "id": "notif-1791797998828-8phy",
+      "timestamp": "2026-10-12T09:39:58.828Z",
+      "read": false
+    }
+  ],
+  "savedAt": "2026-10-12T09:39:58.831Z"
+}

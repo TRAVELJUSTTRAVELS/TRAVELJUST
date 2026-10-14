@@ -167,9 +167,12 @@ export interface FareEstimate {
   tollEstimate?: number;
   interstatePermitEstimate?: number;
   nightChargeAmount?: number;
+  waitingChargeAmount?: number;
+  extraStopChargeAmount?: number;
   passengerSurchargeAmount: number;
   airportSurchargeAmount: number;
   totalEstimatedFare: number;
+  disclaimer?: string;
   originalFare?: number;
   discountPercentage?: number;
   discountAmount?: number;
@@ -220,6 +223,8 @@ export interface BookingRequest {
   driverDetails?: DriverDetails;
   fare_snapshot?: FareSnapshot;
   pricing_version?: number;
+  selectedAddOns?: import('./addOns').SelectedAddOn[];
+  addOnsTotal?: number;
 }
 
 export interface DbBookingRecord {
@@ -244,6 +249,12 @@ export interface DbBookingRecord {
   vehicle_category?: string;
   special_instructions?: string;
   total_estimated_fare: number;
+  base_fare?: number;
+  discount_amount?: number;
+  discount_label?: string;
+  tax_amount?: number;
+  toll_amount?: number;
+  driver_allowance?: number;
   currency?: string;
   status: string;
   driver_name?: string;
@@ -253,6 +264,8 @@ export interface DbBookingRecord {
   search_details?: any;
   estimated_fare?: any;
   created_at: string;
+  selected_add_ons?: import('./addOns').SelectedAddOn[];
+  add_ons_total?: number;
 }
 
 export interface SiteConfig {
@@ -378,3 +391,4 @@ export type AIModelTier =
 export type AIGroundingMode = 'auto' | 'search' | 'maps';
 
 export * from './dynamicPricing';
+export * from './addOns';

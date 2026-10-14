@@ -3,7 +3,7 @@ import React from 'react';
 interface VehicleVectorGraphicProps {
   vehicleId: string;
   className?: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
 }
 
 /**
@@ -23,6 +23,7 @@ export const VehicleVectorGraphic: React.FC<VehicleVectorGraphicProps> = ({
     sm: { width: 56, height: 38 },
     md: { width: 84, height: 54 },
     lg: { width: 120, height: 76 },
+    xl: { width: 160, height: 100 },
   }[size];
 
   // 1. SEDAN (4+1) - Sleek Executive Aerodynamic Profile

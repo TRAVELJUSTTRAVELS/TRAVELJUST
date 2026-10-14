@@ -114,7 +114,7 @@ export const FareEngineModal: React.FC<FareEngineModalProps> = ({
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-xs" />
               <span className="text-xs font-bold text-white tracking-wide uppercase">
-                Owner Portal · Fare & Price Engine
+                Fare & Price Engine
               </span>
             </div>
 

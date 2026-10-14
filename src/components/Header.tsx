@@ -4,20 +4,12 @@ import {
   Menu,
   X,
   Phone,
-  MessageSquare,
   ChevronRight,
   ChevronDown,
-  ShieldAlert,
   LogOut,
-  Lock,
-  Database,
-  User,
-  UserCheck,
   Smartphone,
-  Zap,
-  Sliders,
-  Film,
-  Sparkles,
+  Navigation,
+  Bookmark,
 } from 'lucide-react';
 import { siteConfig } from '../config/siteConfig';
 import { CustomerUser } from '../types';
@@ -26,39 +18,23 @@ import { ThemeToggle } from './ThemeToggle';
 interface HeaderProps {
   onBookRideClick: () => void;
   onOpenLegal: (type: 'privacy' | 'terms') => void;
-  isOwner?: boolean;
-  onOpenOwnerLogin?: () => void;
-  onExitOwnerMode?: () => void;
-  onOpenFareEngine?: () => void;
-  onOpenSimpleFareEngine?: () => void;
-  onOpenAdvancedFareEngine?: () => void;
   customer?: CustomerUser | null;
-  onOpenCustomerPortal?: () => void;
-  onOpenPartnerDrawer?: () => void;
+  onOpenCustomerPortal?: (tab?: 'trips' | 'saved' | 'profile') => void;
   onOpenDownloadApp?: () => void;
   onOpenCustomerAuth?: () => void;
   onCustomerLogout?: () => void;
-  onOpenTravelStudio?: (initialTab?: 'video' | 'create-image' | 'edit-image') => void;
-  onOpenSiteOptimizer?: () => void;
+  onOpenTrackBooking?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onBookRideClick,
   onOpenLegal,
-  isOwner = false,
-  onOpenOwnerLogin,
-  onExitOwnerMode,
-  onOpenFareEngine,
-  onOpenSimpleFareEngine,
-  onOpenAdvancedFareEngine,
   customer = null,
   onOpenCustomerPortal,
-  onOpenPartnerDrawer,
   onOpenDownloadApp,
   onOpenCustomerAuth,
   onCustomerLogout,
-  onOpenTravelStudio,
-  onOpenSiteOptimizer,
+  onOpenTrackBooking,
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -86,15 +62,12 @@ export const Header: React.FC<HeaderProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Navigation links are visible strictly in owner portal
-  const navLinks = isOwner
-    ? [
-        { name: 'Home', href: '#home' },
-        { name: 'Services', href: '#services' },
-        { name: 'Fleet', href: '#fleet' },
-        { name: 'FAQ', href: '#faq' },
-      ]
-    : [];
+  const navLinks = [
+    { name: 'Home', href: '#home' },
+    { name: 'Services', href: '#services' },
+    { name: 'Fleet', href: '#fleet' },
+    { name: 'FAQ', href: '#faq' },
+  ];
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     e.preventDefault();
@@ -128,13 +101,8 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="flex flex-col">
               <div className="flex items-center gap-1.5">
                 <span className="font-extrabold text-xl tracking-tight text-slate-900 leading-none">
-                  TRAVEL <span className="text-[#F54900]">JUST</span>
+                  TRAVEL <span className="text-[#FE9A00]">JUST</span>
                 </span>
-                {isOwner && (
-                  <span className="bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">
-                    Owner
-                  </span>
-                )}
               </div>
               <span className="text-[10px] font-bold text-[#14CD03] tracking-wider uppercase mt-0.5">
                 JUST BOOK * JUST TRAVEL
@@ -142,40 +110,35 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </a>
 
-          {/* Desktop Navigation - visible only in owner portal */}
-          {isOwner && navLinks.length > 0 && (
-            <nav className="hidden md:flex items-center gap-6" aria-label="Main Navigation">
-              {navLinks.map((link) => (
-                <a
-                  key={link.name}
-                  href={link.href}
-                  onClick={(e) => handleNavClick(e, link.href)}
-                  className="text-sm font-medium text-slate-700 hover:text-emerald-800 transition-colors py-1 focus:outline-none focus:ring-2 focus:ring-emerald-600 rounded"
-                >
-                  {link.name}
-                </a>
-              ))}
-            </nav>
-          )}
+          {/* Desktop Navigation */}
+          <nav className="hidden items-center gap-6" aria-label="Main Navigation">
+            {navLinks.map((link) => (
+              <a
+                key={link.name}
+                href={link.href}
+                onClick={(e) => handleNavClick(e, link.href)}
+                className="hidden text-sm font-medium text-slate-700 hover:text-emerald-800 transition-colors py-1 focus:outline-none focus:ring-2 focus:ring-emerald-600 rounded"
+              >
+                {link.name}
+              </a>
+            ))}
+          </nav>
 
           {/* Right Action CTA */}
           <div className="hidden md:flex items-center gap-2.5">
-            {/* Customer CTA Buttons - Shown ONLY for Customers (hidden in Owner Portal) */}
-            {!isOwner && (
-              <>
-                {/* Download App Button (White Pill with Blue Smartphone Icon) */}
-                <button
-                  id="desktop-download-app-btn"
-                  type="button"
-                  onClick={onOpenDownloadApp}
-                  className="flex items-center gap-2 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-900 border border-slate-200/90 hover:border-slate-300 rounded-xl font-bold text-sm shadow-2xs hover:shadow-xs transition-all duration-150 cursor-pointer select-none"
-                  title="Download TRAVEL JUST Mobile App"
-                >
-                  <Smartphone className="w-4 h-4 text-[#14CD03] shrink-0" />
-                  <span>Download App</span>
-                </button>
+            {/* Download App Button */}
+            <button
+              id="desktop-download-app-btn"
+              type="button"
+              onClick={onOpenDownloadApp}
+              className="h-10 flex items-center justify-center gap-2 px-3.5 py-2 bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 hover:text-slate-900 dark:text-slate-200 dark:hover:text-white border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 rounded-xl font-semibold text-sm shadow-2xs hover:shadow-xs transition-all active:scale-95 cursor-pointer select-none"
+              title="Download TRAVEL JUST Mobile App"
+            >
+              <Smartphone className="w-4 h-4 text-[#14CD03] shrink-0" />
+              <span>App</span>
+            </button>
 
-            {/* Customer Login Button with Circular Avatar Icon */}
+            {/* Customer Login Button with Avatar */}
             <div className="relative" ref={accountDropdownRef}>
               <button
                 id="desktop-login-account-btn"
@@ -187,21 +150,20 @@ export const Header: React.FC<HeaderProps> = ({
                     onOpenCustomerAuth?.();
                   }
                 }}
-                className="flex items-center gap-2 pl-1.5 pr-3 py-1 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-800 border border-slate-200/90 hover:border-slate-300 rounded-full text-sm font-semibold shadow-2xs hover:shadow-xs transition-all duration-150 active:scale-[0.98] cursor-pointer select-none"
+                className="h-10 flex items-center gap-2 pl-2 pr-3.5 py-1.5 bg-white hover:bg-slate-50 active:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-700 hover:border-slate-300 rounded-xl text-sm font-semibold shadow-2xs hover:shadow-xs transition-all active:scale-95 cursor-pointer select-none"
                 title={customer ? `Signed in as ${customer.fullName}` : 'Login'}
                 aria-expanded={accountDropdownOpen}
                 aria-haspopup="true"
               >
-                {/* Circular Avatar Icon matching reference design */}
-                <div className="w-8 h-8 rounded-full bg-[#EEEEEE] border border-slate-200/80 flex items-center justify-center shrink-0 overflow-hidden text-[#14CD03]">
+                <div className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 overflow-hidden">
                   {customer ? (
-                    <span className="font-bold text-xs text-slate-800">
+                    <span className="font-bold text-xs text-emerald-800 dark:text-emerald-300">
                       {customer.fullName.slice(0, 2).toUpperCase() || 'TJ'}
                     </span>
                   ) : (
                     <svg
                       viewBox="0 0 32 32"
-                      className="w-5 h-5 fill-current"
+                      className="w-4 h-4 fill-current text-[#14CD03]"
                       aria-hidden="true"
                     >
                       <circle cx="16" cy="10.5" r="4.5" />
@@ -210,12 +172,12 @@ export const Header: React.FC<HeaderProps> = ({
                   )}
                 </div>
 
-                <span className="truncate max-w-[130px] text-slate-900 font-bold text-xs sm:text-sm">
+                <span className="truncate max-w-[130px] text-slate-900 dark:text-slate-100 font-bold text-sm">
                   {customer ? customer.fullName : 'Login'}
                 </span>
 
                 <ChevronDown
-                  className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform duration-200 ${
+                  className={`w-3.5 h-3.5 text-slate-600 dark:text-slate-400 shrink-0 transition-transform duration-200 ${
                     accountDropdownOpen ? 'rotate-180' : ''
                   }`}
                 />
@@ -250,9 +212,9 @@ export const Header: React.FC<HeaderProps> = ({
                           type="button"
                           onClick={() => {
                             setAccountDropdownOpen(false);
-                            onOpenCustomerPortal?.();
+                            onOpenCustomerPortal?.('trips');
                           }}
-                          className="w-full text-left px-4 py-2.5 font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-800 flex items-center justify-between cursor-pointer"
+                          className="w-full text-left px-4 py-2 font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-800 flex items-center justify-between cursor-pointer"
                         >
                           <span>My Trips & Bookings</span>
                           <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
@@ -261,9 +223,38 @@ export const Header: React.FC<HeaderProps> = ({
                           type="button"
                           onClick={() => {
                             setAccountDropdownOpen(false);
+                            onOpenTrackBooking?.();
+                          }}
+                          className="w-full text-left px-4 py-2 font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-800 flex items-center justify-between cursor-pointer"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <Navigation className="w-3.5 h-3.5 text-emerald-700" />
+                            <span>Track Booking Status</span>
+                          </span>
+                          <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAccountDropdownOpen(false);
+                            onOpenCustomerPortal?.('saved');
+                          }}
+                          className="w-full text-left px-4 py-2 font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-800 flex items-center justify-between cursor-pointer"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <Bookmark className="w-3.5 h-3.5 text-amber-500" />
+                            <span>Saved Destinations</span>
+                          </span>
+                          <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAccountDropdownOpen(false);
                             onBookRideClick?.();
                           }}
-                          className="w-full text-left px-4 py-2.5 font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-800 flex items-center justify-between cursor-pointer"
+                          className="w-full text-left px-4 py-2 font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-800 flex items-center justify-between cursor-pointer"
                         >
                           <span>Book a New Ride</span>
                           <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
@@ -294,6 +285,21 @@ export const Header: React.FC<HeaderProps> = ({
                       <div className="py-1">
                         <button
                           type="button"
+                          onClick={() => {
+                            setAccountDropdownOpen(false);
+                            onOpenTrackBooking?.();
+                          }}
+                          className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-emerald-800 flex items-center justify-between cursor-pointer"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <Navigation className="w-3.5 h-3.5 text-emerald-700" />
+                            <span>Track Ride by Reference ID</span>
+                          </span>
+                          <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                        </button>
+
+                        <button
+                          type="button"
                           id="dropdown-login-btn"
                           onClick={() => {
                             setAccountDropdownOpen(false);
@@ -305,58 +311,13 @@ export const Header: React.FC<HeaderProps> = ({
                           <ChevronRight className="w-3.5 h-3.5 text-[#4D8BF5]" />
                         </button>
                       </div>
-
-                      {/* Login action */}
                     </>
                   )}
                 </div>
               )}
             </div>
-              </>
-            )}
 
-            {/* Owner Mode Actions - ONLY visible to OWNER in Owner Portal mode */}
-            {isOwner && (
-              <div className="flex items-center gap-2">
-                {/* Site Optimizer & WordPress Core Updates - Owner Exclusive */}
-                <button
-                  id="header-site-optimizer-btn"
-                  type="button"
-                  onClick={onOpenSiteOptimizer}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-[#006045] border border-emerald-300 rounded-xl font-bold text-sm shadow-2xs hover:shadow-xs transition-all duration-150 cursor-pointer select-none"
-                  title="Site Optimizer, SEO & Automatic WordPress Core Updates (Owner Only)"
-                >
-                  <Sparkles className="w-4 h-4 text-[#FE9A00] shrink-0" />
-                  <span>Site Optimizer</span>
-                </button>
 
-                {/* Fare & Price Engine Button - Shown ONLY in Owner Portal mode */}
-                <button
-                  id="header-fare-price-engine-btn"
-                  type="button"
-                  onClick={() => {
-                    (onOpenSimpleFareEngine || onOpenFareEngine)?.();
-                  }}
-                  className="flex items-center gap-2 px-3.5 py-2 bg-[#032014] hover:bg-[#073826] active:bg-[#0a4832] text-white border border-emerald-700/60 hover:border-emerald-500 rounded-xl font-bold text-sm shadow-2xs hover:shadow-xs transition-all duration-150 cursor-pointer select-none active:scale-[0.98]"
-                  title="Live Dynamic Fare & Price Engine (Owner Portal)"
-                >
-                  <Zap className="w-4 h-4 text-[#14CD03] fill-[#14CD03]/30 shrink-0" />
-                  <span>Fare & Price Engine</span>
-                </button>
-                {onExitOwnerMode && (
-                  <button
-                    type="button"
-                    onClick={onExitOwnerMode}
-                    className="px-2.5 py-2 text-slate-600 hover:text-red-700 hover:bg-red-50 bg-white border border-slate-200/90 hover:border-slate-300 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-bold shadow-2xs"
-                    title="Exit Owner Mode"
-                    aria-label="Exit Owner Mode"
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Exit</span>
-                  </button>
-                )}
-              </div>
-            )}
 
             {/* Dark Mode Theme Toggle for Desktop */}
             <ThemeToggle variant="button" />
@@ -364,55 +325,23 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Mobile Hamburger & Controls */}
           <div className="flex items-center gap-1.5 md:hidden">
-            {/* Quick Mobile Theme Toggle */}
-            <ThemeToggle variant="button" className="shrink-0" />
+            <ThemeToggle variant="button" showCustomizerButton={false} className="shrink-0" />
 
-            {/* Quick Mobile Owner Controls - Shown ONLY in Owner Mode / Portal */}
-            {isOwner && (
-              <>
-                <button
-                  type="button"
-                  id="mobile-quick-optimizer-btn"
-                  onClick={onOpenSiteOptimizer}
-                  className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 text-[#006045] border border-emerald-300 rounded-xl text-xs font-bold shadow-2xs active:scale-95 transition-all cursor-pointer"
-                  title="Site Optimizer & WordPress (Owner Only)"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-[#FE9A00]" />
-                  <span className="text-[11px] font-bold">SEO</span>
-                </button>
+            <button
+              type="button"
+              id="mobile-quick-download-btn"
+              onClick={onOpenDownloadApp}
+              className="h-9 flex items-center justify-center gap-1.5 px-3 bg-white hover:bg-slate-50 active:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-900 hover:text-slate-950 dark:text-slate-100 dark:hover:text-white border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 rounded-xl text-xs font-semibold shadow-2xs hover:shadow-xs transition-all active:scale-95 cursor-pointer select-none"
+              title="Download / Install Mobile App"
+            >
+              <Smartphone className="w-3.5 h-3.5 text-slate-900 dark:text-slate-100 shrink-0" />
+              <span className="text-xs font-semibold text-slate-900 dark:text-slate-100">App</span>
+            </button>
 
-                <button
-                  type="button"
-                  id="mobile-quick-fare-engine-btn"
-                  onClick={() => (onOpenSimpleFareEngine || onOpenFareEngine)?.()}
-                  className="flex items-center gap-1 px-2.5 py-1.5 bg-[#032014] text-[#14CD03] border border-emerald-800 rounded-xl text-xs font-extrabold shadow-2xs active:scale-95 transition-all cursor-pointer"
-                  title="Dynamic Fare & Price Engine (Owner Mode)"
-                >
-                  <Zap className="w-3.5 h-3.5 text-[#14CD03] fill-[#14CD03]/30" />
-                  <span className="text-[11px] text-white">Fare Engine</span>
-                </button>
-              </>
-            )}
-
-            {/* Quick Mobile App Install / Download Icon Button - Shown to Customers */}
-            {!isOwner && (
-              <button
-                type="button"
-                id="mobile-quick-download-btn"
-                onClick={onOpenDownloadApp}
-                className="flex items-center gap-1 px-2.5 py-1.5 bg-white text-slate-800 border border-slate-200 rounded-xl text-xs font-bold shadow-2xs active:scale-95 transition-all"
-                title="Download / Install Mobile App"
-              >
-                <Smartphone className="w-3.5 h-3.5 text-[#14CD03]" />
-                <span className="text-[11px] text-slate-800">App</span>
-              </button>
-            )}
-
-            {/* Customer Profile Quick Icon on Mobile if logged in */}
             {customer && (
               <button
                 type="button"
-                onClick={onOpenCustomerPortal}
+                onClick={() => onOpenCustomerPortal?.()}
                 className="w-9 h-9 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-950 flex items-center justify-center font-black text-xs shadow-2xs"
                 title="My Trips & Account"
                 aria-label="My Trips"
@@ -436,7 +365,6 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-slate-100 bg-white px-4 pt-3 pb-6 shadow-xl animate-in slide-in-from-top-2 duration-200">
-          {/* Customer Account card on Mobile if logged in */}
           {customer && (
             <div className="mb-3 p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -466,206 +394,76 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           )}
 
-          {/* If Owner Mode is active, show banner */}
-          {isOwner && (
-            <div className="mb-3 space-y-2">
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <ShieldAlert className="w-4 h-4 text-amber-700" />
-                  <span className="text-xs font-bold text-amber-900">Owner Mode Active</span>
-                </div>
-                {onExitOwnerMode && (
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      onExitOwnerMode();
-                    }}
-                    className="text-xs font-bold text-red-700 hover:underline"
-                  >
-                    Exit Mode
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {isOwner && navLinks.length > 0 && (
-            <div className="flex flex-col gap-1 py-2">
-              {navLinks.map((link) => (
-                <a
-                  key={link.name}
-                  href={link.href}
-                  onClick={(e) => handleNavClick(e, link.href)}
-                  className="text-base font-medium text-slate-800 hover:text-emerald-800 hover:bg-emerald-50/60 px-3 py-2.5 rounded-lg transition-colors flex items-center justify-between"
-                >
-                  {link.name}
-                  <ChevronRight className="w-4 h-4 text-slate-400" />
-                </a>
-              ))}
-            </div>
-          )}
-
-          <div className="flex flex-col gap-1 py-1">
-
-            {/* In mobile nav: only show Owner tools if Owner */}
-            {isOwner && (
-              <div className="space-y-1.5 mt-2 pt-2 border-t border-amber-200">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    onOpenSiteOptimizer?.();
-                  }}
-                  className="w-full text-left text-xs font-bold text-[#006045] bg-emerald-50 hover:bg-emerald-100 px-3 py-2.5 rounded-lg transition-colors flex items-center justify-between border border-emerald-300 cursor-pointer"
-                >
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-[#FE9A00]" />
-                    <span>Site Optimizer & WordPress</span>
-                  </div>
-                  <span className="text-[10px] uppercase font-black bg-[#006045] text-white px-2 py-0.5 rounded-md">
-                    Owner Pro
-                  </span>
-                </button>
-
-                {onExitOwnerMode && (
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      onExitOwnerMode();
-                    }}
-                    className="w-full text-left text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 px-3 py-2.5 rounded-lg transition-colors flex items-center justify-between border border-red-200 cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2">
-                      <LogOut className="w-4 h-4 text-red-700" />
-                      <span>Exit Owner Mode</span>
-                    </div>
-                  </button>
-                )}
-              </div>
-            )}
+          <div className="flex flex-col gap-1 py-2">
+            {navLinks.map((link) => (
+              <a
+                key={link.name}
+                href={link.href}
+                onClick={(e) => handleNavClick(e, link.href)}
+                className="text-base font-medium text-slate-800 hover:text-emerald-800 hover:bg-emerald-50/60 px-3 py-2.5 rounded-lg transition-colors flex items-center justify-between"
+              >
+                {link.name}
+                <ChevronRight className="w-4 h-4 text-slate-400" />
+              </a>
+            ))}
           </div>
 
-          {!isOwner && (
-            <div className="pt-3 border-t border-slate-100 space-y-2">
-              {/* Mobile Login / Account Button */}
-              <button
-                id="mobile-login-account-btn"
-                type="button"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  if (customer) {
-                    onOpenCustomerPortal?.();
-                  } else {
-                    onOpenCustomerAuth?.();
-                  }
-                }}
-                className="w-full flex items-center justify-between px-3 py-2 bg-white hover:bg-slate-50 text-slate-900 border border-slate-200/90 rounded-full font-bold text-sm cursor-pointer shadow-2xs"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-full bg-[#EEEEEE] border border-slate-200/80 flex items-center justify-center shrink-0 text-[#757575]">
-                    {customer ? (
-                      <span className="font-bold text-xs text-slate-800">
-                        {customer.fullName.slice(0, 2).toUpperCase() || 'TJ'}
-                      </span>
-                    ) : (
-                      <svg viewBox="0 0 32 32" className="w-4.5 h-4.5 fill-current" aria-hidden="true">
-                        <circle cx="16" cy="10.5" r="4.5" />
-                        <path d="M7.5 25.5c0-4.2 3.8-7.5 8.5-7.5s8.5 3.3 8.5 7.5c0 1.4-1.1 2.5-2.5 2.5h-12c-1.4 0-2.5-1.1-2.5-2.5z" />
-                      </svg>
-                    )}
-                  </div>
-                  <span>{customer ? customer.fullName : 'Login'}</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-400" />
-              </button>
-            </div>
-          )}
-
-          {/* Fare & Price Engine & Owner Tools in Mobile Menu - ONLY in Owner Portal mode */}
-          {isOwner && (
-            <div className="space-y-2">
-              <div className="p-3 bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-950 rounded-2xl border border-emerald-800/60 space-y-2 text-white shadow-xs">
-                <div className="text-[11px] font-bold text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5 text-[#14CD03] fill-[#14CD03]/30" />
-                  <span>Centralized Pricing Console</span>
-                </div>
-                <button
-                  type="button"
-                  id="mobile-fare-price-engine-btn"
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    (onOpenSimpleFareEngine || onOpenFareEngine)?.();
-                  }}
-                  className="w-full py-2.5 px-3.5 bg-emerald-600 hover:bg-emerald-500 text-slate-950 rounded-xl text-xs font-black flex items-center justify-between cursor-pointer shadow-xs active:scale-[0.98] transition-all"
-                >
-                  <div className="flex items-center gap-2">
-                    <Zap className="w-4 h-4 fill-slate-950 text-slate-900" />
-                    <span>Fare & Price Engine</span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-slate-900" />
-                </button>
+          <div className="pt-3 border-t border-slate-100 space-y-2">
+            {/* Mobile Track Ride Live Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onOpenTrackBooking?.();
+              }}
+              className="w-full flex items-center justify-between px-3.5 py-2.5 bg-emerald-50 text-emerald-950 border border-emerald-200/80 rounded-xl font-bold text-xs cursor-pointer shadow-2xs active:scale-98"
+            >
+              <div className="flex items-center gap-2">
+                <Navigation className="w-4 h-4 text-emerald-700" />
+                <span>Track Ride by Booking ID</span>
               </div>
+              <ChevronRight className="w-4 h-4 text-emerald-600" />
+            </button>
 
-              {/* Travel Studio Button in Mobile Menu - Owner Portal Only */}
-              <button
-                type="button"
-                id="mobile-travel-studio-btn"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onOpenTravelStudio?.('video');
-                }}
-                className="w-full flex items-center justify-between px-3.5 py-2.5 bg-[#032014] hover:bg-[#073826] text-white border border-emerald-700/60 rounded-2xl font-bold text-xs cursor-pointer shadow-2xs"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-xl bg-emerald-900/80 flex items-center justify-center text-[#14CD03] shrink-0 border border-emerald-700/60">
-                    <Film className="w-4 h-4" />
-                  </div>
-                  <div className="text-left">
-                    <span className="block leading-tight font-extrabold text-white">Travel Studio (AI Media)</span>
-                    <span className="text-[10px] text-emerald-300 font-semibold">Veo Videos & Gemini Destination Art</span>
-                  </div>
+
+
+            <button
+              id="mobile-login-account-btn"
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                if (customer) {
+                  onOpenCustomerPortal?.();
+                } else {
+                  onOpenCustomerAuth?.();
+                }
+              }}
+              className="w-full flex items-center justify-between px-3 py-2 bg-white hover:bg-slate-50 text-slate-900 border border-slate-200/90 rounded-full font-bold text-sm cursor-pointer shadow-2xs"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-full bg-[#EEEEEE] border border-slate-200/80 flex items-center justify-center shrink-0 text-[#757575]">
+                  {customer ? (
+                    <span className="font-bold text-xs text-slate-800">
+                      {customer.fullName.slice(0, 2).toUpperCase() || 'TJ'}
+                    </span>
+                  ) : (
+                    <svg viewBox="0 0 32 32" className="w-4.5 h-4.5 fill-current" aria-hidden="true">
+                      <circle cx="16" cy="10.5" r="4.5" />
+                      <path d="M7.5 25.5c0-4.2 3.8-7.5 8.5-7.5s8.5 3.3 8.5 7.5c0 1.4-1.1 2.5-2.5 2.5h-12c-1.4 0-2.5-1.1-2.5-2.5z" />
+                    </svg>
+                  )}
                 </div>
-                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-[#14CD03] text-[#032014]">
-                  Owner
-                </span>
-              </button>
-            </div>
-          )}
-
-          {/* Owner Quick Access in Mobile Menu */}
-          {isOwner && (
-            <div className="p-3 bg-amber-50 rounded-2xl border border-amber-200 space-y-2">
-              <div className="text-[11px] font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
-                <Zap className="w-3.5 h-3.5 text-amber-600 fill-amber-600" />
-                <span>Authoritative Pricing</span>
+                <span>{customer ? customer.fullName : 'Login'}</span>
               </div>
-              <button
-                type="button"
-                id="mobile-fare-engine-btn"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  (onOpenFareEngine || onOpenSimpleFareEngine || onOpenAdvancedFareEngine)?.();
-                }}
-                className="w-full py-2 px-3 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
-              >
-                <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
-                <span>FARE & PRICE ENGINE</span>
-              </button>
-            </div>
-          )}
+              <ChevronRight className="w-4 h-4 text-slate-400" />
+            </button>
+          </div>
 
           <div className="pt-2 space-y-3">
-            {/* Theme Toggle in Mobile Drawer */}
-            <ThemeToggle variant="menu-item" />
-
             <div className="bg-emerald-50/70 p-3.5 rounded-xl border border-emerald-100 flex items-center justify-between text-xs text-emerald-900">
               <div className="flex items-center gap-2 font-medium">
                 <Phone className="w-4 h-4 text-emerald-800" />
-                <span>Support: {siteConfig.contact.phone}</span>
-              </div>
-              <div className="flex items-center gap-2 font-medium">
-                <MessageSquare className="w-4 h-4 text-emerald-800" />
-                <span>WhatsApp Available</span>
+                <span>24/7 Helpline: {siteConfig.contact.phone}</span>
               </div>
             </div>
 

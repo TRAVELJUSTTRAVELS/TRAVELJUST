@@ -39,10 +39,40 @@ export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getA
 // Initialize Auth
 export const auth = getAuth(app);
 export const googleAuthProvider = new GoogleAuthProvider();
+googleAuthProvider.addScope('https://www.googleapis.com/auth/calendar.events');
 googleAuthProvider.setCustomParameters({ prompt: 'select_account' });
 
-// Initialize Firestore strictly matching the Firebase Integration Skill specification
-export const db = getFirestore(app, firebaseConfigJson.firestoreDatabaseId);
+// Initialize Firestore with forced long-polling to prevent proxy/streaming timeout warnings
+const databaseId = (firebaseConfigJson as { firestoreDatabaseId?: string }).firestoreDatabaseId;
+export const db = (() => {
+  try {
+    return initializeFirestore(
+      app,
+      {
+        experimentalForceLongPolling: true,
+      },
+      databaseId
+    );
+  } catch {
+    return getFirestore(app, databaseId);
+  }
+})();
+
+// Validate Connection to Firestore on initial boot per Firebase Skill constraint
+async function testConnection() {
+  try {
+    await Promise.race([
+      getDocFromServer(doc(db, 'test', 'connection')),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Connection check timeout')), 4000)),
+    ]);
+  } catch (error) {
+    if (error instanceof Error && (error.message.includes('the client is offline') || error.message.includes('timeout'))) {
+      console.warn('Firestore offline notice: running in local client persistence mode.');
+    }
+  }
+}
+// Run connection test non-blockingly
+testConnection().catch(() => {});
 
 // Standardized Firestore Error Handling per Firebase Skill
 export enum OperationType {
@@ -99,7 +129,7 @@ export async function testFirestoreConnection(): Promise<boolean> {
     return false;
   }
   try {
-    const snap = await getDoc(doc(db, 'test', 'connection'));
+    const snap = await getDocFromServer(doc(db, 'test', 'connection'));
     return snap.exists();
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);

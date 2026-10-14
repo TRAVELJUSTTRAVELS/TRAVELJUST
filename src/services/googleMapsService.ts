@@ -548,6 +548,31 @@ export function saveRecentSearch(place: PlaceSuggestion): void {
     const filtered = current.filter((p) => p.placeName.toLowerCase() !== place.placeName.toLowerCase());
     const updated = [place, ...filtered].slice(0, 5);
     localStorage.setItem(RECENT_SEARCHES_STORAGE_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new Event('tj_recent_searches_updated'));
+  } catch {
+    // Ignore storage issues
+  }
+}
+
+export function deleteRecentSearch(placeIdOrName: string): void {
+  try {
+    const current = getRecentSearches();
+    const filtered = current.filter(
+      (p) => p.placeId !== placeIdOrName && p.placeName.toLowerCase() !== placeIdOrName.toLowerCase()
+    );
+    localStorage.setItem(RECENT_SEARCHES_STORAGE_KEY, JSON.stringify(filtered));
+    window.dispatchEvent(new Event('tj_recent_searches_updated'));
+  } catch {
+    // Ignore storage issues
+  }
+}
+
+export function clearRecentSearches(): void {
+  try {
+    localStorage.removeItem(RECENT_SEARCHES_STORAGE_KEY);
+    // Mark as explicitly cleared so default suggestions are not forced if user deleted them
+    localStorage.setItem(`${RECENT_SEARCHES_STORAGE_KEY}_cleared`, 'true');
+    window.dispatchEvent(new Event('tj_recent_searches_updated'));
   } catch {
     // Ignore storage issues
   }
@@ -870,4 +895,71 @@ export async function calculateRouteDistance(
   );
   clientRouteCache.set(cacheKey, calculated);
   return calculated;
+}
+
+/**
+ * Validates that destination falls within supported South India service corridor
+ * (Karnataka, Tamil Nadu, Kerala, Pondicherry, or Goa)
+ */
+export function isWithinSupportedServiceArea(destination: string): boolean {
+  if (!destination || !destination.trim()) return true;
+  const lower = destination.toLowerCase().trim();
+
+  // Explicit outside regions that are beyond South India taxi operations
+  const outsideBlacklist = [
+    'delhi', 'new delhi', 'noida', 'gurgaon', 'gurugram', 'mumbai', 'bombay',
+    'pune', 'kolkata', 'calcutta', 'ahmedabad', 'jaipur', 'lucknow', 'chandigarh',
+    'patna', 'bhopal', 'indore', 'surat', 'nagpur', 'kanpur', 'varanasi',
+    'jammu', 'kashmir', 'srinagar', 'himachal', 'manali', 'shimla', 'uttarakhand',
+    'dehradun', 'rishikesh', 'assam', 'guwahati', 'odisha', 'bhubaneswar',
+    'usa', 'london', 'dubai', 'singapore'
+  ];
+
+  // Whitelisted states and core South Indian corridors
+  const southIndiaWhitelist = [
+    'karnataka', 'tamil nadu', 'tamilnadu', 'kerala', 'pondicherry', 'puducherry', 'goa',
+    'mysuru', 'mysore', 'bengaluru', 'bangalore', 'mangaluru', 'mangalore', 'coorg',
+    'madikeri', 'ooty', 'udhagamandalam', 'wayanad', 'chamarajanagar', 'mandya',
+    'hassan', 'chikmagalur', 'chikkamagaluru', 'shivamogga', 'shimoga', 'hubli',
+    'dharwad', 'belgaum', 'belagavi', 'davangere', 'bellary', 'ballari', 'tumakuru',
+    'tumkur', 'kolar', 'udupi', 'gokarna', 'karwar', 'kabini', 'bandipur', 'nagarhole',
+    'mudumalai', 'calicut', 'kozhikode', 'kannur', 'coimbatore', 'salem', 'erode',
+    'dindigul', 'madurai', 'trichy', 'kodaikanal', 'munnar', 'kochi', 'alappuzha',
+    'thiruvananthapuram', 'hosur', 'vellore', 'chennai', 'hyderabad', 'blr', 'kia'
+  ];
+
+  // If query contains an outside blacklist keyword and does NOT contain any whitelisted region
+  const hasBlacklist = outsideBlacklist.some((keyword) => lower.includes(keyword));
+  const hasWhitelist = southIndiaWhitelist.some((keyword) => lower.includes(keyword));
+
+  if (hasBlacklist && !hasWhitelist) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Returns prioritized outstation destinations from Mysuru geographic context
+ */
+export function getMysuruPrioritizedDestinations(): PlaceSuggestion[] {
+  const priorityIds = [
+    'kia_t1', // BLR Airport
+    'ooty_botanical', // Ooty
+    'madikeri_fort', // Coorg
+    'wayanad_wildlife', // Wayanad
+    'bandipur_safari', // Bandipur
+    'electronic_city_phase1', // Bangalore Electronic City
+    'chikmagalur_mullayanagiri', // Chikmagalur
+    'kabini_river_lodge', // Kabini
+    'mysore_palace', // Mysuru local palace
+  ];
+
+  const prioritized: PlaceSuggestion[] = [];
+  priorityIds.forEach((id) => {
+    const found = POPULAR_LOCATIONS.find((loc) => loc.placeId === id);
+    if (found) prioritized.push(found);
+  });
+
+  return prioritized.length > 0 ? prioritized : POPULAR_LOCATIONS.slice(0, 8);
 }

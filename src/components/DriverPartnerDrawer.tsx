@@ -26,11 +26,13 @@ import {
   FileText,
   Trash2,
   Eye,
+  Loader2,
 } from 'lucide-react';
 import { siteConfig } from '../config/siteConfig';
 import { DriverPartnerApplication } from '../types';
 import { savePartnerApplication, formatPartnerWhatsAppMessage } from '../services/driverPartnerService';
 import { openWhatsAppChat } from '../utils/whatsapp';
+import { ProgressBar } from './DynamicLoadingIndicator';
 
 interface DriverPartnerDrawerProps {
   isOpen: boolean;
@@ -343,9 +345,20 @@ export const DriverPartnerDrawer: React.FC<DriverPartnerDrawerProps> = ({
   // Get current models list for select
   const currentCategoryObj = VEHICLE_CATEGORIES.find((c) => c.id === vehicleCategory);
 
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-slate-950/75 backdrop-blur-xs flex justify-end animate-in fade-in duration-200">
-      <div className="w-full max-w-2xl bg-slate-50 h-full flex flex-col shadow-2xl overflow-hidden border-l border-slate-200 animate-in slide-in-from-right duration-300">
+    <div
+      id="driver-partner-drawer-backdrop"
+      onClick={onClose}
+      className="fixed inset-0 z-50 overflow-hidden bg-slate-950/75 backdrop-blur-xs flex justify-end animate-in fade-in duration-200 cursor-pointer"
+    >
+      <div
+        id="driver-partner-drawer-content"
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-2xl bg-slate-50 h-full flex flex-col shadow-2xl overflow-hidden border-l border-slate-200 animate-in slide-in-from-right duration-300 cursor-default"
+      >
+        <ProgressBar isLoading={isSubmitting} className="absolute top-0 left-0 right-0 z-50 rounded-none h-1" />
         
         {/* Top Header */}
         <div className="p-5 bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-950 border-b border-emerald-800/60 text-white shrink-0 relative overflow-hidden">
@@ -525,6 +538,7 @@ export const DriverPartnerDrawer: React.FC<DriverPartnerDrawerProps> = ({
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-6">
+              <fieldset disabled={isSubmitting} className="space-y-6 border-0 p-0 m-0 min-w-0">
               
               {errorMsg && (
                 <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
@@ -1172,17 +1186,27 @@ export const DriverPartnerDrawer: React.FC<DriverPartnerDrawerProps> = ({
                   />
                 </div>
               </div>
+              </fieldset>
 
               {/* Submit CTA */}
               <div className="pt-2 space-y-3">
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full py-3.5 px-4 bg-gradient-to-r from-[#0a4d3c] via-emerald-800 to-[#0a4d3c] hover:from-[#07382c] hover:to-[#07382c] text-white font-extrabold text-sm rounded-2xl shadow-lg shadow-emerald-950/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  className="w-full py-3.5 px-4 bg-gradient-to-r from-[#0a4d3c] via-emerald-800 to-[#0a4d3c] hover:from-[#07382c] hover:to-[#07382c] text-white font-extrabold text-sm rounded-2xl shadow-lg shadow-emerald-950/20 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  <Send className="w-4 h-4 text-[#0ef10e]" />
-                  <span>Submit Cab Attachment Application</span>
-                  <ArrowRight className="w-4 h-4" />
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-[#0ef10e]" />
+                      <span>Submitting Cab Attachment...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 text-[#0ef10e]" />
+                      <span>Submit Cab Attachment Application</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
                 </button>
 
                 <div className="flex items-center justify-center gap-2 text-[11px] text-slate-500">

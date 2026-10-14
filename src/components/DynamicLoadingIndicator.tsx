@@ -91,3 +91,70 @@ export const VehicleListSkeleton: React.FC = () => {
     </div>
   );
 };
+
+export interface ButtonSpinnerProps {
+  isLoading: boolean;
+  loadingText?: string;
+  children: React.ReactNode;
+  icon?: React.ReactNode;
+  className?: string;
+}
+
+export const ButtonSpinner: React.FC<ButtonSpinnerProps> = ({
+  isLoading,
+  loadingText,
+  children,
+  icon,
+  className = '',
+}) => {
+  if (isLoading) {
+    return (
+      <span className={`inline-flex items-center justify-center gap-2 ${className}`}>
+        <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+        <span>{loadingText || 'Processing...'}</span>
+      </span>
+    );
+  }
+  return (
+    <span className={`inline-flex items-center justify-center gap-2 ${className}`}>
+      {icon}
+      {children}
+    </span>
+  );
+};
+
+export interface FormProcessingOverlayProps {
+  isProcessing: boolean;
+  message?: string;
+  subMessage?: string;
+}
+
+export const FormProcessingOverlay: React.FC<FormProcessingOverlayProps> = ({
+  isProcessing,
+  message = 'Processing request...',
+  subMessage,
+}) => {
+  if (!isProcessing) return null;
+
+  return (
+    <div
+      aria-live="polite"
+      className="absolute inset-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xs flex flex-col items-center justify-center p-4 rounded-[inherit] animate-in fade-in duration-150 select-none pointer-events-auto"
+    >
+      <div className="flex flex-col items-center gap-3 text-center max-w-xs">
+        <div className="relative">
+          <div className="w-10 h-10 rounded-full border-2 border-emerald-500/20 border-t-emerald-600 animate-spin flex items-center justify-center" />
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs font-bold text-slate-900 dark:text-slate-100">{message}</p>
+          {subMessage && (
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">{subMessage}</p>
+          )}
+        </div>
+        <div className="w-32 mt-1">
+          <ProgressBar isLoading={true} />
+        </div>
+      </div>
+    </div>
+  );
+};

@@ -11,12 +11,14 @@ import {
   Clock,
   Info,
   CheckCircle2,
+  Loader2,
 } from 'lucide-react';
 import { Vehicle, FareEstimate, PricingConfig, BookingSearchState } from '../types';
 import { VehicleVectorGraphic } from './VehicleVectorGraphic';
-import { siteConfig } from '../config/siteConfig';
+import { siteConfig, FARE_DISCLAIMER } from '../config/siteConfig';
 import { fareService } from '../services/fareService';
 import { FareVehicleId } from '../types/fareEngine';
+import { ProgressBar } from './DynamicLoadingIndicator';
 
 interface VehicleCardProps {
   vehicle: Vehicle;
@@ -26,6 +28,7 @@ interface VehicleCardProps {
   onSelect: (vehicle: Vehicle) => void;
   onProceedToBooking?: () => void;
   isSelected?: boolean;
+  isSubmittingBooking?: boolean;
 }
 
 export const VehicleCard: React.FC<VehicleCardProps> = ({
@@ -36,6 +39,7 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({
   onSelect,
   onProceedToBooking,
   isSelected,
+  isSubmittingBooking = false,
 }) => {
   const [showBreakdown, setShowBreakdown] = useState(false);
 
@@ -180,12 +184,13 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({
   return (
     <div
       id={`vehicle-card-${vehicle.id}`}
-      className={`bg-white rounded-2xl border transition-all duration-200 overflow-hidden ${
+      className={`relative bg-white rounded-2xl border transition-all duration-200 overflow-hidden ${
         isSelected
           ? 'border-emerald-700 ring-2 ring-emerald-700/20 shadow-md bg-emerald-50/10'
           : 'border-slate-200 hover:border-emerald-600/60 hover:shadow-md'
       }`}
     >
+      <ProgressBar isLoading={Boolean(isSubmittingBooking && isSelected)} className="absolute top-0 left-0 right-0 z-20 rounded-none h-1" />
       <div id={`vehicle-card-content-${vehicle.id}`} className="p-5 sm:p-6">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           {/* Left Side: Vehicle Info & Vector Graphic */}
@@ -384,22 +389,36 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({
                 <button
                   id={`btn-confirm-vehicle-${vehicle.id}`}
                   type="button"
+                  disabled={isSubmittingBooking || fareEstimate.isValid === false}
                   onClick={() => (onProceedToBooking ? onProceedToBooking() : onSelect(vehicle))}
-                  className="w-full sm:w-auto min-w-[170px] px-6 py-3 rounded-xl font-black text-xs sm:text-sm bg-[#14CD03] hover:bg-[#12b803] active:bg-[#0fa002] text-slate-950 shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer uppercase tracking-wider"
+                  className={`w-full sm:w-auto min-w-[170px] px-6 py-3 rounded-xl font-black text-xs sm:text-sm shadow-md transition-all flex items-center justify-center gap-2 uppercase tracking-wider ${
+                    isSubmittingBooking
+                      ? 'bg-emerald-400 text-slate-900 cursor-not-allowed opacity-90'
+                      : 'bg-[#14CD03] hover:bg-[#12b803] active:bg-[#0fa002] text-slate-950 cursor-pointer active:scale-[0.99]'
+                  }`}
                 >
-                  <CheckCircle2 className="w-4 h-4 text-slate-950 stroke-[2.5]" />
-                  <span>CONFIRM BOOKING</span>
+                  {isSubmittingBooking ? (
+                    <>
+                      <Loader2 className="w-4 h-4 text-slate-950 animate-spin stroke-[2.5]" />
+                      <span>SUBMITTING...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 text-slate-950 stroke-[2.5]" />
+                      <span>CONFIRM BOOKING</span>
+                    </>
+                  )}
                 </button>
               ) : (
                 <button
                   id={`btn-select-vehicle-${vehicle.id}`}
                   type="button"
-                  disabled={fareEstimate.isValid === false}
+                  disabled={isSubmittingBooking || fareEstimate.isValid === false}
                   onClick={() => onSelect(vehicle)}
-                  className={`w-full sm:w-auto min-w-[140px] px-6 py-3 rounded-xl font-bold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-emerald-700 cursor-pointer ${
-                    fareEstimate.isValid === false
-                      ? 'bg-slate-200 text-slate-500 cursor-not-allowed border border-slate-300'
-                      : 'bg-emerald-800 hover:bg-emerald-900 text-white active:scale-[0.99]'
+                  className={`w-full sm:w-auto min-w-[140px] px-6 py-3 rounded-xl font-bold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-emerald-700 ${
+                    fareEstimate.isValid === false || isSubmittingBooking
+                      ? 'bg-slate-200 text-slate-500 cursor-not-allowed border border-slate-300 pointer-events-none'
+                      : 'bg-emerald-800 hover:bg-emerald-900 text-white cursor-pointer active:scale-[0.99]'
                   }`}
                 >
                   {fareEstimate.isValid === false ? 'Route Required' : 'SELECT'}
@@ -409,35 +428,16 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({
           </div>
         </div>
 
-        {/* Local Booking Disclaimer Note */}
-        {searchDetails?.serviceType === 'local' && (
-          <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-1.5 text-[11px] sm:text-xs font-medium text-slate-500 leading-relaxed">
-            <span className="text-amber-600 font-bold">*NOTE:</span>
-            <span>Final fare may vary based on Extra KM, Extra Hours, Parking, & Toll charges.</span>
-          </div>
-        )}
-
-        {/* One Way Booking Disclaimer Note (Only in one way preferred vehicle, not in inter state one way) */}
-        {searchDetails?.serviceType === 'oneway' && !isInterStateOneWay && (
-          <div
-            id={`vehicle-oneway-disclaimer-${vehicle.id}`}
-            className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-1.5 text-[11px] sm:text-xs font-medium text-slate-500 leading-relaxed"
-          >
-            <span className="text-[#F54900] font-bold">* NOTE:</span>
-            <span>EXTRA KM, TOLL CHARGES EXTRA.</span>
-          </div>
-        )}
-
-        {/* Round Trip Booking Disclaimer Note (Only in round trip preferred all vehicles) */}
-        {searchDetails?.serviceType === 'roundtrip' && (
-          <div
-            id={`vehicle-roundtrip-disclaimer-${vehicle.id}`}
-            className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-1.5 text-[11px] sm:text-xs font-medium text-slate-500 leading-relaxed"
-          >
-            <span className="text-[#F54900] font-bold">* NOTE:</span>
-            <span>EXTRA KM, TOLL, PARKING, STATE TAX, CHARGES EXTRA.</span>
-          </div>
-        )}
+        {/* Configurable Pricing Engine Disclaimer */}
+        <div
+          id={`vehicle-pricing-disclaimer-${vehicle.id}`}
+          className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-1.5 text-[11px] sm:text-xs font-medium text-slate-500 leading-relaxed"
+        >
+          <span className="text-amber-600 font-bold">* NOTE:</span>
+          <span>
+            {fareEstimate.disclaimer || FARE_DISCLAIMER}
+          </span>
+        </div>
       </div>
 
       {/* Expanded Fare Breakdown Box (Only for outstation roundtrip/airport bookings, hidden for one-way) */}

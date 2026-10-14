@@ -4,15 +4,17 @@ import {
   CheckCircle2,
   History,
 } from 'lucide-react';
-import { BookingSearchState, Vehicle, PricingConfig } from '../types';
+import { BookingSearchState, Vehicle, PricingConfig, SelectedAddOn } from '../types';
 import { VehicleCard } from './VehicleCard';
 import { vehiclesData } from '../data/vehicles';
 import { calculateFare } from '../utils/fareCalculator';
+import { FARE_DISCLAIMER } from '../config/pricingConfig';
 import { RecentSearchesBar } from './RecentSearchesBar';
 import { generateSearchKey } from '../services/searchCacheService';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
-import { VehicleListSkeleton } from './DynamicLoadingIndicator';
+import { VehicleListSkeleton, ProgressBar } from './DynamicLoadingIndicator';
 import { PriceComparisonTable } from './PriceComparisonTable';
+import { BookingAddOnsSelector } from './BookingAddOnsSelector';
 
 interface SearchResultsProps {
   searchDetails: BookingSearchState;
@@ -24,6 +26,9 @@ interface SearchResultsProps {
   onClearSearch?: () => void;
   onSelectCachedSearch?: (search: BookingSearchState) => void;
   isLoading?: boolean;
+  isSubmittingBooking?: boolean;
+  selectedAddOns?: SelectedAddOn[];
+  onAddOnsChange?: (selected: SelectedAddOn[]) => void;
 }
 
 export const SearchResults: React.FC<SearchResultsProps> = ({
@@ -36,6 +41,9 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   onClearSearch,
   onSelectCachedSearch,
   isLoading = false,
+  isSubmittingBooking = false,
+  selectedAddOns = [],
+  onAddOnsChange,
 }) => {
   const { isOnline, isUnstable, checkConnection } = useOnlineStatus();
   const [showRecentSearches, setShowRecentSearches] = useState<boolean>(true);
@@ -107,8 +115,48 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
           </div>
         ) : (
           <div className="space-y-4">
+            {/* Transparent Pricing Engine Banner */}
+            <div
+              id="search-results-fare-disclaimer-banner"
+              className="p-3 sm:p-3.5 bg-emerald-50/90 dark:bg-emerald-950/40 border border-emerald-200/90 dark:border-emerald-800/80 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs shadow-2xs"
+            >
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-extrabold text-emerald-950 dark:text-emerald-200 uppercase tracking-wider text-[10px] bg-emerald-200/70 dark:bg-emerald-850 px-2 py-0.5 rounded-md">
+                  Estimated Fare
+                </span>
+                <span className="text-slate-600 dark:text-slate-300 text-[11px] font-medium leading-relaxed">
+                  {FARE_DISCLAIMER}
+                </span>
+              </div>
+            </div>
+
+            {/* Dynamic Add-on Services & Amenities (Configured & priced by Owner & Fleet Portal) */}
+            <BookingAddOnsSelector
+              serviceType={searchDetails.serviceType}
+              vehicleId={selectedVehicle?.id}
+              selectedAddOns={selectedAddOns}
+              onChange={onAddOnsChange || (() => {})}
+              tripDays={searchDetails.roundTripDays || 1}
+            />
+
             {availableVehicles.map((vehicle) => {
-              const fareEstimate = calculateFare(searchDetails, vehicle, pricingConfig);
+              const baseFareEstimate = calculateFare(searchDetails, vehicle, pricingConfig);
+              const addOnsTotal = selectedAddOns.reduce((sum, item) => sum + item.totalPrice, 0);
+              const fareEstimate =
+                addOnsTotal > 0
+                  ? {
+                      ...baseFareEstimate,
+                      totalEstimatedFare: baseFareEstimate.totalEstimatedFare + addOnsTotal,
+                      breakdown: [
+                        ...baseFareEstimate.breakdown,
+                        {
+                          label: `Selected Add-ons & Amenities (${selectedAddOns.length})`,
+                          amount: addOnsTotal,
+                        },
+                      ],
+                    }
+                  : baseFareEstimate;
+
               const isSelected = selectedVehicle?.id === vehicle.id;
 
               return (
@@ -123,6 +171,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                   }}
                   onProceedToBooking={onProceedToBooking}
                   isSelected={isSelected}
+                  isSubmittingBooking={isSubmittingBooking}
                 />
               );
             })}

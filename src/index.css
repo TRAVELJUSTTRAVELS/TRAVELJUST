@@ -135,33 +135,209 @@ textarea::placeholder {
 }
 
 /* Enhanced focus outline for accessibility and sharpness */
-:focus-visible {
+:focus-visible:not(input):not(textarea):not(select) {
   outline: 2px solid #006045 !important;
   outline-offset: 2px !important;
 }
 
-/* 4K Ultra-HD & Wide-Screen Layout Scaling */
+/* Selected component input: remove focus border/outline design */
+input#oneway-from-location-input,
+input#oneway-from-location-input:focus,
+input#oneway-from-location-input:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+/* =========================================================================
+   4K ULTRA-HD (UHD 2160p) & EXPANSIVE SCREEN ARCHITECTURE
+   Native support for 1440p (QHD), 2K, 3K, 4K UHD (3840px), and 5K (5120px) displays.
+   Flawless optical typography calibration, ultra-crisp subpixel geometry,
+   generous multi-column grid layouts, and high-density hairline precision.
+   ========================================================================= */
+
+/* 4K Ultra-HD Mode Class (Applies when toggled or auto-calibrated) */
+html.scale-4k-uhd {
+  font-size: 20px !important;
+}
+
+html.scale-4k-uhd .max-w-7xl {
+  max-width: 140rem !important;
+}
+
+html.scale-4k-uhd .max-w-6xl {
+  max-width: 120rem !important;
+}
+
+html.scale-4k-uhd .max-w-5xl {
+  max-width: 104rem !important;
+}
+
+html.scale-4k-uhd .max-w-4xl {
+  max-width: 90rem !important;
+}
+
+html.scale-4k-uhd .max-w-3xl {
+  max-width: 76rem !important;
+}
+
+html.scale-4k-uhd .max-w-2xl {
+  max-width: 62rem !important;
+}
+
+html.scale-4k-uhd #fleet .grid.grid-cols-1.md\:grid-cols-2.lg\:grid-cols-3 {
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+}
+
+html.scale-4k-uhd #services .grid.grid-cols-1.md\:grid-cols-2.lg\:grid-cols-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 2rem !important;
+}
+
+/* 1. Full HD / 1080p+ Displays (>= 1920px) */
 @media (min-width: 1920px) {
+  html:not(.scale-4k-uhd) {
+    font-size: 16.5px;
+  }
   .max-w-7xl {
-    max-width: 88rem; /* 1408px on Full HD / 2K displays */
+    max-width: 96rem; /* ~1584px */
+  }
+  .max-w-6xl {
+    max-width: 84rem;
+  }
+  .max-w-5xl {
+    max-width: 72rem;
+  }
+  .max-w-4xl {
+    max-width: 60rem;
+  }
+  .max-w-3xl {
+    max-width: 50rem;
   }
 }
 
+/* 2. Quad HD / 2K / 1440p / Ultrawide Displays (>= 2560px) */
 @media (min-width: 2560px) {
-  .max-w-7xl {
-    max-width: 105rem; /* 1680px on 2.5K & 4K displays for expansive, balanced layout */
+  html:not(.scale-4k-uhd) {
+    font-size: 18.5px; /* Optical scale compensation for 4K/2K viewing distance */
   }
-  
-  html {
-    font-size: 16.5px; /* Subtle optical size calibration for 4K viewing distance */
+  .max-w-7xl {
+    max-width: 125rem; /* ~2312px */
+  }
+  .max-w-6xl {
+    max-width: 108rem;
+  }
+  .max-w-5xl {
+    max-width: 92rem;
+  }
+  .max-w-4xl {
+    max-width: 78rem;
+  }
+  .max-w-3xl {
+    max-width: 66rem;
+  }
+  .max-w-2xl {
+    max-width: 54rem;
+  }
+
+  /* 5-column fleet showcase on wide screens */
+  #fleet .grid.grid-cols-1.md\:grid-cols-2.lg\:grid-cols-3 {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  }
+
+  #services .grid.grid-cols-1.md\:grid-cols-2.lg\:grid-cols-4 {
+    gap: 1.75rem !important;
+  }
+
+  /* Booking search widget container padding & touch comfort on 2K/4K */
+  #travel-just-booking-widget {
+    box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(224, 229, 236, 0.8) !important;
   }
 }
 
-/* High-DPI / Retina Crisp Hairline Refinement */
+/* 3. True 4K Ultra-HD / 2160p (>= 3840px Native 4K Monitors & UHD Displays) */
+@media (min-width: 3840px) {
+  html:not(.scale-4k-uhd) {
+    font-size: 21.5px; /* Native 4K optical sharpness without eye strain */
+  }
+  .max-w-7xl {
+    max-width: 160rem; /* ~3440px on 4K */
+  }
+  .max-w-6xl {
+    max-width: 140rem;
+  }
+  .max-w-5xl {
+    max-width: 118rem;
+  }
+  .max-w-4xl {
+    max-width: 100rem;
+  }
+  .max-w-3xl {
+    max-width: 84rem;
+  }
+  .max-w-2xl {
+    max-width: 70rem;
+  }
+
+  /* Fleet showcase 5 equal columns on 4K */
+  #fleet .grid.grid-cols-1.md\:grid-cols-2.lg\:grid-cols-3 {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 2rem !important;
+  }
+
+  /* Services 4 equal columns on 4K */
+  #services .grid.grid-cols-1.md\:grid-cols-2.lg\:grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 2.25rem !important;
+  }
+
+  /* Multi-layer soft ambient shadows with zero blur artifacting on 4K */
+  .shadow-xl {
+    box-shadow: 0 32px 64px -16px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.04) !important;
+  }
+  .shadow-2xl {
+    box-shadow: 0 48px 96px -24px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
+  }
+
+  /* Modals & Dialogs scaling on 4K */
+  .max-w-2xl.w-full {
+    max-width: 58rem !important;
+  }
+  .max-w-3xl.w-full {
+    max-width: 72rem !important;
+  }
+  .max-w-xl.w-full {
+    max-width: 48rem !important;
+  }
+}
+
+/* 4. DCI 4K & 5K Retina Displays (>= 4096px / 5120px) */
+@media (min-width: 4096px) {
+  html:not(.scale-4k-uhd) {
+    font-size: 23.5px;
+  }
+  .max-w-7xl {
+    max-width: 180rem;
+  }
+  .max-w-6xl {
+    max-width: 156rem;
+  }
+}
+
+/* High-DPI / Retina Crisp Hairline Refinement & Subpixel Sharpness */
 @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  .border,
   .border-slate-200,
   .border-slate-200\/90,
   .border-slate-200\/80 {
+    border-width: 0.75px;
     border-color: rgba(203, 213, 225, 0.95);
   }
 }
@@ -380,4 +556,190 @@ html.dark .skeleton-shimmer {
     transform: none !important;
   }
 }
+
+/* =========================================================================
+   TRAVEL JUST - PREDEFINED COLOR PALETTES ARCHITECTURE
+   ========================================================================= */
+
+:root {
+  --theme-primary: #006045;
+  --theme-primary-hover: #004733;
+  --theme-primary-dark: #003627;
+  --theme-primary-light: #ecfdf5;
+  --theme-primary-border: #a7f3d0;
+  --theme-accent: #14CD03;
+  --theme-ring: rgba(0, 96, 69, 0.4);
+}
+
+/* Sapphire */
+[data-palette="sapphire"] {
+  --theme-primary: #1d4ed8;
+  --theme-primary-hover: #1e40af;
+  --theme-primary-dark: #172554;
+  --theme-primary-light: #eff6ff;
+  --theme-primary-border: #bfdbfe;
+  --theme-accent: #0284c7;
+  --theme-ring: rgba(29, 78, 216, 0.4);
+}
+
+html.dark[data-palette="sapphire"] {
+  --theme-primary: #3b82f6;
+  --theme-primary-hover: #60a5fa;
+  --theme-primary-dark: #0f172a;
+  --theme-primary-light: #172554;
+  --theme-primary-border: #1e3a8a;
+  --theme-accent: #38bdf8;
+  --theme-ring: rgba(59, 130, 246, 0.4);
+}
+
+/* Sunset */
+[data-palette="sunset"] {
+  --theme-primary: #d97706;
+  --theme-primary-hover: #b45309;
+  --theme-primary-dark: #451a03;
+  --theme-primary-light: #fffbeb;
+  --theme-primary-border: #fde68a;
+  --theme-accent: #f59e0b;
+  --theme-ring: rgba(217, 119, 6, 0.4);
+}
+
+html.dark[data-palette="sunset"] {
+  --theme-primary: #f59e0b;
+  --theme-primary-hover: #fbbf24;
+  --theme-primary-dark: #1c1408;
+  --theme-primary-light: #451a03;
+  --theme-primary-border: #78350f;
+  --theme-accent: #fbbf24;
+  --theme-ring: rgba(245, 158, 11, 0.4);
+}
+
+/* Ruby */
+[data-palette="ruby"] {
+  --theme-primary: #be123c;
+  --theme-primary-hover: #9f1239;
+  --theme-primary-dark: #4c0519;
+  --theme-primary-light: #fff1f2;
+  --theme-primary-border: #fecdd3;
+  --theme-accent: #e11d48;
+  --theme-ring: rgba(190, 18, 60, 0.4);
+}
+
+html.dark[data-palette="ruby"] {
+  --theme-primary: #f43f5e;
+  --theme-primary-hover: #fb7185;
+  --theme-primary-dark: #220811;
+  --theme-primary-light: #4c0519;
+  --theme-primary-border: #881337;
+  --theme-accent: #fb7185;
+  --theme-ring: rgba(244, 63, 94, 0.4);
+}
+
+/* Amethyst */
+[data-palette="amethyst"] {
+  --theme-primary: #6366f1;
+  --theme-primary-hover: #4f46e5;
+  --theme-primary-dark: #1e1b4b;
+  --theme-primary-light: #eef2ff;
+  --theme-primary-border: #c7d2fe;
+  --theme-accent: #8b5cf6;
+  --theme-ring: rgba(99, 102, 241, 0.4);
+}
+
+html.dark[data-palette="amethyst"] {
+  --theme-primary: #818cf8;
+  --theme-primary-hover: #a5b4fc;
+  --theme-primary-dark: #110e2e;
+  --theme-primary-light: #1e1b4b;
+  --theme-primary-border: #3730a3;
+  --theme-accent: #c084fc;
+  --theme-ring: rgba(129, 140, 248, 0.4);
+}
+
+/* Global color palette theme adaptors */
+[data-palette]:not([data-palette="emerald"]) .bg-emerald-800,
+[data-palette]:not([data-palette="emerald"]) .bg-\[\#0a4d3c\] {
+  background-color: var(--theme-primary) !important;
+}
+
+[data-palette]:not([data-palette="emerald"]) .hover\:bg-emerald-800:hover,
+[data-palette]:not([data-palette="emerald"]) .hover\:bg-emerald-900:hover {
+  background-color: var(--theme-primary-hover) !important;
+}
+
+[data-palette]:not([data-palette="emerald"]) .text-emerald-800,
+[data-palette]:not([data-palette="emerald"]) .text-emerald-700 {
+  color: var(--theme-primary) !important;
+}
+
+[data-palette]:not([data-palette="emerald"]) .hover\:text-emerald-800:hover,
+[data-palette]:not([data-palette="emerald"]) .hover\:text-emerald-900:hover {
+  color: var(--theme-primary-hover) !important;
+}
+
+[data-palette]:not([data-palette="emerald"]) .border-emerald-800,
+[data-palette]:not([data-palette="emerald"]) .border-emerald-700,
+[data-palette]:not([data-palette="emerald"]) .hover\:border-emerald-800:hover,
+[data-palette]:not([data-palette="emerald"]) .hover\:border-emerald-700\/60:hover {
+  border-color: var(--theme-primary) !important;
+}
+
+[data-palette]:not([data-palette="emerald"]) .bg-emerald-50,
+[data-palette]:not([data-palette="emerald"]) .bg-emerald-100 {
+  background-color: var(--theme-primary-light) !important;
+}
+
+[data-palette]:not([data-palette="emerald"]) .border-emerald-200,
+[data-palette]:not([data-palette="emerald"]) .border-emerald-100,
+[data-palette]:not([data-palette="emerald"]) .border-emerald-300 {
+  border-color: var(--theme-primary-border) !important;
+}
+
+/* =========================================================================
+   MOBILE PRIORITY & TOUCH ERGONOMICS ARCHITECTURE
+   High-performance mobile UX, thumb-first ergonomics, zero tap delay,
+   safe-area inset handling, and iOS auto-zoom elimination.
+   ========================================================================= */
+
+@media (max-width: 768px) {
+  /* Prevent iOS Safari automatic zoom on inputs and selects when tapped */
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* Zero tap delay & no gray tap flash on mobile touch screens */
+  button,
+  a,
+  input,
+  select,
+  [role="button"],
+  [role="tab"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Smooth momentum touch scrolling across overflow containers */
+  .overflow-y-auto,
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Prevent unintended horizontal page sway on small viewports */
+  html,
+  body {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+}
+
+/* Safe area padding utilities for notched iPhones and edge-to-edge Android devices */
+.pb-safe {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+}
+
+.pt-safe {
+  padding-top: max(0.75rem, env(safe-area-inset-top, 0px));
+}
+
 

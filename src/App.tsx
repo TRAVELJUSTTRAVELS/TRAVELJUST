@@ -1,49 +1,34 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  CheckCircle2,
-  Sparkles,
-  Clock,
-  ArrowRight,
-  User,
-  MapPin,
-  Film,
-} from 'lucide-react';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
 import { BookingSearch } from './components/BookingSearch';
 import { SearchResults } from './components/SearchResults';
 import { ServicesSection } from './components/ServicesSection';
 import { FleetSection } from './components/FleetSection';
-import { TopRoutesDirectorySection } from './components/TopRoutesDirectorySection';
 import { WhyChooseUs } from './components/WhyChooseUs';
 import { FAQSection } from './components/FAQSection';
+import { TopOutstationRoutesSection } from './components/TopOutstationRoutesSection';
 import { Footer } from './components/Footer';
+import { MobileBottomNav } from './components/MobileBottomNav';
 import { BookingModal } from './components/BookingModal';
-import { OwnerAuthModal } from './components/OwnerAuthModal';
 import { CustomerAuthModal } from './components/CustomerAuthModal';
 import { InAppPushNotificationBanner } from './components/InAppPushNotificationBanner';
-import { ContactAIChat } from './components/ContactAIChat';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { ProgressBar } from './components/DynamicLoadingIndicator';
+import { ThemeCustomizerModal } from './components/ThemeCustomizerModal';
+import { BookingTrackerModal } from './components/BookingTrackerModal';
 
-// Code-split heavy modals to dramatically accelerate initial load time and optimize Core Web Vitals
+// Code-split heavy modals to accelerate load time and optimize Core Web Vitals
 const LegalModal = React.lazy(() => import('./components/LegalModal').then(m => ({ default: m.LegalModal })));
 const CustomerPortalModal = React.lazy(() => import('./components/CustomerPortalModal').then(m => ({ default: m.CustomerPortalModal })));
-const OwnerPortalModal = React.lazy(() => import('./components/OwnerPortalModal').then(m => ({ default: m.OwnerPortalModal })));
-const FareEngineModal = React.lazy(() => import('./components/FareEngineModal').then(m => ({ default: m.FareEngineModal })));
-const DriverPartnerDrawer = React.lazy(() => import('./components/DriverPartnerDrawer').then(m => ({ default: m.DriverPartnerDrawer })));
 const DownloadAppModal = React.lazy(() => import('./components/DownloadAppModal').then(m => ({ default: m.DownloadAppModal })));
-const TravelExpertPopupModal = React.lazy(() => import('./components/TravelExpertPopupModal').then(m => ({ default: m.TravelExpertPopupModal })));
-const TravelStudioModal = React.lazy(() => import('./components/TravelStudioModal').then(m => ({ default: m.TravelStudioModal })));
-const SiteOptimizerModal = React.lazy(() => import('./components/SiteOptimizerModal').then(m => ({ default: m.SiteOptimizerModal })));
+
+
 import { saveSearchToServiceWorkerCache } from './services/searchCacheService';
 import { calculateRouteDistance } from './services/googleMapsService';
 import { getStoredCustomer, clearCustomerSession, saveCustomerSession } from './services/customerAuthService';
-import { auth, signOut, onAuthStateChanged, syncUserProfile } from './lib/firebase';
+import { auth, signOut, onAuthStateChanged, syncUserProfile, saveBookingToFirestore } from './lib/firebase';
 import { calculateFare } from './utils/fareCalculator';
-import { saveBookingToSupabase } from './services/supabaseService';
-import { formatBookingConfirmationMessage, openWhatsAppChat } from './utils/whatsapp';
-import { siteConfig } from './config/siteConfig';
 import { fareService } from './services/fareService';
 import {
   BookingSearchState,
@@ -52,9 +37,9 @@ import {
   ServiceType,
   BookingRequest,
   PassengerDetails,
-  PlaceSuggestion,
   CustomerUser,
   BookingDraftPlan,
+  SelectedAddOn,
 } from './types';
 import { defaultPricingConfig } from './config/siteConfig';
 import { vehiclesData } from './data/vehicles';
@@ -81,80 +66,46 @@ export default function App() {
     return defaultPricingConfig;
   });
 
-  // Owner authentication state - Restricted to business owner only
-  const [isOwner, setIsOwner] = useState<boolean>(() => {
-    try {
-      // Check query parameter ?owner=true or ?admin=true
-      if (typeof window !== 'undefined') {
-        const params = new URLSearchParams(window.location.search);
-        if (params.get('owner') === 'true' || params.get('admin') === 'true' || params.get('owner') === '1') {
-          return true;
-        }
+  useEffect(() => {
+    const handlePricingUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<PricingConfig>;
+      if (customEvent.detail) {
+        setPricingConfig(customEvent.detail);
       }
-      return localStorage.getItem('tj_is_owner') === 'true';
-    } catch {
-      return false;
-    }
-  });
+    };
+    window.addEventListener('tj:pricing-config-updated', handlePricingUpdated);
+    return () => window.removeEventListener('tj:pricing-config-updated', handlePricingUpdated);
+  }, []);
 
   // Customer authentication state
   const [customer, setCustomer] = useState<CustomerUser | null>(() => getStoredCustomer());
   const [customerPortalModalOpen, setCustomerPortalModalOpen] = useState(false);
+  const [customerPortalInitialTab, setCustomerPortalInitialTab] = useState<'trips' | 'saved' | 'profile'>('trips');
 
-  const [ownerAuthModalOpen, setOwnerAuthModalOpen] = useState(false);
-  const [ownerPortalModalOpen, setOwnerPortalModalOpen] = useState(false);
-  const [fareEngineModalOpen, setFareEngineModalOpen] = useState(false);
-  const [fareEngineInitialMode, setFareEngineInitialMode] = useState<'SIMPLE' | 'ADVANCED'>('SIMPLE');
+  const handleOpenCustomerPortal = (tab?: 'trips' | 'saved' | 'profile') => {
+    setCustomerPortalInitialTab(tab || 'trips');
+    setCustomerPortalModalOpen(true);
+  };
+
   const [fareUpdateTrigger, setFareUpdateTrigger] = useState(0);
-
-  const handleOpenSimpleFareEngine = () => {
-    setFareEngineInitialMode('SIMPLE');
-    setFareEngineModalOpen(true);
-  };
-
-  const handleOpenAdvancedFareEngine = () => {
-    setFareEngineInitialMode('ADVANCED');
-    setFareEngineModalOpen(true);
-  };
 
   const [searchState, setSearchState] = useState<BookingSearchState | null>(null);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [isConfirmingBooking, setIsConfirmingBooking] = useState<boolean>(false);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const [selectedAddOns, setSelectedAddOns] = useState<SelectedAddOn[]>([]);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [legalModalType, setLegalModalType] = useState<'privacy' | 'terms' | null>(null);
-  const [partnerDrawerOpen, setPartnerDrawerOpen] = useState(false);
   const [downloadAppModalOpen, setDownloadAppModalOpen] = useState(false);
   const [customerAuthModalOpen, setCustomerAuthModalOpen] = useState(false);
-  const [travelExpertModalOpen, setTravelExpertModalOpen] = useState(false);
-  const [travelStudioModalOpen, setTravelStudioModalOpen] = useState(false);
-  const [travelStudioInitialTab, setTravelStudioInitialTab] = useState<'video' | 'create-image' | 'edit-image'>('video');
-  const [siteOptimizerModalOpen, setSiteOptimizerModalOpen] = useState(false);
+  const [bookingTrackerOpen, setBookingTrackerOpen] = useState(false);
+  const [trackingReferenceId, setTrackingReferenceId] = useState<string>('');
 
-  const handleOpenTravelStudio = (tab: 'video' | 'create-image' | 'edit-image' = 'video') => {
-    setTravelStudioInitialTab(tab);
-    setTravelStudioModalOpen(true);
-  };
-
-  const handleApplyBookingPlan = (plan: BookingDraftPlan) => {
-    const today = new Date().toISOString().split('T')[0];
-    const serviceType: ServiceType = (plan.serviceType as ServiceType) || 'airport';
-    const draftState: BookingSearchState = {
-      serviceType,
-      pickupLocation: plan.pickupLocation || 'Mysuru, Karnataka',
-      dropLocation: plan.dropLocation || 'Kempegowda International Airport (BLR)',
-      travelDate: plan.travelDate || today,
-      pickupDate: plan.travelDate || today,
-      dropDate: today,
-      returnDate: today,
-      pickupTime: plan.pickupTime || '07:00 AM',
-      durationHours: plan.durationHours || 8,
-      airportTransferType: 'pickup',
-      passengers: plan.passengers || 2,
-      vehicleType: plan.vehicleType || 'all',
-    };
-    setSearchState(draftState);
-    handleScrollToBookingSearch();
+  const handleOpenTrackBooking = (referenceId?: string) => {
+    if (referenceId) {
+      setTrackingReferenceId(referenceId);
+    }
+    setBookingTrackerOpen(true);
   };
 
   // Listen for Live Instant Fare & Price Engine updates across all tabs & components
@@ -235,34 +186,15 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Trigger 24x7 Travel Expert popup after 30 seconds of website opening
-  useEffect(() => {
-    try {
-      if (sessionStorage.getItem('tj_travel_expert_dismissed') === 'true') {
-        return;
-      }
-    } catch (e) {
-      console.warn('Session storage inaccessible', e);
-    }
 
-    const timer = setTimeout(() => {
-      // Show only if not in owner portal mode
-      const isOwnerActive = localStorage.getItem('tj_is_owner') === 'true';
-      if (!isOwnerActive) {
-        setTravelExpertModalOpen(true);
-      }
-    }, 30000); // 30 seconds
 
-    return () => clearTimeout(timer);
-  }, []);
-
-  // When app opens, ensure section#home is shown first
+  // When app opens, ensure section#home is shown first on customer site
   useEffect(() => {
     if (typeof window !== 'undefined') {
       if ('scrollRestoration' in window.history) {
         window.history.scrollRestoration = 'manual';
       }
-      if (window.location.hash && window.location.hash !== '#home') {
+      if (window.location.hash && window.location.hash !== '#home' && !window.location.hash.startsWith('#/')) {
         try {
           window.history.replaceState(null, '', window.location.pathname);
         } catch {
@@ -277,34 +209,7 @@ export default function App() {
     }
   }, []);
 
-  const handleCloseTravelExpertModal = () => {
-    setTravelExpertModalOpen(false);
-    try {
-      sessionStorage.setItem('tj_travel_expert_dismissed', 'true');
-    } catch (e) {
-      console.warn('Could not store dismissal flag', e);
-    }
-  };
 
-  const handleOwnerLoginSuccess = () => {
-    setIsOwner(true);
-    setOwnerPortalModalOpen(true);
-    try {
-      localStorage.setItem('tj_is_owner', 'true');
-    } catch (e) {
-      console.warn('Could not persist owner state:', e);
-    }
-  };
-
-  const handleExitOwnerMode = () => {
-    setIsOwner(false);
-    setOwnerPortalModalOpen(false);
-    try {
-      localStorage.removeItem('tj_is_owner');
-    } catch (e) {
-      console.warn('Could not clear owner state:', e);
-    }
-  };
 
   const handleCustomerLogout = () => {
     signOut(auth).catch(() => {});
@@ -361,6 +266,53 @@ export default function App() {
     }, 100);
   }, []);
 
+  const handleSelectSavedDestinationForBooking = useCallback((address: string, isDrop?: boolean) => {
+    setSearchState((prev) => {
+      const today = new Date().toISOString().split('T')[0];
+      const base: BookingSearchState = prev || {
+        serviceType: 'oneway',
+        pickupLocation: 'Mysuru',
+        dropLocation: '',
+        travelDate: today,
+        pickupDate: today,
+        pickupTime: '07:00 AM',
+        durationHours: 8,
+        airportTransferType: 'pickup',
+        passengers: 2,
+        vehicleType: 'all',
+      };
+      if (isDrop) {
+        return {
+          ...base,
+          dropLocation: address,
+          dropLocationObj: {
+            placeId: `saved_${Date.now()}`,
+            placeName: address.split(',')[0].trim(),
+            formattedAddress: address,
+            areaLocality: address.split(',')[0].trim(),
+            city: 'Mysuru',
+            state: 'Karnataka',
+          },
+        };
+      } else {
+        return {
+          ...base,
+          pickupLocation: address,
+          pickupLocationObj: {
+            placeId: `saved_${Date.now()}`,
+            placeName: address.split(',')[0].trim(),
+            formattedAddress: address,
+            areaLocality: address.split(',')[0].trim(),
+            city: 'Mysuru',
+            state: 'Karnataka',
+          },
+        };
+      }
+    });
+    setFareUpdateTrigger((c) => c + 1);
+    handleScrollToBookingSearch();
+  }, []);
+
   const handleCompleteBooking = useCallback((booking: BookingRequest) => {
     // If customer is logged in, link booking to customer account
     if (customer) {
@@ -374,7 +326,7 @@ export default function App() {
   }, [customer]);
 
   const handleDirectConfirmBooking = useCallback(
-    (customSearch?: BookingSearchState, customVehicle?: Vehicle, explicitCustomer?: CustomerUser | null) => {
+    async (customSearch?: BookingSearchState, customVehicle?: Vehicle, explicitCustomer?: CustomerUser | null) => {
       const activeCustomer = explicitCustomer !== undefined ? explicitCustomer : customer;
       // If customer is not logged in, prompt login form first
       if (!activeCustomer) {
@@ -386,69 +338,81 @@ export default function App() {
       const activeVehicle = customVehicle || selectedVehicle || vehiclesData[0];
       if (!activeSearch || !activeVehicle) return;
 
-      const randomNum = Math.floor(10000 + Math.random() * 90000);
-      const refId = `TJ-${randomNum}`;
+      setIsConfirmingBooking(true);
+      try {
+        const randomNum = Math.floor(10000 + Math.random() * 90000);
+        const refId = `TJ-${randomNum}`;
 
-      const fareEstimate = calculateFare(activeSearch, activeVehicle, pricingConfig);
+        const baseFareEstimate = calculateFare(activeSearch, activeVehicle, pricingConfig);
+        const addOnsTotal = selectedAddOns.reduce((sum, item) => sum + item.totalPrice, 0);
+        const fareEstimate = addOnsTotal > 0 ? {
+          ...baseFareEstimate,
+          totalEstimatedFare: baseFareEstimate.totalEstimatedFare + addOnsTotal,
+          breakdown: [
+            ...baseFareEstimate.breakdown,
+            { label: `Selected Add-ons & Amenities (${selectedAddOns.length})`, amount: addOnsTotal },
+          ],
+        } : baseFareEstimate;
 
-      const passengerDetails: PassengerDetails = {
-        fullName: activeCustomer.fullName || 'Customer',
-        mobileNumber: activeCustomer.mobileNumber || '',
-        email: activeCustomer.email || '',
-        specialInstructions: '',
-      };
+        const passengerDetails: PassengerDetails = {
+          fullName: activeCustomer.fullName || 'Customer',
+          mobileNumber: activeCustomer.mobileNumber || '',
+          email: activeCustomer.email || '',
+          specialInstructions: selectedAddOns.length > 0
+            ? `Requested Amenities: ${selectedAddOns.map((a) => `${a.quantity > 1 ? `${a.quantity}x ` : ''}${a.shortLabel || a.name}`).join(', ')}`
+            : '',
+        };
 
-      const newBooking: BookingRequest = {
-        referenceId: refId,
-        searchDetails: activeSearch,
-        selectedVehicle: activeVehicle,
-        passengerDetails,
-        estimatedFare: fareEstimate,
-        createdAt: new Date().toISOString(),
-        status: 'Pending Confirmation',
-        fare_snapshot: fareEstimate.fareSnapshot,
-        pricing_version: fareEstimate.pricingVersion,
-      };
+        const newBooking: BookingRequest = {
+          referenceId: refId,
+          searchDetails: activeSearch,
+          selectedVehicle: activeVehicle,
+          passengerDetails,
+          estimatedFare: fareEstimate,
+          createdAt: new Date().toISOString(),
+          status: 'Pending Confirmation',
+          fare_snapshot: fareEstimate.fareSnapshot,
+          pricing_version: fareEstimate.pricingVersion,
+          selectedAddOns,
+          addOnsTotal,
+        };
 
-      // Save to Supabase and remote registry
-      saveBookingToSupabase(newBooking)
-        .then((res) => console.log('Booking recorded in database:', res))
-        .catch((err) => console.warn('Booking save error:', err));
+        // Sync booking to backend dispatch registry & Firestore
+        await Promise.allSettled([
+          fetch('/api/bookings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newBooking),
+          }),
+          saveBookingToFirestore({
+            id: refId,
+            userId: activeCustomer.id,
+            customerName: passengerDetails.fullName,
+            customerPhone: passengerDetails.mobileNumber,
+            customerEmail: passengerDetails.email || undefined,
+            tripType: activeSearch.serviceType,
+            pickupLocation: activeSearch.pickupLocation,
+            dropLocation: activeSearch.dropLocation,
+            pickupDate: activeSearch.pickupDate || activeSearch.travelDate || '',
+            pickupTime: activeSearch.pickupTime || '',
+            vehicleType: activeVehicle.id,
+            estimatedFare: fareEstimate.totalEstimatedFare,
+            distanceKm: fareEstimate.exactDistanceKm || activeSearch.routeInfo?.distanceKm,
+            status: 'PENDING',
+            createdAt: new Date().toISOString(),
+          }),
+        ]);
 
-      handleCompleteBooking(newBooking);
-
-      // Build message with exact 5 points and Call Fleet Desk
-      const message = formatBookingConfirmationMessage({
-        referenceId: refId,
-        searchDetails: activeSearch,
-        selectedVehicle: activeVehicle,
-        passengerDetails,
-        estimatedFare: fareEstimate,
-      });
-
-      // Send directly to customer on WhatsApp
-      const targetPhone =
-        activeCustomer.mobileNumber && activeCustomer.mobileNumber.trim().length >= 10
-          ? activeCustomer.mobileNumber
-          : siteConfig.contact.whatsapp;
-      openWhatsAppChat(message, targetPhone);
-
-      // End booking session, dont open selected component
-      setBookingModalOpen(false);
-      setSearchState(null);
-      setSelectedVehicle(null);
-
-      // Scroll smoothly back to booking search widget
-      setTimeout(() => {
-        const widget = document.getElementById('travel-just-booking-widget');
-        if (widget) {
-          widget.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        } else {
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-      }, 100);
+        handleCompleteBooking(newBooking);
+        // Open booking confirmation modal
+        setBookingModalOpen(true);
+      } catch (err) {
+        console.warn('Booking confirmation submission error:', err);
+      } finally {
+        setIsConfirmingBooking(false);
+      }
     },
-    [searchState, selectedVehicle, pricingConfig, customer, handleCompleteBooking]
+    [searchState, selectedVehicle, pricingConfig, customer, handleCompleteBooking, selectedAddOns]
   );
 
   // Handles vehicle selection for all booking forms
@@ -460,7 +424,6 @@ export default function App() {
       if (!customer) {
         setCustomerAuthModalOpen(true);
       }
-      // For login customers: preferred vehicle is selected, which immediately displays the "CONFIRM BOOKING" button!
     },
     [customer]
   );
@@ -478,6 +441,7 @@ export default function App() {
   const handleResetSearch = useCallback(() => {
     setSearchState(null);
     setSelectedVehicle(null);
+    setSelectedAddOns([]);
   }, []);
 
   const handleSelectServiceFromSection = (serviceType: ServiceType) => {
@@ -545,10 +509,39 @@ export default function App() {
     }
   };
 
-  const handleScrollToBookingSearch = () => {
+  const handleSelectRouteFromDirectory = (routeConfig: Partial<BookingSearchState>) => {
+    const today = new Date().toISOString().split('T')[0];
+    const updatedState: BookingSearchState = {
+      serviceType: routeConfig.serviceType || 'oneway',
+      pickupLocation: routeConfig.pickupLocation || 'Bangalore, Karnataka',
+      dropLocation: routeConfig.dropLocation || '',
+      travelDate: routeConfig.travelDate || today,
+      pickupDate: routeConfig.pickupDate || today,
+      dropDate: routeConfig.dropDate || today,
+      returnDate: routeConfig.returnDate || today,
+      pickupTime: routeConfig.pickupTime || '07:00 AM',
+      durationHours: routeConfig.durationHours || 8,
+      airportTransferType: routeConfig.airportTransferType || 'drop',
+      passengers: 2,
+      vehicleType: 'all',
+    };
+
+    setSearchState(updatedState);
     const searchElem = document.getElementById('booking-search-section');
     if (searchElem) {
       searchElem.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleScrollToBookingSearch = () => {
+    const searchElem = document.getElementById('booking-search-section');
+    if (searchElem && searchElem.offsetHeight > 10) {
+      searchElem.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      const servicesElem = document.getElementById('services');
+      if (servicesElem) {
+        servicesElem.scrollIntoView({ behavior: 'smooth' });
+      }
     }
   };
 
@@ -609,28 +602,20 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans antialiased selection:bg-emerald-800 selection:text-white flex flex-col">
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans antialiased selection:bg-emerald-800 selection:text-white flex flex-col pb-16 md:pb-0">
       {/* Real-time PWA Offline Network Banner */}
       <OfflineIndicator />
 
-      {/* Header with Customer & Owner access */}
+      {/* Header */}
       <Header
-        isOwner={isOwner}
         onBookRideClick={handleScrollToBookingSearch}
-        onOpenOwnerLogin={() => setOwnerAuthModalOpen(true)}
-        onExitOwnerMode={handleExitOwnerMode}
-        onOpenFareEngine={() => setOwnerPortalModalOpen(true)}
-        onOpenSimpleFareEngine={handleOpenSimpleFareEngine}
-        onOpenAdvancedFareEngine={handleOpenAdvancedFareEngine}
         onOpenLegal={(type) => setLegalModalType(type)}
         customer={customer}
-        onOpenCustomerPortal={() => setCustomerPortalModalOpen(true)}
-        onOpenPartnerDrawer={() => setPartnerDrawerOpen(true)}
+        onOpenCustomerPortal={handleOpenCustomerPortal}
         onOpenDownloadApp={() => setDownloadAppModalOpen(true)}
         onOpenCustomerAuth={() => setCustomerAuthModalOpen(true)}
         onCustomerLogout={handleCustomerLogout}
-        onOpenTravelStudio={handleOpenTravelStudio}
-        onOpenSiteOptimizer={() => setSiteOptimizerModalOpen(true)}
+        onOpenTrackBooking={() => handleOpenTrackBooking()}
       />
 
       {/* Global Dynamic Progress Indicator for Search & Booking Interactions */}
@@ -647,15 +632,17 @@ export default function App() {
           onGetQuoteClick={handleScrollToBookingSearch}
         />
 
-        {/* Integrated Advanced Booking Search Section */}
-        <section id="booking-search-section" className="py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto -mt-6 sm:-mt-10 relative z-30">
+        {/* Booking Search Section */}
+        <section
+          id="booking-search-section"
+          className="relative empty:hidden mt-2 mb-8 sm:mb-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 z-30"
+        >
           <BookingSearch
-            key={`search-${fareUpdateTrigger}`}
             initialState={searchState || undefined}
-            pricingConfig={pricingConfig}
             onSearch={handleSearchSubmit}
             onConfirmBooking={handleInstantConfirmBooking}
             onReset={handleResetSearch}
+            pricingConfig={pricingConfig}
           />
         </section>
 
@@ -677,6 +664,9 @@ export default function App() {
                 onProceedToBooking={() => handleDirectConfirmBooking()}
                 onClearSearch={handleResetSearch}
                 onSelectCachedSearch={handleSelectCachedSearch}
+                isSubmittingBooking={isConfirmingBooking}
+                selectedAddOns={selectedAddOns}
+                onAddOnsChange={setSelectedAddOns}
               />
             </section>
           )}
@@ -688,53 +678,14 @@ export default function App() {
         {/* Fleet Section */}
         <FleetSection onSelectVehicleForBooking={handleSelectVehicleFromFleet} />
 
-        {/* Top Outstation & Airport Taxi Routes Directory Section */}
-        <TopRoutesDirectorySection />
-
-        {/* AI Travel Concierge & Real-time Grounded Assistant Section - Visible ONLY in Owner Portal */}
-        {isOwner && (
-          <section id="ai-travel-concierge-section" className="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto scroll-mt-20">
-            <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-[#032014] text-[#14CD03] border border-emerald-700/60 shadow-2xs">
-                    Owner Portal Exclusive
-                  </span>
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-900 border border-emerald-300">
-                    Google Search & Maps Grounding
-                  </span>
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-purple-100 text-purple-900 border border-purple-300">
-                    Veo Video & Gemini 3.1 Studio
-                  </span>
-                </div>
-                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-                  AI Travel Concierge & Creative Studio
-                </h2>
-                <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
-                  Chat with our real-time assistant powered by Gemini 3.1 Pro, 3.5 Flash, and 3.1 Flash Lite. Verify 2026 expressway tolls, plan multi-day Karnataka trips, or generate cinematic Veo videos and travel imagery.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => handleOpenTravelStudio('video')}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-[#0a4d3c] to-[#07382c] hover:brightness-110 text-white font-extrabold text-xs sm:text-sm shadow-md transition-all cursor-pointer shrink-0"
-              >
-                <Film className="w-4 h-4 text-[#0ef10e]" />
-                <span>Launch Travel Studio</span>
-              </button>
-            </div>
-
-            <ContactAIChat
-              onBookRideClick={handleScrollToBookingSearch}
-              onApplyBookingPlan={handleApplyBookingPlan}
-              onOpenTravelStudio={handleOpenTravelStudio}
-            />
-          </section>
-        )}
-
         {/* Why Choose Us Section */}
-        <WhyChooseUs onOpenPartnerDrawer={() => setPartnerDrawerOpen(true)} />
+        <WhyChooseUs />
+
+        {/* TOP OUTSTATION & AIRPORT TAXI ROUTES SECTION (Recreated exactly from reference screenshot) */}
+        <TopOutstationRoutesSection
+          onSelectRoute={handleSelectRouteFromDirectory}
+          onOpenBookingSearch={handleScrollToBookingSearch}
+        />
 
         {/* FAQ Section */}
         <FAQSection />
@@ -742,33 +693,49 @@ export default function App() {
 
       {/* Footer */}
       <Footer
-        isOwner={isOwner}
         onOpenLegal={(type) => setLegalModalType(type)}
         onBookRideClick={handleScrollToBookingSearch}
-        onOpenOwnerLogin={() => setOwnerAuthModalOpen(true)}
-        onOpenFareEngine={() => setOwnerPortalModalOpen(true)}
         customer={customer}
         onOpenCustomerPortal={() => setCustomerPortalModalOpen(true)}
-        onOpenPartnerDrawer={() => setPartnerDrawerOpen(true)}
-        onOpenSiteOptimizer={() => setSiteOptimizerModalOpen(true)}
+        onOpenTrackBooking={() => handleOpenTrackBooking()}
       />
 
-      {/* Driver Partner / Vendor Fleet Onboarding Drawer */}
-      <DriverPartnerDrawer
-        isOpen={partnerDrawerOpen}
-        onClose={() => setPartnerDrawerOpen(false)}
+      {/* Mobile Priority Fixed Bottom Navigation Bar */}
+      <MobileBottomNav
+        onBookClick={handleScrollToBookingSearch}
+        onRoutesClick={() => {
+          const routesElem = document.getElementById('top-outstation-routes-section');
+          if (routesElem) {
+            routesElem.scrollIntoView({ behavior: 'smooth' });
+          }
+        }}
+        onAccountClick={() => {
+          if (customer) {
+            handleOpenCustomerPortal('trips');
+          } else {
+            setCustomerAuthModalOpen(true);
+          }
+        }}
+        customer={customer}
       />
 
       {/* Multi-step Booking Dialog Modal */}
       {bookingModalOpen && searchState && selectedVehicle && (
         <BookingModal
           isOpen={bookingModalOpen}
-          onClose={() => setBookingModalOpen(false)}
+          onClose={() => {
+            setBookingModalOpen(false);
+            setSearchState(null);
+            setSelectedVehicle(null);
+            setSelectedAddOns([]);
+          }}
           searchDetails={searchState}
           selectedVehicle={selectedVehicle}
           pricingConfig={pricingConfig}
           onCompleteBooking={handleCompleteBooking}
           customer={customer}
+          onOpenTrackBooking={(refId) => handleOpenTrackBooking(refId)}
+          selectedAddOns={selectedAddOns}
         />
       )}
 
@@ -787,10 +754,13 @@ export default function App() {
             isOpen={customerPortalModalOpen}
             onClose={() => setCustomerPortalModalOpen(false)}
             customer={customer}
+            initialTab={customerPortalInitialTab}
             onLogout={handleCustomerLogout}
             onUpdateCustomer={handleUpdateCustomerProfile}
             onRebookTrip={handleRebookTrip}
             onBookNewRide={handleScrollToBookingSearch}
+            onOpenTrackBooking={(refId) => handleOpenTrackBooking(refId)}
+            onSelectSavedDestinationForBooking={handleSelectSavedDestinationForBooking}
           />
         )}
 
@@ -801,110 +771,29 @@ export default function App() {
             onClose={() => setDownloadAppModalOpen(false)}
           />
         )}
-
-        {/* Driver Partner Drawer */}
-        {partnerDrawerOpen && (
-          <DriverPartnerDrawer
-            isOpen={partnerDrawerOpen}
-            onClose={() => setPartnerDrawerOpen(false)}
-          />
-        )}
-
-        {/* Comprehensive Business Owner & Fleet Management Portal */}
-        {isOwner && ownerPortalModalOpen && (
-          <OwnerPortalModal
-            isOpen={isOwner && ownerPortalModalOpen}
-            onClose={() => setOwnerPortalModalOpen(false)}
-            onExitOwnerMode={handleExitOwnerMode}
-            onOpenFareEngine={handleOpenSimpleFareEngine}
-            onOpenSimpleFareEngine={handleOpenSimpleFareEngine}
-            onOpenAdvancedFareEngine={handleOpenAdvancedFareEngine}
-            onOpenTravelStudio={handleOpenTravelStudio}
-            onFareSaved={(updated) => {
-              setPricingConfig((prev) => fareService.syncCentralizedToSitePricingConfig(updated, prev));
-              setFareUpdateTrigger((c) => c + 1);
-            }}
-          />
-        )}
-
-        {/* Live Dynamic Fare Engine Modal (Accessible to Owner & Preview) */}
-        {fareEngineModalOpen && (
-          <FareEngineModal
-            isOpen={fareEngineModalOpen}
-            onClose={() => setFareEngineModalOpen(false)}
-            isOwner={isOwner}
-            initialMode={fareEngineInitialMode}
-            onOpenOwnerAuth={() => setOwnerAuthModalOpen(true)}
-            onFareSaved={(updated) => {
-              setPricingConfig((prev) => fareService.syncCentralizedToSitePricingConfig(updated, prev));
-              setFareUpdateTrigger((c) => c + 1);
-            }}
-          />
-        )}
-
-        {/* 24x7 Travel Expert Popup Modal (opens after 30 seconds) */}
-        {travelExpertModalOpen && (
-          <TravelExpertPopupModal
-            isOpen={travelExpertModalOpen}
-            onClose={handleCloseTravelExpertModal}
-            phoneNumber="97407 54400"
-          />
-        )}
-
-        {/* AI Creative Studio Modal (Veo 3.1 & Gemini Image Preview) */}
-        {travelStudioModalOpen && (
-          <TravelStudioModal
-            isOpen={travelStudioModalOpen}
-            onClose={() => setTravelStudioModalOpen(false)}
-            initialTab={travelStudioInitialTab}
-          />
-        )}
-
-        {/* Site Optimizer & WordPress Updates Hub Modal */}
-        {siteOptimizerModalOpen && (
-          <SiteOptimizerModal
-            isOpen={siteOptimizerModalOpen}
-            onClose={() => setSiteOptimizerModalOpen(false)}
-            isOwner={isOwner}
-          />
-        )}
       </React.Suspense>
 
-      {/* Owner Authentication Modal */}
-      <OwnerAuthModal
-        isOpen={ownerAuthModalOpen}
-        onClose={() => setOwnerAuthModalOpen(false)}
-        onSuccess={handleOwnerLoginSuccess}
-      />
-
       {/* Customer Login / Register Modal */}
-      <CustomerAuthModal
-        isOpen={customerAuthModalOpen}
-        onClose={() => setCustomerAuthModalOpen(false)}
-        preferredVehicle={selectedVehicle}
-        onSuccess={(loggedCustomer) => {
-          setCustomer(loggedCustomer);
-          setCustomerAuthModalOpen(false);
-          // After non-login customer fills details, modal closes and the CONFIRM BOOKING button is displayed!
-          setTimeout(() => {
-            const confirmBtn =
-              (selectedVehicle && document.getElementById(`btn-confirm-vehicle-${selectedVehicle.id}`)) ||
-              document.querySelector('[id^="btn-confirm-vehicle-"]') ||
-              document.getElementById('search-results-anchor');
-            if (confirmBtn) {
-              confirmBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
-          }, 150);
-        }}
-        onOpenOwnerLogin={() => {
-          setCustomerAuthModalOpen(false);
-          setOwnerAuthModalOpen(true);
-        }}
-        onOpenPartnerDrawer={() => {
-          setCustomerAuthModalOpen(false);
-          setPartnerDrawerOpen(true);
-        }}
-      />
+      {customerAuthModalOpen && (
+        <CustomerAuthModal
+          isOpen={customerAuthModalOpen}
+          onClose={() => setCustomerAuthModalOpen(false)}
+          preferredVehicle={selectedVehicle}
+          onSuccess={(loggedCustomer) => {
+            setCustomer(loggedCustomer);
+            setCustomerAuthModalOpen(false);
+            setTimeout(() => {
+              const confirmBtn =
+                (selectedVehicle && document.getElementById(`btn-confirm-vehicle-${selectedVehicle.id}`)) ||
+                document.querySelector('[id^="btn-confirm-vehicle-"]') ||
+                document.getElementById('search-results-anchor');
+              if (confirmBtn) {
+                confirmBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+              }
+            }, 150);
+          }}
+        />
+      )}
 
       {/* Real-time Push Notification Alert Toast / Banner */}
       <InAppPushNotificationBanner
@@ -912,6 +801,19 @@ export default function App() {
           setCustomerPortalModalOpen(true);
         }}
       />
+
+      {/* Real-time Ride Status & Live GPS Vehicle Tracker Modal */}
+      {bookingTrackerOpen && (
+        <BookingTrackerModal
+          isOpen={bookingTrackerOpen}
+          onClose={() => setBookingTrackerOpen(false)}
+          initialReferenceId={trackingReferenceId}
+          onBookNewRide={handleScrollToBookingSearch}
+        />
+      )}
+
+      {/* Global Theme & Visual Appearance Customizer Modal */}
+      <ThemeCustomizerModal />
     </div>
   );
 }

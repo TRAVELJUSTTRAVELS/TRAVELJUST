@@ -2,6 +2,7 @@ import { BookingSearchState, PlaceSuggestion, Vehicle, FareEstimate } from '../t
 import { OneWayCorridorId, OneWayFixedCorridorConfig } from '../types/fareEngine';
 import { DEFAULT_ONE_WAY_FIXED_CORRIDORS } from './centralFareEngine';
 import { fareService } from '../services/fareService';
+import { FARE_DISCLAIMER } from '../config/pricingConfig';
 
 export type { OneWayCorridorId, OneWayFixedCorridorConfig };
 
@@ -354,6 +355,7 @@ export function calculateOneWayFixedFare(
     isFixedPrice: true,
     fixedRouteName: corridor.corridorName,
     pricingModel: 'ONE_WAY_FIXED_CORRIDOR',
+    disclaimer: FARE_DISCLAIMER,
     breakdown,
     fareSnapshot: {
       vehicleId: vehicle.id,

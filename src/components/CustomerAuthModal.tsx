@@ -21,8 +21,6 @@ export interface CustomerAuthModalProps {
   isOpen?: boolean;
   onClose?: () => void;
   onSuccess?: (customer: CustomerUser) => void;
-  onOpenOwnerLogin?: () => void;
-  onOpenPartnerDrawer?: () => void;
   preferredVehicle?: Vehicle | null;
 }
 
@@ -306,8 +304,17 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({
             </div>
             <div>
               <h3 className="font-bold text-sm sm:text-base text-white leading-tight">
-                {step === 'otp' ? 'Enter OTP Verification' : 'Login'}
+                {step === 'otp'
+                  ? 'Enter OTP Verification'
+                  : preferredVehicle
+                  ? 'Please Fill Login Details to Confirm'
+                  : 'Customer Login'}
               </h3>
+              {preferredVehicle && (
+                <p className="text-[10px] text-emerald-200">
+                  Fill details then proceed to Confirm Booking
+                </p>
+              )}
             </div>
           </div>
 
@@ -377,14 +384,18 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({
           )}
 
           {preferredVehicle && (
-            <div className="p-2.5 bg-emerald-50 border border-emerald-200/90 rounded-xl text-emerald-950 text-xs flex items-center gap-2.5 shadow-2xs">
-              <div className="w-5 h-5 rounded-full bg-emerald-700 text-white flex items-center justify-center shrink-0 font-bold text-[10px]">
-                ✓
+            <div className="p-3 bg-emerald-50 border-2 border-emerald-400 rounded-xl text-emerald-950 text-xs space-y-1 shadow-2xs">
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full bg-emerald-700 text-white flex items-center justify-center shrink-0 font-bold text-[10px]">
+                  ✓
+                </div>
+                <span className="font-extrabold text-slate-900 text-xs">
+                  Selected Vehicle: {preferredVehicle.name} ({preferredVehicle.category})
+                </span>
               </div>
-              <div className="leading-tight">
-                <span className="font-bold text-slate-900 block">Preferred Vehicle: {preferredVehicle.name}</span>
-                <span className="text-[11px] text-emerald-800">Please fill details to proceed to Confirm Booking</span>
-              </div>
+              <p className="text-[11px] text-emerald-800 leading-snug pl-7">
+                Please enter your contact details below to proceed and confirm your booking.
+              </p>
             </div>
           )}
 
@@ -401,6 +412,7 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({
                     id="customer-auth-name-input"
                     type="text"
                     value={fullName}
+                    disabled={isLoading}
                     onChange={(e) => {
                       setFullName(e.target.value);
                       setError(null);
@@ -408,7 +420,7 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({
                     placeholder="e.g. Ramesh Kumar"
                     required
                     autoFocus
-                    className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-slate-900 text-sm focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 outline-none transition-all"
+                    className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-slate-900 text-sm focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 outline-none transition-all disabled:opacity-60 disabled:bg-slate-50"
                   />
                 </div>
               </div>
@@ -439,11 +451,12 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({
                     id="customer-auth-phone-input"
                     type="tel"
                     value={mobileNumber}
+                    disabled={isLoading}
                     onChange={handlePhoneChange}
                     placeholder="Enter 10-digit phone"
                     maxLength={10}
                     required
-                    className="w-full pl-12 pr-3 py-2 rounded-xl border border-slate-300 text-slate-900 font-bold text-sm focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 outline-none transition-all"
+                    className="w-full pl-12 pr-3 py-2 rounded-xl border border-slate-300 text-slate-900 font-bold text-sm focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 outline-none transition-all disabled:opacity-60 disabled:bg-slate-50"
                   />
                 </div>
               </div>
@@ -459,9 +472,10 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({
                     id="customer-auth-email-input"
                     type="email"
                     value={email}
+                    disabled={isLoading}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="e.g. name@example.com"
-                    className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-slate-900 text-sm focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 outline-none transition-all"
+                    className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-slate-900 text-sm focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 outline-none transition-all disabled:opacity-60 disabled:bg-slate-50"
                   />
                 </div>
               </div>
@@ -555,12 +569,13 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({
                     id="customer-auth-otp-input"
                     type="text"
                     value={otp}
+                    disabled={isLoading}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 4))}
                     placeholder="1234"
                     maxLength={4}
                     autoFocus
                     required
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 text-slate-900 font-mono font-black text-lg tracking-[0.4em] text-center focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 outline-none transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 text-slate-900 font-mono font-black text-lg tracking-[0.4em] text-center focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 outline-none transition-all disabled:opacity-60 disabled:bg-slate-50"
                   />
                 </div>
               </div>
@@ -585,11 +600,12 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({
                 <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
                   <button
                     type="button"
+                    disabled={isLoading}
                     onClick={() => {
                       setStep('details');
                       setError(null);
                     }}
-                    className="text-slate-600 hover:text-slate-900 font-medium flex items-center gap-1 cursor-pointer"
+                    className="text-slate-600 hover:text-slate-900 font-medium flex items-center gap-1 cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
                   >
                     <Phone className="w-3 h-3" /> Change Number
                   </button>
@@ -597,8 +613,8 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({
                   <button
                     type="button"
                     onClick={handleResendOtp}
-                    disabled={resendCooldown > 0}
-                    className="text-emerald-700 hover:text-emerald-900 font-bold flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                    disabled={resendCooldown > 0 || isLoading}
+                    className="text-emerald-700 hover:text-emerald-900 font-bold flex items-center gap-1 cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
                   >
                     <RefreshCw className="w-3 h-3" /> Resend OTP
                   </button>

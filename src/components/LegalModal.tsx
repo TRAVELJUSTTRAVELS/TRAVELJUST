@@ -8,11 +8,28 @@ interface LegalModalProps {
 }
 
 export const LegalModal: React.FC<LegalModalProps> = ({ type, onClose }) => {
+  React.useEffect(() => {
+    if (!type) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [type, onClose]);
+
   if (!type) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-2xl my-8 overflow-hidden relative text-slate-900 flex flex-col max-h-[85vh]">
+    <div
+      id="legal-modal-backdrop"
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200 cursor-pointer"
+    >
+      <div
+        id="legal-modal-card"
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-2xl my-8 overflow-hidden relative text-slate-900 flex flex-col max-h-[85vh] cursor-default"
+      >
         {/* Header */}
         <div className="bg-emerald-900 text-white p-5 sm:p-6 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">

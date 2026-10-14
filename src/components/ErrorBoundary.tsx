@@ -37,6 +37,7 @@ export class ErrorBoundary extends Component<Props, State> {
   private handleReset = () => {
     try {
       localStorage.removeItem('tj_last_search');
+      sessionStorage.clear();
     } catch {}
     this.setState({ hasError: false, error: null, errorInfo: null });
   };

@@ -54,8 +54,17 @@ import {
   DEFAULT_CENTRALIZED_FARE_CONFIG,
   DEFAULT_ONE_WAY_FIXED_CORRIDORS,
 } from '../utils/centralFareEngine';
+import { ConfigurablePricingEngineSettings } from './ConfigurablePricingEngineSettings';
 
-export type ActiveSection = 'LOCAL' | 'ONE_WAY' | 'ROUND_TRIP' | 'AIRPORT' | 'INTER_STATE_ONE_WAY' | 'PREVIEW' | 'HISTORY';
+export type ActiveSection =
+  | 'LOCAL'
+  | 'ONE_WAY'
+  | 'ROUND_TRIP'
+  | 'AIRPORT'
+  | 'INTER_STATE_ONE_WAY'
+  | 'CONFIGURABLE_RULES'
+  | 'PREVIEW'
+  | 'HISTORY';
 
 export interface AdvancedFareEngineProps {
   onClose?: () => void;
@@ -818,6 +827,20 @@ export const AdvancedFareEngine: React.FC<AdvancedFareEngineProps> = ({
             <span>INTER-STATE ONE-WAY</span>
           </button>
 
+          <button
+            id="tab-service-configurable-rules"
+            type="button"
+            onClick={() => setActiveSection('CONFIGURABLE_RULES')}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
+              activeSection === 'CONFIGURABLE_RULES'
+                ? 'bg-emerald-800 text-white shadow-xs'
+                : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <SlidersHorizontal className="w-3 h-3 text-emerald-400" />
+            <span>PRICING ENGINE CONFIG</span>
+          </button>
+
           <div className="h-4 w-px bg-slate-200 mx-1" />
 
           {/* Fare History Tab */}
@@ -860,7 +883,7 @@ export const AdvancedFareEngine: React.FC<AdvancedFareEngineProps> = ({
       </div>
 
       {/* Vehicle Category Selector (Active for pricing tabs) */}
-      {activeSection !== 'PREVIEW' && activeSection !== 'HISTORY' && (
+      {activeSection !== 'PREVIEW' && activeSection !== 'HISTORY' && activeSection !== 'CONFIGURABLE_RULES' && (
         <div className="bg-slate-100/90 border-b border-slate-200 px-3 sm:px-4 py-1 shrink-0 overflow-x-auto">
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider shrink-0 mr-1">
@@ -2887,6 +2910,20 @@ export const AdvancedFareEngine: React.FC<AdvancedFareEngineProps> = ({
             </div>
           );
         })()}
+
+        {/* ======================================================== */}
+        {/* 4.8. CONFIGURABLE PRICING ENGINE RULES SECTION */}
+        {/* ======================================================== */}
+        {activeSection === 'CONFIGURABLE_RULES' && (
+          <div className="max-w-4xl mx-auto space-y-6">
+            <ConfigurablePricingEngineSettings
+              onSaved={() => {
+                setLastSavedTimestamp(new Date().toLocaleTimeString());
+                if (onFareSaved) onFareSaved(config);
+              }}
+            />
+          </div>
+        )}
 
         {/* ======================================================== */}
         {/* 5. PREVIEW FARE TESTER */}
